@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+
+<html class="h-full" lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>DontsTool 偏好设置 - 网址快捷入口</title>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "inverse-on-surface": "#9e9d98",
+            "on-primary": "#dcfff9",
+            "secondary-container": "#e0e3e1",
+            "surface-container": "#efeee5",
+            "error-container": "#fe8983",
+            "on-primary-fixed": "#004842",
+            "inverse-primary": "#a3f8ec",
+            "secondary-fixed": "#e0e3e1",
+            "outline-variant": "#b2b3a7",
+            "on-tertiary": "#e9ffe4",
+            "on-surface-variant": "#5e6056",
+            "surface-dim": "#dadbcc",
+            "secondary": "#5c605f",
+            "on-tertiary-fixed": "#394f38",
+            "on-secondary-container": "#4f5251",
+            "inverse-surface": "#0e0e0b",
+            "outline": "#7a7c71",
+            "tertiary-dim": "#425941",
+            "on-background": "#31332a",
+            "surface-tint": "#006a62",
+            "on-secondary": "#f7f9f8",
+            "surface-container-high": "#e9e9dd",
+            "tertiary-fixed": "#e0fbdc",
+            "secondary-dim": "#505453",
+            "primary-fixed": "#9df2e6",
+            "on-primary-fixed-variant": "#00675f",
+            "primary-dim": "#005d55",
+            "primary": "#006a62",
+            "on-primary-container": "#005c55",
+            "primary-container": "#9df2e6",
+            "tertiary-fixed-dim": "#d2edce",
+            "surface": "#fbf9f3",
+            "surface-container-lowest": "#ffffff",
+            "tertiary": "#4e654d",
+            "on-tertiary-fixed-variant": "#556c53",
+            "on-secondary-fixed-variant": "#595c5b",
+            "secondary-fixed-dim": "#d2d5d3",
+            "error-dim": "#4e0309",
+            "surface-container-highest": "#e3e3d6",
+            "surface-bright": "#fbf9f3",
+            "tertiary-container": "#e0fbdc",
+            "error": "#9f403d",
+            "background": "#fbf9f3",
+            "on-error": "#fff7f6",
+            "on-error-container": "#752121",
+            "surface-variant": "#e3e3d6",
+            "primary-fixed-dim": "#8fe3d8",
+            "on-secondary-fixed": "#3c403f",
+            "on-tertiary-container": "#4b614a",
+            "on-surface": "#31332a"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "fontFamily": {
+            "headline": ["Inter", "-apple-system", "BlinkMacSystemFont", "PingFang SC", "sans-serif"],
+            "display": ["Inter", "-apple-system", "BlinkMacSystemFont", "PingFang SC", "sans-serif"],
+            "body": ["Inter", "-apple-system", "BlinkMacSystemFont", "PingFang SC", "sans-serif"],
+            "label": ["Inter", "-apple-system", "BlinkMacSystemFont", "PingFang SC", "sans-serif"],
+            "mono": ["ui-monospace", "SFMono-Regular", "Menlo", "Monaco", "Consolas", "monospace"]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      line-height: 1;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+    .cursor-blink {
+      animation: blink 1s steps(2, start) infinite;
+    }
+    /* Native macOS window scrollbars */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(0, 0, 0, 0.15);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(0, 0, 0, 0.25);
+    }
+  </style>
+</head>
+<body class="bg-[#d9d8d2] text-[#252b2d] font-body text-[13px] leading-5 min-h-screen flex flex-col items-center justify-start py-8 px-4 antialiased select-none">
+<!-- ==================== macOS Settings Window (820x620) ==================== -->
+<main class="w-[820px] h-[620px] bg-surface rounded-[14px] border border-[#d1d1c9] shadow-[0_24px_50px_rgba(0,0,0,0.18),0_4px_12px_rgba(0,0,0,0.08)] flex flex-col overflow-hidden relative mb-6">
+<!-- Top macOS Unified Titlebar / Chrome -->
+<header class="h-[44px] bg-[#dedcd6] border-b border-[#d1d1c9] px-4 flex items-center justify-between flex-shrink-0 relative">
+<!-- Traffic lights -->
+<div class="flex items-center space-x-[7px] w-24">
+<span class="w-[12px] h-[12px] rounded-full bg-[#ff5f56] border border-[#e0443e] inline-block shadow-sm"></span>
+<span class="w-[12px] h-[12px] rounded-full bg-[#ffbd2e] border border-[#dea123] inline-block shadow-sm"></span>
+<span class="w-[12px] h-[12px] rounded-full bg-[#27c93f] border border-[#1aab29] inline-block shadow-sm"></span>
+</div>
+<!-- Centered Window Title -->
+<div class="absolute inset-x-0 flex items-center justify-center pointer-events-none">
+<span class="font-headline text-[13px] font-semibold text-[#252b2d] tracking-tight">偏好设置</span>
+</div>
+<!-- Right Chrome / Action cluster -->
+<div class="flex items-center space-x-1.5 w-24 justify-end">
+<button class="w-[26px] h-[26px] flex items-center justify-center rounded-[6px] hover:bg-black/5 text-[#66716e] active:scale-[0.98] transition-all" title="搜索设置">
+<span class="material-symbols-outlined text-[17px]">search</span>
+</button>
+</div>
+</header>
+<!-- Main Window Body (2-Column Layout) -->
+<div class="flex flex-1 min-h-0 overflow-hidden">
+<!-- Left Sidebar (172px width) -->
+<aside class="w-[172px] bg-[#f7f6f1] border-r border-[#e3e1d8] flex flex-col justify-between py-2.5 px-2 flex-shrink-0">
+<nav aria-label="设置导航" class="space-y-[2px]">
+<!-- 1. 通用 -->
+<button class="w-full h-[28px] px-2.5 rounded-[6px] flex items-center space-x-2 text-on-surface-variant hover:bg-black/[0.04] active:scale-[0.98] transition-colors text-[12.5px] font-medium text-left">
+<span class="material-symbols-outlined text-[16px] text-[#66716e]">tune</span>
+<span>通用</span>
+</button>
+<!-- 2. 搜索 -->
+<button class="w-full h-[28px] px-2.5 rounded-[6px] flex items-center space-x-2 text-on-surface-variant hover:bg-black/[0.04] active:scale-[0.98] transition-colors text-[12.5px] font-medium text-left">
+<span class="material-symbols-outlined text-[16px] text-[#66716e]">search</span>
+<span>搜索</span>
+</button>
+<!-- 3. 网址快捷入口 (SELECTED) -->
+<button class="w-full h-[28px] px-2.5 rounded-[6px] flex items-center space-x-2 bg-primary text-on-primary font-medium text-[12.5px] shadow-[0_1px_2px_rgba(0,106,98,0.25)] text-left">
+<span class="material-symbols-outlined text-[16px] text-on-primary">link</span>
+<span>网址快捷入口</span>
+</button>
+<!-- 4. 工具 -->
+<button class="w-full h-[28px] px-2.5 rounded-[6px] flex items-center space-x-2 text-on-surface-variant hover:bg-black/[0.04] active:scale-[0.98] transition-colors text-[12.5px] font-medium text-left">
+<span class="material-symbols-outlined text-[16px] text-[#66716e]">build</span>
+<span>工具</span>
+</button>
+<!-- 5. 翻译 -->
+<button class="w-full h-[28px] px-2.5 rounded-[6px] flex items-center space-x-2 text-on-surface-variant hover:bg-black/[0.04] active:scale-[0.98] transition-colors text-[12.5px] font-medium text-left">
+<span class="material-symbols-outlined text-[16px] text-[#66716e]">translate</span>
+<span>翻译</span>
+</button>
+<!-- 6. 知识库 -->
+<button class="w-full h-[28px] px-2.5 rounded-[6px] flex items-center space-x-2 text-on-surface-variant hover:bg-black/[0.04] active:scale-[0.98] transition-colors text-[12.5px] font-medium text-left">
+<span class="material-symbols-outlined text-[16px] text-[#66716e]">library_books</span>
+<span>知识库</span>
+</button>
+<!-- 7. 索引 -->
+<button class="w-full h-[28px] px-2.5 rounded-[6px] flex items-center space-x-2 text-on-surface-variant hover:bg-black/[0.04] active:scale-[0.98] transition-colors text-[12.5px] font-medium text-left">
+<span class="material-symbols-outlined text-[16px] text-[#66716e]">dataset</span>
+<span>索引</span>
+</button>
+<!-- 8. 关于 -->
+<button class="w-full h-[28px] px-2.5 rounded-[6px] flex items-center space-x-2 text-on-surface-variant hover:bg-black/[0.04] active:scale-[0.98] transition-colors text-[12.5px] font-medium text-left">
+<span class="material-symbols-outlined text-[16px] text-[#66716e]">info</span>
+<span>关于</span>
+</button>
+</nav>
+<!-- Sidebar footer info -->
+<div class="px-2 py-1.5 border-t border-[#e3e1d8] flex items-center justify-between text-[11px] text-[#66716e]">
+<span>DontsTool v2.4.1</span>
+<span class="w-1.5 h-1.5 rounded-full bg-primary inline-block" title="运行良好"></span>
+</div>
+</aside>
+<!-- Main Content Area -->
+<section class="flex-1 flex flex-col bg-surface-bright min-w-0">
+<!-- View Top Header + Subtext -->
+<div class="px-6 pt-5 pb-3 border-b border-[#e3e1d8] bg-[#fbf9f3]">
+<div class="flex items-start justify-between">
+<div>
+<h1 class="text-[17px] font-semibold text-[#252b2d] tracking-tight">网址快捷入口</h1>
+<p class="text-[12px] text-[#66716e] mt-0.5">
+                输入 <code class="font-mono bg-[#eeebe4] text-[#252b2d] px-1.5 py-0.5 rounded-[4px] border border-[#d1d1c9] text-[11px]">gh a</code>，回车直接在默认浏览器打开对应网址
+              </p>
+</div>
+<!-- Quick Toggle Status -->
+<div class="flex items-center space-x-2 pt-0.5">
+<span class="text-[11.5px] text-[#66716e]">快捷触发器</span>
+<div class="w-8 h-4.5 bg-primary rounded-full p-0.5 flex items-center justify-end cursor-pointer">
+<div class="w-3.5 h-3.5 bg-white rounded-full shadow-sm"></div>
+</div>
+</div>
+</div>
+<!-- Top Action Bar: Segmented control + Action buttons -->
+<div class="flex items-center justify-between mt-3.5 pt-2.5 border-t border-[#e3e1d8]/70">
+<!-- Segmented Control -->
+<div class="bg-[#eeebe4] p-0.5 rounded-[6px] border border-[#d1d1c9] flex items-center space-x-0.5 text-[12px]">
+<button class="bg-surface-container-lowest text-[#252b2d] font-medium px-2.5 py-0.5 rounded-[5px] shadow-[0_1px_2px_rgba(0,0,0,0.06)]">手动配置</button>
+<button class="text-[#66716e] hover:text-[#252b2d] font-medium px-2.5 py-0.5 rounded-[5px] transition-colors">JSON 源码</button>
+</div>
+<!-- Right Actions Cluster -->
+<div class="flex items-center space-x-2">
+<button class="h-[26px] px-2.5 rounded-[6px] bg-[#f5f4ec] hover:bg-[#eae8e2] border border-[#d1d1c9] text-[#252b2d] text-[12px] font-medium flex items-center space-x-1 active:scale-[0.98] transition-all">
+<span class="material-symbols-outlined text-[15px] text-[#66716e]">file_download</span>
+<span>导入 JSON</span>
+</button>
+<button class="h-[26px] px-2.5 rounded-[6px] bg-[#f5f4ec] hover:bg-[#eae8e2] border border-[#d1d1c9] text-[#252b2d] text-[12px] font-medium flex items-center space-x-1 active:scale-[0.98] transition-all">
+<span class="material-symbols-outlined text-[15px] text-[#66716e]">file_upload</span>
+<span>导出</span>
+</button>
+<button class="h-[26px] px-2.5 rounded-[6px] bg-primary hover:bg-primary-dim text-white text-[12px] font-medium flex items-center space-x-1 shadow-sm active:scale-[0.98] transition-all">
+<span class="material-symbols-outlined text-[15px]">add</span>
+<span>添加分组</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Scrollable Shortcut Groups List -->
+<div class="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+<!-- Group 1: gh · 代码仓库 -->
+<div class="rounded-[10px] border border-[#d1d1c9] bg-[#f7f5f0] shadow-[inset_0_1px_1px_rgba(0,0,0,0.02)] overflow-hidden">
+<!-- Group Header -->
+<div class="h-[36px] bg-[#eeebe4] px-3.5 flex items-center justify-between border-b border-[#d1d1c9]">
+<div class="flex items-center space-x-2">
+<button class="text-[#66716e] hover:text-[#252b2d] flex items-center">
+<span class="material-symbols-outlined text-[18px]">expand_more</span>
+</button>
+<span class="font-headline font-semibold text-[13px] text-[#252b2d]">gh · 代码仓库</span>
+<span class="font-mono text-[11px] px-1.5 py-0.2 bg-[#e0e3e1] text-[#4f5251] rounded-[4px] border border-[#d1d1c9]">前缀: gh</span>
+<span class="text-[11px] text-[#66716e] bg-[#fbf9f3] px-1.5 py-0.2 rounded-[4px] border border-[#d1d1c9]">2 个网址</span>
+</div>
+<div class="flex items-center space-x-1.5">
+<button class="h-[22px] px-2 rounded-[4px] text-[11px] text-[#66716e] hover:text-[#252b2d] hover:bg-[#e3e1d8] transition-colors">添加网址</button>
+<span class="text-[#b2b3a7] text-[10px]">|</span>
+<button class="h-[22px] px-2 rounded-[4px] text-[11px] text-[#66716e] hover:text-[#252b2d] hover:bg-[#e3e1d8] transition-colors">编辑分组</button>
+</div>
+</div>
+<!-- Group 1 Rows -->
+<div class="divide-y divide-[#e3e1d8]">
+<!-- Row 1: 项目 A -->
+<div class="px-3.5 py-2.5 flex items-center justify-between hover:bg-[#f2efe9] transition-colors group">
+<div class="flex items-center space-x-3 min-w-0 flex-1 pr-3">
+<span class="font-mono text-[12px] font-semibold text-primary bg-[#dceae3] px-2 py-0.5 rounded-[4px] border border-[#55988c]/40 shrink-0">
+                    [ a ]
+                  </span>
+<div class="flex flex-col min-w-0 flex-1">
+<div class="flex items-center space-x-2">
+<span class="font-medium text-[#252b2d] text-[13px]">项目 A</span>
+<span class="text-[11px] bg-secondary-container text-on-secondary-container px-1.5 py-0.2 rounded font-normal">订单服务</span>
+</div>
+<span class="font-mono text-[11.5px] text-[#66716e] truncate mt-0.5">https://git.company.example/team/project-a</span>
+</div>
+</div>
+<div class="flex items-center space-x-1 shrink-0 opacity-80 group-hover:opacity-100 transition-opacity">
+<button class="h-[22px] px-2 rounded-[4px] text-[11.5px] text-[#66716e] hover:text-[#252b2d] hover:bg-[#e0ded6] border border-transparent hover:border-[#d1d1c9] transition-all">编辑</button>
+</div>
+</div>
+<!-- Row 2: 项目 B -->
+<div class="px-3.5 py-2.5 flex items-center justify-between hover:bg-[#f2efe9] transition-colors group">
+<div class="flex items-center space-x-3 min-w-0 flex-1 pr-3">
+<span class="font-mono text-[12px] font-semibold text-primary bg-[#dceae3] px-2 py-0.5 rounded-[4px] border border-[#55988c]/40 shrink-0">
+                    [ b ]
+                  </span>
+<div class="flex flex-col min-w-0 flex-1">
+<div class="flex items-center space-x-2">
+<span class="font-medium text-[#252b2d] text-[13px]">项目 B</span>
+<span class="text-[11px] bg-secondary-container text-on-secondary-container px-1.5 py-0.2 rounded font-normal">结算前台</span>
+</div>
+<span class="font-mono text-[11.5px] text-[#66716e] truncate mt-0.5">https://git.company.example/team/project-b</span>
+</div>
+</div>
+<div class="flex items-center space-x-1 shrink-0 opacity-80 group-hover:opacity-100 transition-opacity">
+<button class="h-[22px] px-2 rounded-[4px] text-[11.5px] text-[#66716e] hover:text-[#252b2d] hover:bg-[#e0ded6] border border-transparent hover:border-[#d1d1c9] transition-all">编辑</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Group 2: env · 测试环境 -->
+<div class="rounded-[10px] border border-[#d1d1c9] bg-[#f7f5f0] shadow-[inset_0_1px_1px_rgba(0,0,0,0.02)] overflow-hidden">
+<!-- Group Header -->
+<div class="h-[36px] bg-[#eeebe4] px-3.5 flex items-center justify-between border-b border-[#d1d1c9]">
+<div class="flex items-center space-x-2">
+<button class="text-[#66716e] hover:text-[#252b2d] flex items-center">
+<span class="material-symbols-outlined text-[18px]">expand_more</span>
+</button>
+<span class="font-headline font-semibold text-[13px] text-[#252b2d]">env · 测试环境</span>
+<span class="font-mono text-[11px] px-1.5 py-0.2 bg-[#e0e3e1] text-[#4f5251] rounded-[4px] border border-[#d1d1c9]">前缀: env</span>
+<span class="text-[11px] text-[#66716e] bg-[#fbf9f3] px-1.5 py-0.2 rounded-[4px] border border-[#d1d1c9]">1 个网址</span>
+</div>
+<div class="flex items-center space-x-1.5">
+<button class="h-[22px] px-2 rounded-[4px] text-[11px] text-[#66716e] hover:text-[#252b2d] hover:bg-[#e3e1d8] transition-colors">添加网址</button>
+<span class="text-[#b2b3a7] text-[10px]">|</span>
+<button class="h-[22px] px-2 rounded-[4px] text-[11px] text-[#66716e] hover:text-[#252b2d] hover:bg-[#e3e1d8] transition-colors">编辑分组</button>
+</div>
+</div>
+<!-- Group 2 Rows -->
+<div class="divide-y divide-[#e3e1d8]">
+<!-- Row 1: 开发联调环境 -->
+<div class="px-3.5 py-2.5 flex items-center justify-between hover:bg-[#f2efe9] transition-colors group">
+<div class="flex items-center space-x-3 min-w-0 flex-1 pr-3">
+<span class="font-mono text-[12px] font-semibold text-primary bg-[#dceae3] px-2 py-0.5 rounded-[4px] border border-[#55988c]/40 shrink-0">
+                    [ dev ]
+                  </span>
+<div class="flex flex-col min-w-0 flex-1">
+<div class="flex items-center space-x-2">
+<span class="font-medium text-[#252b2d] text-[13px]">开发联调环境</span>
+<span class="text-[11px] bg-secondary-container text-on-secondary-container px-1.5 py-0.2 rounded font-normal">测试网关</span>
+</div>
+<span class="font-mono text-[11.5px] text-[#66716e] truncate mt-0.5">https://env-dev.internal.example/dashboard</span>
+</div>
+</div>
+<div class="flex items-center space-x-1 shrink-0 opacity-80 group-hover:opacity-100 transition-opacity">
+<button class="h-[22px] px-2 rounded-[4px] text-[11.5px] text-[#66716e] hover:text-[#252b2d] hover:bg-[#e0ded6] border border-transparent hover:border-[#d1d1c9] transition-all">编辑</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Bottom of Settings Window Status Bar -->
+<footer class="h-[30px] bg-[#f5f4ec] border-t border-[#e3e1d8] px-4 flex items-center justify-between text-[11px] text-[#66716e] flex-shrink-0">
+<div class="flex items-center space-x-2">
+<span class="w-1.5 h-1.5 rounded-full bg-primary/70"></span>
+<span>修改即时生效于本地运行会话 · 支持纯键盘键入 · 无需云端账户</span>
+</div>
+<div class="font-mono text-[11px] text-on-surface-variant flex items-center space-x-2">
+<span>2 组</span>
+<span>·</span>
+<span>3 条映射</span>
+</div>
+</footer>
+</section>
+</div>
+</main>
+<!-- ==================== Interactive Companion: Floating Launcher Spotlight ==================== -->
+<div class="w-[560px] bg-white/95 backdrop-blur-md rounded-[12px] border border-[#d1d1c9] shadow-[0_20px_40px_rgba(0,0,0,0.16),0_2px_8px_rgba(0,0,0,0.06)] overflow-hidden transition-all duration-150">
+<!-- Launcher Search Input Row -->
+<div class="h-[46px] px-3.5 flex items-center space-x-2.5 border-b border-[#e3e1d8] bg-[#fbf9f3]">
+<span class="material-symbols-outlined text-[20px] text-primary">search</span>
+<div class="flex items-center font-mono text-[15px] text-[#252b2d] flex-1">
+<span class="font-semibold text-primary">gh</span>
+<span class="mx-1 text-[#66716e]">a</span>
+<span class="w-[2px] h-[18px] bg-primary cursor-blink inline-block ml-0.5"></span>
+</div>
+<span class="font-mono text-[10.5px] bg-[#dceae3] text-primary px-1.5 py-0.5 rounded-[4px] border border-[#55988c]/40">
+        网址快捷入口
+      </span>
+</div>
+<!-- Launcher Results List -->
+<div class="p-1.5 space-y-1 bg-[#f7f5f0]">
+<!-- Active Item: 项目 A -->
+<div class="px-3 py-2 rounded-[8px] bg-[#dceae3] border border-[#55988c]/30 flex items-center justify-between text-[#252b2d] cursor-pointer shadow-sm">
+<div class="flex items-center space-x-2.5 min-w-0">
+<div class="w-6 h-6 rounded-[5px] bg-primary text-white flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[15px]">open_in_new</span>
+</div>
+<div class="min-w-0 flex flex-col">
+<div class="flex items-center space-x-2">
+<span class="text-[13px] font-semibold text-[#252b2d]">项目 A</span>
+<span class="text-[10px] bg-white/80 text-primary font-medium px-1.5 py-0.2 rounded border border-[#55988c]/30">订单服务</span>
+</div>
+<span class="font-mono text-[11px] text-[#556c53] truncate">gh a  ·  git.company.example/team/project-a</span>
+</div>
+</div>
+<div class="flex items-center space-x-1 font-mono text-[11px] text-primary font-semibold bg-white/70 px-2 py-0.5 rounded-[4px] shrink-0 border border-[#55988c]/20">
+<span>↵ 回车打开</span>
+</div>
+</div>
+<!-- Second Item: 项目 B -->
+<div class="px-3 py-1.5 rounded-[8px] hover:bg-black/[0.03] flex items-center justify-between text-[#66716e] transition-colors cursor-pointer">
+<div class="flex items-center space-x-2.5 min-w-0">
+<div class="w-6 h-6 rounded-[5px] bg-[#e0ded6] text-[#66716e] flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[15px]">link</span>
+</div>
+<div class="min-w-0 flex flex-col">
+<div class="flex items-center space-x-2">
+<span class="text-[12.5px] font-medium text-[#252b2d]">项目 B</span>
+<span class="text-[10px] bg-secondary-container text-on-secondary-container px-1 py-0.2 rounded">结算前台</span>
+</div>
+<span class="font-mono text-[10.5px] text-[#66716e] truncate">gh b  ·  git.company.example/team/project-b</span>
+</div>
+</div>
+<span class="font-mono text-[10.5px] text-[#66716e]">2</span>
+</div>
+</div>
+<!-- Launcher Footer Keymap -->
+<div class="h-[26px] bg-[#eeebe4] px-3 flex items-center justify-between text-[10.5px] text-[#66716e] font-mono border-t border-[#e3e1d8]">
+<div class="flex items-center space-x-3">
+<span>↵ 打开网址</span>
+<span>·</span>
+<span>Tab 补全</span>
+<span>·</span>
+<span>Esc 退出</span>
+</div>
+<div class="flex items-center space-x-1 text-on-surface-variant">
+<span class="bg-[#e0ded6] px-1 py-0.2 rounded text-[10px]">⌘ ,</span>
+<span>打开设置</span>
+</div>
+</div>
+</div>
+</body></html>

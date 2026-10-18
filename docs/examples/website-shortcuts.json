@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "groups": [
+    {
+      "keyword": "gh",
+      "name": "代码仓库",
+      "items": [
+        {
+          "key": "a",
+          "name": "项目 A",
+          "url": "https://git.company.example/team/project-a",
+          "aliases": ["订单服务"]
+        },
+        {
+          "key": "b",
+          "name": "项目 B",
+          "url": "https://git.company.example/team/project-b"
+        }
+      ]
+    },
+    {
+      "keyword": "env",
+      "name": "测试环境",
+      "items": [
+        {
+          "key": "dev",
+          "name": "开发联调环境",
+          "url": "http://dev.internal.example:8080/dashboard"
+        }
+      ]
+    }
+  ]
+}

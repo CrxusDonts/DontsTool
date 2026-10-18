@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UUID 生成器 · 独立工具窗口 (macOS)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Text"', '"SF Pro Display"', '"PingFang SC"', '"Hiragino Sans GB"', 'sans-serif'],
+            mono: ['"SF Mono"', 'Menlo', 'Monaco', 'Consolas', 'monospace']
+          },
+          colors: {
+            mac: {
+              bg: '#f6faff',
+              surface: '#ffffff',
+              border: '#dce5f0',
+              borderLight: '#edf2f7',
+              textPrimary: '#1e293b',
+              textSecondary: '#64748b',
+              textTertiary: '#94a3b8',
+              accent: '#3478f6',
+              accentHover: '#2563eb',
+              accentActive: '#1d4ed8',
+              rowHover: '#f8fafc',
+              badgeBg: '#f1f5f9',
+              activeBg: '#eff6ff'
+            }
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    body {
+      background-color: #e2e8f0;
+      background-image: radial-gradient(rgba(148, 163, 184, 0.3) 1px, transparent 1px);
+      background-size: 20px 20px;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "PingFang SC", "Hiragino Sans GB", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    .traffic-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 9999px;
+      border: 0.5px solid rgba(0, 0, 0, 0.12);
+    }
+    /* macOS native scrollbar styling */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+      border: 2px solid transparent;
+      background-clip: padding-box;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+      border: 2px solid transparent;
+      background-clip: padding-box;
+    }
+    .mac-window-shadow {
+      box-shadow: 0 25px 60px -15px rgba(15, 23, 42, 0.22), 0 0 0 1px rgba(15, 23, 42, 0.08);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-6 antialiased select-none">
+
+  <!-- macOS Native Resizable Tool Window: 1040 x 700 standard size -->
+  <div class="w-[1040px] h-[700px] bg-white rounded-xl mac-window-shadow flex flex-col overflow-hidden border border-slate-200/80">
+    
+    <!-- Window Header / Titlebar -->
+    <header class="h-[46px] bg-[#f8fafc] border-b border-[#e2e8f0] px-4 flex items-center justify-between flex-shrink-0">
+      <div class="flex items-center gap-2 w-32">
+        <div class="traffic-dot bg-[#ff5f56]"></div>
+        <div class="traffic-dot bg-[#ffbd2e]"></div>
+        <div class="traffic-dot bg-[#27c93f]"></div>
+      </div>
+      
+      <div class="flex items-center gap-2">
+        <span class="text-xs font-semibold text-slate-700 tracking-tight">UUID 生成器</span>
+        <span class="text-[10px] font-mono font-medium text-slate-500 bg-slate-200/60 px-1.5 py-0.5 rounded">v4</span>
+      </div>
+
+      <div class="flex items-center justify-end w-32 text-[11px] font-mono text-slate-400">
+        DontsTool Native
+      </div>
+    </header>
+
+    <!-- Options & Controls Toolbar (Dense Functional Utility) -->
+    <section class="bg-[#fcfdfe] border-b border-[#e2e8f0] px-5 py-3 flex items-center justify-between flex-shrink-0 gap-4">
+      <div class="flex items-center gap-6 text-[13px] text-slate-700">
+        
+        <!-- Count numeric input -->
+        <div class="flex items-center gap-2">
+          <label for="uuid-count" class="text-slate-600 font-medium">数量</label>
+          <div class="relative flex items-center">
+            <input 
+              id="uuid-count" 
+              type="number" 
+              value="5" 
+              min="1" 
+              max="50" 
+              class="w-16 h-7 pl-2.5 pr-5 bg-white border border-slate-300 rounded text-center text-xs font-mono font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-sm"
+            />
+            <span class="absolute right-1.5 text-[10px] text-slate-400 pointer-events-none">条</span>
+          </div>
+        </div>
+
+        <div class="h-4 w-[1px] bg-slate-200"></div>
+
+        <!-- Uppercase Toggle -->
+        <label class="flex items-center gap-2 cursor-pointer select-none group">
+          <input id="toggle-uppercase" type="checkbox" class="sr-only peer">
+          <div class="w-8 h-4 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3.5 after:transition-all peer-checked:bg-blue-600 relative"></div>
+          <span class="text-slate-600 group-hover:text-slate-900 transition-colors">大写</span>
+        </label>
+
+        <!-- Keep Hyphens Checkbox -->
+        <label class="flex items-center gap-2 cursor-pointer select-none group">
+          <input id="toggle-hyphen" type="checkbox" checked class="w-3.5 h-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 focus:ring-offset-0 focus:ring-1 cursor-pointer">
+          <span class="text-slate-600 group-hover:text-slate-900 transition-colors">保留连字符</span>
+        </label>
+
+        <div class="h-4 w-[1px] bg-slate-200"></div>
+
+        <!-- Format Tag -->
+        <div class="flex items-center gap-1.5 text-[11px] text-slate-500 font-mono">
+          <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+          <span>标准 RFC 4122</span>
+        </div>
+      </div>
+
+      <!-- Prominent Regenerate Action -->
+      <div class="flex items-center gap-2.5">
+        <button 
+          id="btn-regenerate" 
+          onclick="regenerateUUIDs()" 
+          class="h-7 px-3.5 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white rounded text-xs font-medium flex items-center gap-1.5 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/30">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+          </svg>
+          <span>重新生成</span>
+          <span class="text-[10px] font-mono opacity-70 ml-0.5">⌘R</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Main Result Pane -->
+    <main class="flex-1 flex flex-col min-h-0 bg-[#ffffff]">
+      
+      <!-- List Header with count & Copy All -->
+      <div class="h-10 px-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 flex-shrink-0">
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-semibold text-slate-700">本次结果</span>
+          <span class="text-xs text-slate-400">·</span>
+          <span id="result-count-label" class="text-xs font-mono text-slate-500">5 条</span>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <span id="global-toast" class="text-xs text-emerald-600 font-medium opacity-0 transition-opacity duration-150 flex items-center gap-1">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path>
+            </svg>
+            <span>已复制全部</span>
+          </span>
+          <button 
+            onclick="copyAllUUIDs()" 
+            class="h-6 px-2.5 bg-white hover:bg-slate-50 active:bg-slate-100 text-slate-700 border border-slate-200 rounded text-xs font-medium flex items-center gap-1.5 shadow-2xs transition-colors focus:outline-none">
+            <svg class="w-3 h-3 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"></path>
+            </svg>
+            <span>复制全部</span>
+            <span class="text-[10px] text-slate-400 font-mono">⇧⌘C</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Result Rows Container (Scrollable, Large Selectable Text) -->
+      <div id="uuid-list-container" class="flex-1 overflow-y-auto px-6 py-3 divide-y divide-slate-100 font-mono">
+        
+        <!-- Row 1 -->
+        <div class="group flex items-center justify-between py-3.5 px-3 rounded-lg hover:bg-slate-50 transition-colors">
+          <div class="flex items-center gap-4 flex-1 min-w-0 pr-4">
+            <span class="text-[11px] font-mono text-slate-400 w-5 select-none text-right">01</span>
+            <span class="uuid-value text-[15px] font-mono text-slate-800 font-medium tracking-wide select-text">a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d</span>
+            <span class="text-[10px] font-sans font-medium text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded select-none opacity-0 group-hover:opacity-100 transition-opacity">v4</span>
+          </div>
+          <div class="flex items-center gap-2 select-none">
+            <span class="row-toast text-[11px] text-emerald-600 font-sans font-medium opacity-0 transition-opacity duration-150">已复制</span>
+            <button 
+              onclick="copyRow(this)" 
+              class="h-6 px-2 text-xs font-sans text-slate-600 bg-white border border-slate-200 rounded hover:bg-slate-50 hover:text-blue-600 hover:border-blue-200 transition-all opacity-80 group-hover:opacity-100 flex items-center gap-1 shadow-2xs">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+              </svg>
+              <span>复制</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Row 2 -->
+        <div class="group flex items-center justify-between py-3.5 px-3 rounded-lg hover:bg-slate-50 transition-colors">
+          <div class="flex items-center gap-4 flex-1 min-w-0 pr-4">
+            <span class="text-[11px] font-mono text-slate-400 w-5 select-none text-right">02</span>
+            <span class="uuid-value text-[15px] font-mono text-slate-800 font-medium tracking-wide select-text">7b8c9d0e-1f2a-4b3c-9d0e-1f2a3b4c5d6e</span>
+            <span class="text-[10px] font-sans font-medium text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded select-none opacity-0 group-hover:opacity-100 transition-opacity">v4</span>
+          </div>
+          <div class="flex items-center gap-2 select-none">
+            <span class="row-toast text-[11px] text-emerald-600 font-sans font-medium opacity-0 transition-opacity duration-150">已复制</span>
+            <button 
+              onclick="copyRow(this)" 
+              class="h-6 px-2 text-xs font-sans text-slate-600 bg-white border border-slate-200 rounded hover:bg-slate-50 hover:text-blue-600 hover:border-blue-200 transition-all opacity-80 group-hover:opacity-100 flex items-center gap-1 shadow-2xs">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+              </svg>
+              <span>复制</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Row 3 -->
+        <div class="group flex items-center justify-between py-3.5 px-3 rounded-lg hover:bg-slate-50 transition-colors">
+          <div class="flex items-center gap-4 flex-1 min-w-0 pr-4">
+            <span class="text-[11px] font-mono text-slate-400 w-5 select-none text-right">03</span>
+            <span class="uuid-value text-[15px] font-mono text-slate-800 font-medium tracking-wide select-text">4d5e6f7a-8b9c-4d0e-bf1a-2b3c4d5e6f70</span>
+            <span class="text-[10px] font-sans font-medium text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded select-none opacity-0 group-hover:opacity-100 transition-opacity">v4</span>
+          </div>
+          <div class="flex items-center gap-2 select-none">
+            <span class="row-toast text-[11px] text-emerald-600 font-sans font-medium opacity-0 transition-opacity duration-150">已复制</span>
+            <button 
+              onclick="copyRow(this)" 
+              class="h-6 px-2 text-xs font-sans text-slate-600 bg-white border border-slate-200 rounded hover:bg-slate-50 hover:text-blue-600 hover:border-blue-200 transition-all opacity-80 group-hover:opacity-100 flex items-center gap-1 shadow-2xs">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+              </svg>
+              <span>复制</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Row 4 -->
+        <div class="group flex items-center justify-between py-3.5 px-3 rounded-lg hover:bg-slate-50 transition-colors">
+          <div class="flex items-center gap-4 flex-1 min-w-0 pr-4">
+            <span class="text-[11px] font-mono text-slate-400 w-5 select-none text-right">04</span>
+            <span class="uuid-value text-[15px] font-mono text-slate-800 font-medium tracking-wide select-text">9f0a1b2c-3d4e-4f5a-8b6c-7d8e9f0a1b2c</span>
+            <span class="text-[10px] font-sans font-medium text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded select-none opacity-0 group-hover:opacity-100 transition-opacity">v4</span>
+          </div>
+          <div class="flex items-center gap-2 select-none">
+            <span class="row-toast text-[11px] text-emerald-600 font-sans font-medium opacity-0 transition-opacity duration-150">已复制</span>
+            <button 
+              onclick="copyRow(this)" 
+              class="h-6 px-2 text-xs font-sans text-slate-600 bg-white border border-slate-200 rounded hover:bg-slate-50 hover:text-blue-600 hover:border-blue-200 transition-all opacity-80 group-hover:opacity-100 flex items-center gap-1 shadow-2xs">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+              </svg>
+              <span>复制</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Row 5 -->
+        <div class="group flex items-center justify-between py-3.5 px-3 rounded-lg hover:bg-slate-50 transition-colors">
+          <div class="flex items-center gap-4 flex-1 min-w-0 pr-4">
+            <span class="text-[11px] font-mono text-slate-400 w-5 select-none text-right">05</span>
+            <span class="uuid-value text-[15px] font-mono text-slate-800 font-medium tracking-wide select-text">3c4d5e6f-7a8b-4c9d-ae1f-2a3b4c5d6e7f</span>
+            <span class="text-[10px] font-sans font-medium text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded select-none opacity-0 group-hover:opacity-100 transition-opacity">v4</span>
+          </div>
+          <div class="flex items-center gap-2 select-none">
+            <span class="row-toast text-[11px] text-emerald-600 font-sans font-medium opacity-0 transition-opacity duration-150">已复制</span>
+            <button 
+              onclick="copyRow(this)" 
+              class="h-6 px-2 text-xs font-sans text-slate-600 bg-white border border-slate-200 rounded hover:bg-slate-50 hover:text-blue-600 hover:border-blue-200 transition-all opacity-80 group-hover:opacity-100 flex items-center gap-1 shadow-2xs">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+              </svg>
+              <span>复制</span>
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </main>
+
+    <!-- Footer Status Bar (Only Truthful State) -->
+    <footer class="h-8 bg-[#f8fafc] border-t border-[#e2e8f0] px-5 flex items-center justify-between text-[11px] text-slate-500 font-mono flex-shrink-0">
+      <div class="flex items-center gap-2">
+        <span class="inline-block w-2 h-2 rounded-full bg-blue-500"></span>
+        <span class="text-slate-600 font-sans">UUID v4 · 仅在点击时重新生成</span>
+      </div>
+      <div class="flex items-center gap-3 text-slate-400 text-[10px]">
+        <span>单击复制文本</span>
+        <span>·</span>
+        <span>双击高亮全选</span>
+      </div>
+    </footer>
+
+  </div>
+
+  <script>
+    // UUID v4 generator utility
+    function generateUUIDv4(uppercase = false, hyphens = true) {
+      let d = new Date().getTime();
+      let d2 = ((typeof performance !== 'undefined') && performance.now && (performance.now() * 1000)) || 0;
+      let uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        let r = Math.random() * 16;
+        if (d > 0) {
+          r = (d + r) % 16 | 0;
+          d = Math.floor(d / 16);
+        } else {
+          r = (d2 + r) % 16 | 0;
+          d2 = Math.floor(d2 / 16);
+        }
+        return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+      });
+
+      if (!hyphens) {
+        uuid = uuid.replace(/-/g, '');
+      }
+      return uppercase ? uuid.toUpperCase() : uuid.toLowerCase();
+    }
+
+    function regenerateUUIDs() {
+      const countInput = document.getElementById('uuid-count');
+      let count = parseInt(countInput.value, 10);
+      if (isNaN(count) || count < 1) count = 1;
+      if (count > 50) count = 50;
+
+      const uppercase = document.getElementById('toggle-uppercase').checked;
+      const hyphens = document.getElementById('toggle-hyphen').checked;
+
+      const container = document.getElementById('uuid-list-container');
+      const countLabel = document.getElementById('result-count-label');
+      countLabel.textContent = `${count} 条`;
+
+      let html = '';
+      for (let i = 1; i <= count; i++) {
+        const rowNum = i < 10 ? `0${i}` : `${i}`;
+        const val = generateUUIDv4(uppercase, hyphens);
+        html += `
+        <div class="group flex items-center justify-between py-3.5 px-3 rounded-lg hover:bg-slate-50 transition-colors">
+          <div class="flex items-center gap-4 flex-1 min-w-0 pr-4">
+            <span class="text-[11px] font-mono text-slate-400 w-5 select-none text-right">${rowNum}</span>
+            <span class="uuid-value text-[15px] font-mono text-slate-800 font-medium tracking-wide select-text">${val}</span>
+            <span class="text-[10px] font-sans font-medium text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded select-none opacity-0 group-hover:opacity-100 transition-opacity">v4</span>
+          </div>
+          <div class="flex items-center gap-2 select-none">
+            <span class="row-toast text-[11px] text-emerald-600 font-sans font-medium opacity-0 transition-opacity duration-150">已复制</span>
+            <button 
+              onclick="copyRow(this)" 
+              class="h-6 px-2 text-xs font-sans text-slate-600 bg-white border border-slate-200 rounded hover:bg-slate-50 hover:text-blue-600 hover:border-blue-200 transition-all opacity-80 group-hover:opacity-100 flex items-center gap-1 shadow-2xs">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+              </svg>
+              <span>复制</span>
+            </button>
+          </div>
+        </div>`;
+      }
+      container.innerHTML = html;
+    }
+
+    function copyRow(button) {
+      const row = button.closest('.group');
+      const val = row.querySelector('.uuid-value').textContent.trim();
+      navigator.clipboard.writeText(val).catch(() => {});
+      
+      const toast = row.querySelector('.row-toast');
+      toast.classList.remove('opacity-0');
+      setTimeout(() => {
+        toast.classList.add('opacity-0');
+      }, 1500);
+    }
+
+    function copyAllUUIDs() {
+      const values = Array.from(document.querySelectorAll('.uuid-value')).map(el => el.textContent.trim());
+      navigator.clipboard.writeText(values.join('\n')).catch(() => {});
+
+      const toast = document.getElementById('global-toast');
+      toast.classList.remove('opacity-0');
+      setTimeout(() => {
+        toast.classList.add('opacity-0');
+      }, 1800);
+    }
+
+    // Keyboard shortcut for Cmd+R
+    window.addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'r') {
+        e.preventDefault();
+        regenerateUUIDs();
+      }
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'c') {
+        e.preventDefault();
+        copyAllUUIDs();
+      }
+    });
+
+    document.getElementById('toggle-uppercase').addEventListener('change', regenerateUUIDs);
+    document.getElementById('toggle-hyphen').addEventListener('change', regenerateUUIDs);
+    document.getElementById('uuid-count').addEventListener('change', regenerateUUIDs);
+  </script>
+</body>
+</html>

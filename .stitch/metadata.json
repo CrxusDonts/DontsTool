@@ -1,0 +1,138 @@
+{
+  "projectId": "17734721049138626585",
+  "title": "DontsTool · Quiet Light",
+  "projectUrl": "https://stitch.withgoogle.com/projects/17734721049138626585",
+  "exportedAt": "2026-10-18",
+  "designSystem": {
+    "name": "assets/9888066698243714071",
+    "displayName": "DontsTool · Quiet Light",
+    "mode": "LIGHT"
+  },
+  "screens": [
+    {
+      "slug": "01-launcher",
+      "title": "01 — 启动器 · 常用与工具 (Quiet Light)",
+      "file": "01-launcher.html",
+      "description": "空查询时的常用应用与关键词入口。",
+      "id": "b42b6b57a8cf48cb86d0099f54b99e06",
+      "name": "projects/17734721049138626585/screens/b42b6b57a8cf48cb86d0099f54b99e06",
+      "deviceType": "DESKTOP",
+      "htmlCode": {
+        "downloadUrl": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ8Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpbCiVodG1sXzNjNGY1YjdmMWY5NzQwMDlhMTA3MjJlYmRmYWI2MzkxEgsSBxCLp4bSiwoYAZIBJAoKcHJvamVjdF9pZBIWQhQxNzczNDcyMTA0OTEzODYyNjU4NQ&filename=&opi=96797242",
+        "mimeType": "text/html",
+        "name": "projects/17734721049138626585/files/315922145f7441e4aaa19ef543b7392d"
+      },
+      "screenshot": {
+        "downloadUrl": "https://lh3.googleusercontent.com/aida/AEtjO1VZDLgBOdVgjjfxddO35oTty9o5s1ymfhOvhc-gjnUmunbRaR_LXP4qcO8HTGT8kJFNx7VIuc9ndU-M2KUAPt63fhSN3ZUOSoTZfAcvy28-43ZDBMuCN-z4o_ZuY4W1oq_gPsvmMhSBZ0-0LF0kY08eb4lUQBAfBjgS7Wo793lYliiHzz29mhwysdmeNQmmCfQnBhmqf9il7IyMgULEwU-161dcF0LPPJTxt1EW4ObQJk9oL4SDo69zZL7u",
+        "name": "projects/17734721049138626585/files/6952e824e49b4bfc8efa43ab7b4e1db0"
+      },
+      "rawHtml": ".stitch/designs/01-launcher.html",
+      "html": "design/01-launcher.html",
+      "preview": "design/previews/01-launcher.png",
+      "sha256": "bc6c94cac3ac28255358d8f9cb99318692b51746e87f94e2ed23dd3bcc865446",
+      "rawSha256": "a7c93ba8ff0b8aa51871da4bbdd5f24fbeba5b9784cb3615fe37bcb5fe5ef9f4"
+    },
+    {
+      "slug": "02-search",
+      "title": "02 — 搜索 · 应用与文件 (Quiet Light)",
+      "file": "02-search.html",
+      "description": "应用、文件分组与键盘选中态。",
+      "id": "589dd9fbdc004fc3ba6a42842530f078",
+      "name": "projects/17734721049138626585/screens/589dd9fbdc004fc3ba6a42842530f078",
+      "deviceType": "DESKTOP",
+      "htmlCode": {
+        "downloadUrl": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ8Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpbCiVodG1sXzJiNjUwZjEzNzA5ZjQyZmM4YTIxODYzMDZhODlmMzE1EgsSBxCLp4bSiwoYAZIBJAoKcHJvamVjdF9pZBIWQhQxNzczNDcyMTA0OTEzODYyNjU4NQ&filename=&opi=96797242",
+        "mimeType": "text/html",
+        "name": "projects/17734721049138626585/files/7082b0e1f70640b08b3f2c8a8ef5aeff"
+      },
+      "screenshot": {
+        "downloadUrl": "https://lh3.googleusercontent.com/aida/AEtjO1XvDwvg_uusVb34wHaFc7W6rxqE7qzRN6CViYEjGHPswAXkys3LL7cNUQxl9FrILGAtySJfWigAMhj_-CN44IZS8j7j0ZjL9R87Kk664IfAn5MjNWLbz8EcyssPFBUEDx-mWTJDaSMUg7tj-TVUBLGRGKVWHmvog0pHdA3k5iSEe9jjpqpC3hhB2RtZJmuKGR2EX53N7ZS_ltw7LuQKzBvk1y9AxG5XcMG_nw7M0X35tE1wTm8iopYuKRxY",
+        "name": "projects/17734721049138626585/files/31ec37b9c9e344309826f63f143f15e4"
+      },
+      "rawHtml": ".stitch/designs/02-search.html",
+      "html": "design/02-search.html",
+      "preview": "design/previews/02-search.png",
+      "sha256": "71b4589ac418a127280534a490eaafcba258c0cc6e14f944dfb51e9ca54aed13",
+      "rawSha256": "804d87d1c4a64fa803b59e58d3388709f76311d558312a3ff55b82d9acef241d"
+    },
+    {
+      "slug": "03-text-tools",
+      "title": "03 — 文本工具 · JSON (Quiet Light)",
+      "file": "03-text-tools.html",
+      "description": "JSON 摘要、复制与压缩操作。",
+      "id": "21cf9d5c97ae4a4ab4ddcd1b1493d843",
+      "name": "projects/17734721049138626585/screens/21cf9d5c97ae4a4ab4ddcd1b1493d843",
+      "deviceType": "DESKTOP",
+      "htmlCode": {
+        "downloadUrl": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ8Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpbCiVodG1sX2MyMGVhMjJjZWE3ODQ3YTBhMDZlZDhiZjQyODk2ZTMxEgsSBxCLp4bSiwoYAZIBJAoKcHJvamVjdF9pZBIWQhQxNzczNDcyMTA0OTEzODYyNjU4NQ&filename=&opi=96797242",
+        "mimeType": "text/html",
+        "name": "projects/17734721049138626585/files/3e019e9a627f4b57911380890d558ac0"
+      },
+      "screenshot": {
+        "downloadUrl": "https://lh3.googleusercontent.com/aida/AEtjO1WgOZ6Gx8POMn1ByF-s8LqXoEqrzRtpSZFAN3TOeFyyIzjVuH5SxS6YqkJZ_9Sxt5YpRaNcgvaVFj_wHhk1lv1Uu7ZsFX4DoGXH4_YZJLgX2h1g0IwXJmHvZBSg8ZUBfPMZqYD94hdyHskro-azUs8hfLrBmjZ_BoH0Nfl2-KZota6veZO-IAeS-60hnOesv5JMT0rq19l3rkjxYwRhz7KCnx8n4BP7PLedLWdQvLYXWZvnLbmfj6eObxR5",
+        "name": "projects/17734721049138626585/files/32f9eb44ab7749a3a24ecf9b7f582219"
+      },
+      "rawHtml": ".stitch/designs/03-text-tools.html",
+      "html": "design/03-text-tools.html",
+      "preview": "design/previews/03-text-tools.png",
+      "sha256": "0170895098739c126cb5ea510e74ed023117da13df044a81652214bada34bdf2",
+      "rawSha256": "1d8a22d17119ce653737e821dcf4a9dba96325805c3b8401bf7f7cf67aca470f"
+    },
+    {
+      "slug": "04-translation",
+      "title": "04 — 翻译 · 系统翻译与网页兜底 (Quiet Light)",
+      "file": "04-translation.html",
+      "description": "系统翻译入口与网页兜底。",
+      "id": "79d62cb05ed44d6a9869e72bdde412b0",
+      "name": "projects/17734721049138626585/screens/79d62cb05ed44d6a9869e72bdde412b0",
+      "deviceType": "DESKTOP",
+      "htmlCode": {
+        "downloadUrl": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ8Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpbCiVodG1sX2QxOTk5ZGZjNTk3YzRjZmI4NDBjYzg3MzJiY2IxZGZjEgsSBxCLp4bSiwoYAZIBJAoKcHJvamVjdF9pZBIWQhQxNzczNDcyMTA0OTEzODYyNjU4NQ&filename=&opi=96797242",
+        "mimeType": "text/html",
+        "name": "projects/17734721049138626585/files/fbf9958a8a5f4814a5665d9d71215952"
+      },
+      "screenshot": {
+        "downloadUrl": "https://lh3.googleusercontent.com/aida/AEtjO1W_R2JBBzfd6DjT79BLqdYK0Un4Mo4rhQKL-oN6MZp5b-pCKgGd0XTTAY8AzEfHXOxW8CMb4xu20C_aauxK8qepxLKrUUhqrG_xcer-Hs8xPoN1iw82SVi8TMXHHmVJHrE065s6NAQygnUqF9p6qMz8kK0TcTlf5PPZXvsdx4QdhWwm_Z9X92T1C5UfsE-MhcJ2to9Vioc-qcUlfBZW9iH0M7Lu2cfb4vz-SEKR39rwawACgrWS8IFzdWUG",
+        "name": "projects/17734721049138626585/files/74becf174feb4376b5660e6ffb20309e"
+      },
+      "rawHtml": ".stitch/designs/04-translation.html",
+      "html": "design/04-translation.html",
+      "preview": "design/previews/04-translation.png",
+      "sha256": "07c704930dc5f541aeea43a1f0dea1f10899a0eb7ed1e0d914471b50535ebc89",
+      "rawSha256": "f7f9b09472076444813876102aaad631b670c21b9059b210235f9ffa2b218d56"
+    },
+    {
+      "slug": "05-settings",
+      "title": "05 — 设置 · 通用 (Quiet Light)",
+      "file": "05-settings.html",
+      "description": "独立窗口中的通用设置与索引管理。",
+      "id": "c2279e0cb7d44ca59d8ec3da36cabf8b",
+      "name": "projects/17734721049138626585/screens/c2279e0cb7d44ca59d8ec3da36cabf8b",
+      "deviceType": "DESKTOP",
+      "htmlCode": {
+        "downloadUrl": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ8Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpbCiVodG1sX2M4YTliODEwZTE5ODQzYzdhZGJlYzMyNTA3YWYxNmU0EgsSBxCLp4bSiwoYAZIBJAoKcHJvamVjdF9pZBIWQhQxNzczNDcyMTA0OTEzODYyNjU4NQ&filename=&opi=96797242",
+        "mimeType": "text/html",
+        "name": "projects/17734721049138626585/files/98b8dff6394e46b9b5ee2ab968a5e656"
+      },
+      "screenshot": {
+        "downloadUrl": "https://lh3.googleusercontent.com/aida/AEtjO1XqrzR9PVbyApn3WuGyJnR_aTLW7JwU9rqv8sfTyBU3qCQu7CiPTOloEjnGPuUOOBCmu0D99F-fJYd5WHb-rehgGxOs73Zjj8n_bC_rPbNOD1RQeIAJjsN7MlNL7bE4KHoqySk2iZWtPCcRSm6oL_f-2T2ZvlsQnRj6BYugHEeaiY-K8Nge9jdHzKl9BICXg8YR8GxRJa-pEIQEFt1U64z1wScqzvVw_JRvuhnPGyzQ5SNS1FPPFgMyxJo",
+        "name": "projects/17734721049138626585/files/d30a20ad1f6b4ccd9de3604c525240ab"
+      },
+      "rawHtml": ".stitch/designs/05-settings.html",
+      "html": "design/05-settings.html",
+      "preview": "design/previews/05-settings.png",
+      "sha256": "0ed971bd0c0912a3f3bd302d90538ca26139bf99e73a65856bcaf734fb0bafab",
+      "rawSha256": "290c858e6e9c80c6cb92f59ec0acffa77be470fbc4212c58c074dc1b9deebef7"
+    }
+  ],
+  "notes": [
+    "Stitch exports are archived unchanged under .stitch/designs.",
+    "HTML under design adds shared light-state normalization and interaction/motion demonstration.",
+    "System operations are simulated. Native Swift source was not changed."
+  ],
+  "assets": {
+    "motion.js": "6eb001f1ada0ef39db99bd20d9f726e658ae996e787ada7f16c57e44dda75376",
+    "motion.css": "fa5a7ea95c0b3cab7a59720e6c5213baf782ffe08d31acc2119760ea8ddabb41",
+    "index.html": "ac41d5e069f15c4d7de070f26e7b68192669136df2128aed1f70ce627cb63b25"
+  }
+}

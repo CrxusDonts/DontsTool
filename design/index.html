@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DontsTool · Stitch 设计稿</title>
+<style>
+:root{color-scheme:light;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;color:#24272d;background:#f1f3f6}
+*{box-sizing:border-box}body{margin:0;height:100vh;display:flex;overflow:hidden}button,a{-webkit-tap-highlight-color:transparent}a{color:#3478f6;text-decoration:none}a:hover{text-decoration:underline}button{font:inherit}
+aside{width:232px;flex-shrink:0;border-right:1px solid #dce1e8;padding:30px 18px;display:flex;flex-direction:column;background:#f8f9fb}h1{font-size:20px;font-weight:600;margin:0 10px 7px;letter-spacing:-.5px}.eyebrow{color:#68717d;font-size:11px;margin:0 10px 28px;letter-spacing:.04em}
+nav{display:flex;flex-direction:column;gap:5px}nav button{border:1px solid transparent;border-radius:8px;text-align:left;background:transparent;color:#68717d;padding:13px 12px;cursor:pointer;display:flex;align-items:center;gap:12px;font-size:13px}nav button:hover{background:#24272d06;color:#24272d}nav button[aria-current=true]{background:#458bff18;border-color:#458bff35;color:#245fc4}nav .num{font:11px ui-monospace,SFMono-Regular,monospace;opacity:.6}
+.foot{margin-top:auto;padding:24px 10px 0;line-height:1.8;color:#68717d;font-size:11px}.foot a{display:block;margin-top:9px}
+main{flex:1;min-width:0;display:flex;flex-direction:column}.toolbar{height:86px;padding:0 30px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #dce1e8;gap:16px}h2{font-size:15px;font-weight:500;margin:0 0 6px}#description{font-size:12px;color:#68717d;margin:0}.links{display:flex;align-items:center;gap:18px;white-space:nowrap;font-size:12px;flex-wrap:wrap;justify-content:flex-end}
+#stage{position:relative;flex:1;min-height:0;display:grid;place-items:center;overflow:hidden;background:#e9edf2}#framebox{position:relative;flex-shrink:0}iframe{border:0;width:1280px;height:900px;transform-origin:top left;display:block;background:#e9edf2;border-radius:8px}footer{padding:12px 30px;color:#68717d;font-size:11px;border-top:1px solid #dce1e8;display:flex;justify-content:space-between;gap:15px}
+button:focus-visible,a:focus-visible{outline:2px solid #458bff;outline-offset:3px}@media(max-width:760px){body{flex-direction:column}aside{width:100%;padding:16px;border-right:0;border-bottom:1px solid #dce1e8}h1{font-size:16px;margin-left:0}.eyebrow{margin:0 0 12px}nav{flex-direction:row;overflow-x:auto;gap:4px}nav button{white-space:nowrap;padding:9px}.foot{display:none}.toolbar{padding:15px;height:auto;min-height:80px}.links{gap:10px}footer{padding:10px 15px;font-size:10px}}
+.motion-button{border:1px solid #d5dce6;background:#fff;color:#394250;border-radius:7px;padding:7px 10px;cursor:pointer;font-size:12px}.motion-button:hover{background:#edf3ff}.reduce-label{display:flex;align-items:center;gap:5px;color:#68717d;font-size:11px;cursor:pointer}.reduce-label input{accent-color:#3478f6}.toolbar{height:100px}.links{max-width:440px;gap:10px}.foot{font-size:11px}</style></head><body>
+<aside><h1>DontsTool<span style="color:#626975">.</span></h1><p class="eyebrow">QUIET LIGHT · STITCH</p>
+<nav aria-label="设计稿场景"><button type="button" data-screen="0" aria-current="true"><span class="num">01</span>常用与工具</button>
+<button type="button" data-screen="1" aria-current="false"><span class="num">02</span>搜索结果</button>
+<button type="button" data-screen="2" aria-current="false"><span class="num">03</span>文本工具</button>
+<button type="button" data-screen="3" aria-current="false"><span class="num">04</span>翻译</button>
+<button type="button" data-screen="4" aria-current="false"><span class="num">05</span>设置</button></nav>
+<div class="foot">浅色 macOS · 键盘优先<br>⌥ Space 呼出 · 640 × 420pt<br>2026.10.18
+<a href="https://stitch.withgoogle.com/projects/17734721049138626585" target="_blank" rel="noopener">在 Stitch 中查看 ↗</a><a href="MOTION.md" target="_blank" rel="noopener">动效规范 ↗</a><a href="README.md" target="_blank" rel="noopener">项目理解与稿件说明 ↗</a></div></aside>
+<main><header class="toolbar"><div><h2 id="title">01 · 常用与工具</h2><p id="description">空查询时的常用应用与关键词入口。</p></div><div class="links"><button class="motion-button" id="replay" type="button">重播呼出</button><button class="motion-button" id="toggle" type="button">收起 / 呼出</button><label class="reduce-label"><input id="reduce" type="checkbox">减少动态效果</label><a id="source" href="01-launcher.html" target="_blank" rel="noopener">打开 HTML ↗</a><a id="preview" href="previews/01-launcher.png" target="_blank" rel="noopener">查看截图 ↗</a></div></header>
+<div id="stage"><div id="framebox"><iframe id="screen" title="DontsTool 设计稿" src="01-launcher.html"></iframe></div></div>
+<footer><span>V1 浅色交互稿 · 示例数据 · 打开、复制、翻译与设置均为本地模拟</span><span>导出 HTML 的 CDN 样式需联网加载</span></footer></main>
+<script>
+const screens=[{"slug":"01-launcher","title":"常用与工具","file":"01-launcher.html","description":"空查询时的常用应用与关键词入口。"},{"slug":"02-search","title":"搜索结果","file":"02-search.html","description":"应用、文件分组与键盘选中态。"},{"slug":"03-text-tools","title":"文本工具","file":"03-text-tools.html","description":"JSON 摘要、复制与压缩操作。"},{"slug":"04-translation","title":"翻译","file":"04-translation.html","description":"系统翻译入口与网页兜底。"},{"slug":"05-settings","title":"设置","file":"05-settings.html","description":"独立窗口中的通用设置与索引管理。"}];
+const frame=document.querySelector('#screen'),box=document.querySelector('#framebox'),stage=document.querySelector('#stage');
+function fit(){const scale=Math.min((stage.clientWidth-24)/1280,(stage.clientHeight-24)/900,1);frame.style.transform='scale('+Math.max(.1,scale)+')';box.style.width=(1280*Math.max(.1,scale))+'px';box.style.height=(900*Math.max(.1,scale))+'px'}
+function select(i){const item=screens[i];frame.src=item.file;frame.title='DontsTool · '+item.title;document.querySelector('#title').textContent='0'+(i+1)+' · '+item.title;document.querySelector('#description').textContent=item.description;document.querySelector('#source').href=item.file;document.querySelector('#preview').href='previews/'+item.slug+'.png';document.querySelectorAll('nav button').forEach((el,n)=>el.setAttribute('aria-current',n===i?'true':'false'));history.replaceState(null,'','#'+item.slug)}
+document.querySelectorAll('nav button').forEach(el=>el.addEventListener('click',()=>select(Number(el.dataset.screen))));
+function message(type,extra={}){frame.contentWindow.postMessage({type,...extra},location.origin==='null'?'*':location.origin)}
+document.querySelector('#replay').addEventListener('click',()=>message('dt:replay'));
+document.querySelector('#toggle').addEventListener('click',()=>message('dt:toggle'));
+document.querySelector('#reduce').addEventListener('change',e=>message('dt:reduce',{value:e.target.checked}));
+window.addEventListener('message',e=>{if(e.source!==frame.contentWindow||e.origin!==location.origin)return;if(e.data?.type==='dt:ready')message('dt:reduce',{value:document.querySelector('#reduce').checked});if(e.data?.type==='dt:navigate'){const i=screens.findIndex(s=>s.slug===e.data.scene);if(i>=0)select(i)}});
+new ResizeObserver(fit).observe(stage);fit();const start=screens.findIndex(s=>'#'+s.slug===location.hash);if(start>0)select(start);
+</script></body></html>

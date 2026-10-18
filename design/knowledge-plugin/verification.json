@@ -1,0 +1,22 @@
+{
+  "home": {
+    "externalScripts": 0,
+    "brokenImages": 0,
+    "tableCount": 0,
+    "codeBlocks": 0,
+    "images": 0,
+    "horizontalOverflow": false
+  },
+  "article": {
+    "externalScripts": 0,
+    "brokenImages": 0,
+    "tableCount": 1,
+    "codeBlocks": 1,
+    "images": 1,
+    "horizontalOverflow": false
+  },
+  "screenSwitch": true,
+  "articleOpening": true,
+  "externalRequests": [],
+  "errors": []
+}

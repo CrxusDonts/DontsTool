@@ -1,0 +1,24 @@
+# Build output and generated Xcode project
+/build/
+/dist/
+/DerivedData/
+/DontsTool.xcodeproj/
+*.xcuserstate
+xcuserdata/
+.DS_Store
+*.log
+
+# Local environment and signing material
+.env
+.env.*
+!.env.example
+.signing/
+*.p12
+*.pfx
+*.p8
+*.keychain
+*.keychain-db
+*.mobileprovision
+
+# A local production knowledge-document screenshot (not a project fixture)
+/docs/reviews/assets/knowledge-installed-current.jpg

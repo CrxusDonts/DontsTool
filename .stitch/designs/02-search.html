@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>DontsTool - macOS Native Panel (Quiet Light)</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "on-surface": "#111827",
+            "on-surface-variant": "#6B7280",
+            "outline-variant": "#E5E7EB",
+            "primary": "#007AFF",
+            "surface-bright": "#F9FAFB",
+            "surface-container": "#F3F4F6",
+            "surface-container-high": "#ECEFF2",
+            "background": "#F3F4F6"
+          },
+          fontFamily: {
+            sans: ["-apple-system", "BlinkMacSystemFont", "SF Pro Text", "SF Pro Display", "PingFang SC", "system-ui", "sans-serif"],
+            mono: ["SF Mono", "Menlo", "Monaco", "Consolas", "monospace"]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    @keyframes cursor-blink {
+      0%, 49% { opacity: 1; }
+      50%, 100% { opacity: 0; }
+    }
+    .caret-blink {
+      animation: cursor-blink 1.05s infinite;
+    }
+
+    /* macOS Micro-dots subtle light wallpaper background */
+    .bg-grid-dots {
+      background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
+      background-size: 20px 20px;
+    }
+
+    /* Native macOS translucent scrollbar styling */
+    .custom-scroll::-webkit-scrollbar {
+      width: 6px;
+    }
+    .custom-scroll::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: rgba(0, 0, 0, 0.16);
+      border-radius: 9999px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb:hover {
+      background: rgba(0, 0, 0, 0.28);
+    }
+
+    /* Motion specifications */
+    .panel-enter {
+      animation: panelIn 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    .panel-exit {
+      animation: panelOut 140ms cubic-bezier(0.4, 0, 1, 1) forwards;
+    }
+
+    @keyframes panelIn {
+      0% {
+        opacity: 0;
+        transform: translateY(8px) scale(0.985);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    @keyframes panelOut {
+      0% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+      100% {
+        opacity: 0;
+        transform: scale(0.985);
+      }
+    }
+
+    /* Item stagger entrance */
+    .row-stagger-1 { animation: fadeInRow 120ms ease-out 20ms both; }
+    .row-stagger-2 { animation: fadeInRow 120ms ease-out 40ms both; }
+    .row-stagger-3 { animation: fadeInRow 120ms ease-out 60ms both; }
+    .row-stagger-4 { animation: fadeInRow 120ms ease-out 80ms both; }
+    .row-stagger-5 { animation: fadeInRow 120ms ease-out 100ms both; }
+
+    @keyframes fadeInRow {
+      from {
+        opacity: 0;
+        transform: translateY(3px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .row-item {
+      transition: background-color 100ms ease, color 100ms ease, transform 140ms ease;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, ::before, ::after {
+        animation-duration: 1ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 1ms !important;
+        transform: none !important;
+      }
+    }
+  </style>
+</head>
+<body class="bg-[#ECEFF2] text-[#111827] font-sans antialiased selection:bg-[#007AFF]/20 selection:text-[#007AFF] m-0 p-0 flex items-center justify-center min-h-screen relative overflow-hidden select-none">
+<!-- Desktop Presentation Canvas -->
+<main class="relative w-full min-h-screen bg-[#ECEFF2] bg-grid-dots flex items-center justify-center p-6">
+<!-- macOS NSPanel Floating Launcher Utility (Strict 640x420, rounded-[14px]) -->
+<section class="panel-enter relative w-[640px] h-[420px] rounded-[14px] bg-white/85 backdrop-blur-2xl border border-black/10 shadow-[0_24px_50px_rgba(0,0,0,0.12),0_4px_16px_rgba(0,0,0,0.06)] flex flex-col overflow-hidden text-left ring-1 ring-black/[0.03]" id="launcher-panel">
+<!-- Top Subtle Window Highlight Border -->
+<div class="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/80 to-transparent pointer-events-none"></div>
+<!-- Header (Search Bar, flex-shrink-0) -->
+<header class="flex-shrink-0 h-14 border-b border-black/[0.08] px-4 flex items-center justify-between bg-white/70 backdrop-blur-md w-full">
+<div class="flex items-center gap-3 flex-1 min-w-0">
+<span class="material-symbols-outlined text-[#007AFF] text-[20px] select-none flex-shrink-0" data-icon="search">search</span>
+<div class="flex items-center flex-1 min-w-0">
+<span class="text-[17px] text-[#111827] font-normal tracking-tight" id="search-query-text">note</span>
+<span class="inline-block w-[1.5px] h-[19px] bg-[#007AFF] ml-0.5 rounded-full caret-blink" id="caret-cursor"></span>
+</div>
+</div>
+<div class="flex items-center space-x-1.5 flex-shrink-0 pl-2">
+<!-- Clear button -->
+<button aria-label="Clear query" class="w-6 h-6 rounded-full flex items-center justify-center text-[#6B7280] hover:text-[#111827] hover:bg-black/[0.06] transition-colors duration-100 active:scale-95" id="clear-btn" type="button">
+<span class="material-symbols-outlined text-[16px]" data-icon="cancel">cancel</span>
+</button>
+<!-- Settings gear icon -->
+<button aria-label="Settings" class="w-7 h-7 rounded-lg flex items-center justify-center text-[#6B7280] hover:text-[#111827] hover:bg-black/[0.06] transition-colors duration-100 active:scale-95" id="settings-btn" type="button">
+<span class="material-symbols-outlined text-[18px]" data-icon="settings">settings</span>
+</button>
+</div>
+</header>
+<!-- Body Results Area: min-height: 0; flex: 1; overflow-y: auto -->
+<div class="min-h-0 flex-1 overflow-y-auto px-2 py-2 space-y-3 custom-scroll" id="results-container">
+<!-- Section 1: 应用 · 2 -->
+<div class="space-y-0.5">
+<div class="px-2 pt-1 pb-1 text-[11px] font-semibold text-[#6B7280] uppercase tracking-wider flex items-center justify-between select-none">
+<span>应用 · 2</span>
+</div>
+<!-- Row 0: 备忘录 (Notes) -->
+<div class="row-item row-stagger-1 group flex items-center justify-between h-[48px] px-2.5 rounded-lg cursor-default transition-all duration-140 hover:bg-black/[0.04]" data-index="0">
+<div class="flex items-center gap-3 min-w-0 flex-1">
+<div class="w-8 h-8 rounded-[7px] bg-[#fef3c7] border border-amber-300/50 flex items-center justify-center shadow-xs flex-shrink-0 text-amber-700">
+<span class="material-symbols-outlined text-[19px]" data-icon="edit_note">edit_note</span>
+</div>
+<div class="flex flex-col min-w-0 justify-center">
+<div class="row-title text-[13px] font-medium text-[#111827] tracking-tight truncate leading-snug">备忘录</div>
+<div class="row-sub text-[11px] text-[#6B7280] truncate leading-none mt-0.5">Notes · 应用程序</div>
+</div>
+</div>
+<div class="row-action opacity-0 group-hover:opacity-100 transition-opacity duration-150 flex items-center pl-2">
+<span class="text-[10px] text-[#6B7280] font-mono px-1.5 py-0.5 rounded bg-black/[0.05] border border-black/5">打开</span>
+</div>
+</div>
+<!-- Row 1: Notion -->
+<div class="row-item row-stagger-2 group flex items-center justify-between h-[48px] px-2.5 rounded-lg cursor-default transition-all duration-140 hover:bg-black/[0.04]" data-index="1">
+<div class="flex items-center gap-3 min-w-0 flex-1">
+<div class="w-8 h-8 rounded-[7px] bg-white border border-black/15 shadow-[0_1px_2px_rgba(0,0,0,0.06)] flex items-center justify-center flex-shrink-0 text-[#111827] font-mono font-bold text-[15px]">
+                N
+              </div>
+<div class="flex flex-col min-w-0 justify-center">
+<div class="row-title text-[13px] font-medium text-[#111827] tracking-tight truncate leading-snug">Notion</div>
+<div class="row-sub text-[11px] text-[#6B7280] truncate leading-none mt-0.5">应用程序</div>
+</div>
+</div>
+<div class="row-action opacity-0 group-hover:opacity-100 transition-opacity duration-150 flex items-center pl-2">
+<span class="text-[10px] text-[#6B7280] font-mono px-1.5 py-0.5 rounded bg-black/[0.05] border border-black/5">打开</span>
+</div>
+</div>
+</div>
+<!-- Section 2: 文件 · 3 -->
+<div class="space-y-0.5">
+<div class="px-2 pt-1 pb-1 text-[11px] font-semibold text-[#6B7280] uppercase tracking-wider flex items-center justify-between select-none">
+<span>文件 · 3</span>
+</div>
+<!-- Row 2: notes.md (Actively Selected by default) -->
+<div class="row-item row-stagger-3 is-selected flex items-center justify-between h-[50px] px-2.5 rounded-lg bg-[#007AFF] text-white shadow-sm cursor-default transition-all duration-140" data-index="2">
+<div class="flex items-center gap-3 min-w-0 flex-1">
+<div class="w-8 h-8 rounded-[7px] bg-white/20 border border-white/30 flex items-center justify-center shadow-xs flex-shrink-0 text-white">
+<span class="material-symbols-outlined text-[18px]" data-icon="description">description</span>
+</div>
+<div class="flex flex-col min-w-0 justify-center">
+<div class="row-title text-[13px] font-semibold text-white tracking-tight truncate leading-snug flex items-center">
+<span class="underline decoration-white/50 underline-offset-2">note</span><span>s.md</span>
+</div>
+<div class="row-sub text-[11px] text-white/85 truncate leading-none mt-0.5 font-mono">~/Documents/Projects/DontsTool</div>
+</div>
+</div>
+<div class="row-action flex items-center pl-2 flex-shrink-0">
+<div class="inline-flex items-center gap-1 px-2 py-0.5 rounded-[5px] bg-white/25 border border-white/30 text-white font-medium text-[11px] shadow-xs">
+<span>打开</span>
+<span class="text-[10px] font-mono leading-none">↵</span>
+</div>
+</div>
+</div>
+<!-- Row 3: Meeting Notes.pdf -->
+<div class="row-item row-stagger-4 group flex items-center justify-between h-[48px] px-2.5 rounded-lg cursor-default transition-all duration-140 hover:bg-black/[0.04]" data-index="3">
+<div class="flex items-center gap-3 min-w-0 flex-1">
+<div class="w-8 h-8 rounded-[7px] bg-[#fee2e2] border border-red-200 flex items-center justify-center shadow-xs flex-shrink-0 text-red-600">
+<span class="material-symbols-outlined text-[18px]" data-icon="picture_as_pdf">picture_as_pdf</span>
+</div>
+<div class="flex flex-col min-w-0 justify-center">
+<div class="row-title text-[13px] font-medium text-[#111827] tracking-tight truncate leading-snug flex items-center">
+<span>Meeting </span><span class="text-[#007AFF] font-semibold">Notes</span><span>.pdf</span>
+</div>
+<div class="row-sub text-[11px] text-[#6B7280] truncate leading-none mt-0.5 font-mono">~/Documents/Work</div>
+</div>
+</div>
+<div class="row-action opacity-0 group-hover:opacity-100 transition-opacity duration-150 flex items-center pl-2">
+<span class="text-[10px] text-[#6B7280] font-mono px-1.5 py-0.5 rounded bg-black/[0.05] border border-black/5">打开</span>
+</div>
+</div>
+<!-- Row 4: note-ideas.txt -->
+<div class="row-item row-stagger-5 group flex items-center justify-between h-[48px] px-2.5 rounded-lg cursor-default transition-all duration-140 hover:bg-black/[0.04]" data-index="4">
+<div class="flex items-center gap-3 min-w-0 flex-1">
+<div class="w-8 h-8 rounded-[7px] bg-gray-100 border border-black/10 flex items-center justify-center shadow-xs flex-shrink-0 text-[#6B7280]">
+<span class="material-symbols-outlined text-[18px]" data-icon="article">article</span>
+</div>
+<div class="flex flex-col min-w-0 justify-center">
+<div class="row-title text-[13px] font-medium text-[#111827] tracking-tight truncate leading-snug flex items-center">
+<span class="text-[#007AFF] font-semibold">note</span><span>-ideas.txt</span>
+</div>
+<div class="row-sub text-[11px] text-[#6B7280] truncate leading-none mt-0.5 font-mono">~/Desktop</div>
+</div>
+</div>
+<div class="row-action opacity-0 group-hover:opacity-100 transition-opacity duration-150 flex items-center pl-2">
+<span class="text-[10px] text-[#6B7280] font-mono px-1.5 py-0.5 rounded bg-black/[0.05] border border-black/5">打开</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Fixed Footer (flex-shrink: 0, 14pt bottom radius) -->
+<footer class="flex-shrink-0 h-8 px-4 w-full bg-white/70 backdrop-blur-md border-t border-black/[0.08] flex justify-between items-center select-none text-[11px]">
+<!-- Left: Product context & secondary action hint -->
+<div class="flex items-center gap-2 font-mono text-[#6B7280]">
+<span class="w-1.5 h-1.5 rounded-full bg-[#007AFF] inline-block"></span>
+<span class="hover:text-[#111827] transition-colors duration-150 cursor-default">⌘↵ 在 Finder 中显示</span>
+</div>
+<!-- Right: Shortcut Navigation items -->
+<div class="flex items-center space-x-3 font-mono text-[#6B7280]">
+<span>↑↓ 选择</span>
+<span class="text-[#111827] font-medium">↵ 执行</span>
+<span>esc 关闭</span>
+</div>
+</footer>
+</section>
+<!-- Interactive Execution / Action Toast (hidden by default) -->
+<div class="fixed bottom-8 px-4 py-2 bg-white/90 backdrop-blur-md border border-black/10 text-[#111827] text-xs font-medium rounded-full shadow-lg opacity-0 pointer-events-none transition-all duration-180 transform translate-y-2 flex items-center gap-2" id="toast">
+<span class="material-symbols-outlined text-[16px] text-[#007AFF]">check_circle</span>
+<span id="toast-text">已打开文件</span>
+</div>
+</main>
+<!-- Interactive Keyboard Navigation & Behavior Script -->
+<script>
+    (function () {
+      const panel = document.getElementById('launcher-panel');
+      const rows = Array.from(document.querySelectorAll('.row-item'));
+      const toast = document.getElementById('toast');
+      const toastText = document.getElementById('toast-text');
+      const clearBtn = document.getElementById('clear-btn');
+      const queryText = document.getElementById('search-query-text');
+      let currentIndex = 2; // Default selected is notes.md (index 2)
+      let isClosed = false;
+
+      function updateSelection(newIndex) {
+        if (newIndex < 0) newIndex = 0;
+        if (newIndex >= rows.length) newIndex = rows.length - 1;
+        currentIndex = newIndex;
+
+        rows.forEach((row, idx) => {
+          const title = row.querySelector('.row-title');
+          const sub = row.querySelector('.row-sub');
+          const action = row.querySelector('.row-action');
+          const iconWrapper = row.querySelector('.w-8');
+
+          if (idx === currentIndex) {
+            row.classList.add('is-selected', 'bg-[#007AFF]', 'text-white', 'shadow-sm');
+            row.classList.remove('hover:bg-black/[0.04]');
+            if (title) {
+              title.classList.remove('text-[#111827]');
+              title.classList.add('text-white', 'font-semibold');
+            }
+            if (sub) {
+              sub.classList.remove('text-[#6B7280]');
+              sub.classList.add('text-white/85');
+            }
+            if (action) {
+              action.className = 'row-action flex items-center pl-2 flex-shrink-0';
+              action.innerHTML = `
+                <div class="inline-flex items-center gap-1 px-2 py-0.5 rounded-[5px] bg-white/25 border border-white/30 text-white font-medium text-[11px] shadow-xs">
+                  <span>打开</span>
+                  <span class="text-[10px] font-mono leading-none">↵</span>
+                </div>
+              `;
+            }
+            if (iconWrapper && !iconWrapper.classList.contains('bg-white/20')) {
+              iconWrapper.dataset.originalBg = iconWrapper.className;
+              iconWrapper.className = 'w-8 h-8 rounded-[7px] bg-white/20 border border-white/30 flex items-center justify-center shadow-xs flex-shrink-0 text-white';
+            }
+            row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+          } else {
+            row.classList.remove('is-selected', 'bg-[#007AFF]', 'text-white', 'shadow-sm');
+            row.classList.add('hover:bg-black/[0.04]');
+            if (title) {
+              title.classList.remove('text-white', 'font-semibold');
+              title.classList.add('text-[#111827]');
+            }
+            if (sub) {
+              sub.classList.remove('text-white/85');
+              sub.classList.add('text-[#6B7280]');
+            }
+            if (action) {
+              action.className = 'row-action opacity-0 group-hover:opacity-100 transition-opacity duration-150 flex items-center pl-2';
+              action.innerHTML = `<span class="text-[10px] text-[#6B7280] font-mono px-1.5 py-0.5 rounded bg-black/[0.05] border border-black/5">打开</span>`;
+            }
+            if (iconWrapper && iconWrapper.dataset.originalBg) {
+              iconWrapper.className = iconWrapper.dataset.originalBg;
+            }
+          }
+        });
+      }
+
+      function showToast(message) {
+        toastText.textContent = message;
+        toast.classList.remove('opacity-0', 'translate-y-2', 'pointer-events-none');
+        toast.classList.add('opacity-100', 'translate-y-0');
+        setTimeout(() => {
+          toast.classList.remove('opacity-100', 'translate-y-0');
+          toast.classList.add('opacity-0', 'translate-y-2', 'pointer-events-none');
+        }, 1200);
+      }
+
+      function executeCurrent() {
+        const selected = rows[currentIndex];
+        const title = selected.querySelector('.row-title')?.textContent?.trim() || '项目';
+        showToast(`已执行：${title}`);
+      }
+
+      function closePanel() {
+        if (isClosed) return;
+        isClosed = true;
+        panel.classList.remove('panel-enter');
+        panel.classList.add('panel-exit');
+        setTimeout(() => {
+          panel.style.visibility = 'hidden';
+          // Pressing Escape again or clicking will revive for interactive demo
+          showToast('面板已关闭 (按任意键或点击重新唤起)');
+        }, 140);
+      }
+
+      function openPanel() {
+        if (!isClosed) return;
+        isClosed = false;
+        panel.style.visibility = 'visible';
+        panel.classList.remove('panel-exit');
+        panel.classList.add('panel-enter');
+      }
+
+      // Click on row to select and trigger
+      rows.forEach((row, idx) => {
+        row.addEventListener('click', () => {
+          updateSelection(idx);
+          executeCurrent();
+        });
+        row.addEventListener('mouseenter', () => {
+          updateSelection(idx);
+        });
+      });
+
+      // Clear button behavior
+      clearBtn?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (queryText.textContent) {
+          queryText.textContent = '';
+          showToast('已清除搜索词');
+        } else {
+          queryText.textContent = 'note';
+        }
+      });
+
+      // Global keyboard handler
+      window.addEventListener('keydown', (e) => {
+        if (isClosed) {
+          openPanel();
+          return;
+        }
+
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          updateSelection(currentIndex + 1);
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          updateSelection(currentIndex - 1);
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          if (e.metaKey) {
+            const selected = rows[currentIndex];
+            const sub = selected.querySelector('.row-sub')?.textContent?.trim() || '';
+            showToast(`在 Finder 中定位：${sub}`);
+          } else {
+            executeCurrent();
+          }
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          closePanel();
+        }
+      });
+
+      document.body.addEventListener('click', (e) => {
+        if (isClosed) {
+          openPanel();
+        }
+      });
+    })();
+  </script>
+</body></html>

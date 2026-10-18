@@ -1,0 +1,37 @@
+# 构建与发布
+
+## 版本来源
+
+`Resources/Info.plist` 的 `CFBundleShortVersionString` 为版本唯一来源，使用稳定版本号 `MAJOR.MINOR.PATCH`。Release 标签必须为同版本的 `vMAJOR.MINOR.PATCH`。构建号通过 Xcode 的 `CURRENT_PROJECT_VERSION` 注入：本地默认1，CI 使用工作流运行号。
+
+不把 `.xcodeproj`、`build/`、`dist/`、本机设置、钥匙串或证书提交进仓库。设计源文件、测试和通用配置示例可入库；包含生产知识库正文的本地截图已排除。
+
+## 本地验证
+
+```bash
+make test
+make test-bridge
+make release
+(cd dist && shasum -a 256 -c SHA256SUMS)
+```
+
+`make release` 调用 `scripts/package-release.sh`，重新生成 Xcode 工程，构建 arm64 / x86_64 Universal 应用，验证版本与构建号，使用 `codesign --sign - --timestamp=none` 签名。`lipo -verify_arch` 检查两种架构，`codesign --verify --deep --strict` 检查签名；ZIP 解压后再次验证并与构建二进制比对。
+
+可通过 `DT_BUILD_NUMBER`、`DT_DERIVED_DATA`、`DT_DIST_DIR` 指定构建号和输出位置；`DT_RELEASE_TAG` 如提供则必须与源码版本一致。脚本不会安装或启动应用，也不会访问证书或钥匙串。
+
+## GitHub 发布
+
+1. 提交源码版本和变更到 `main`，等待 CI 成功。
+2. 创建并推送对应版本的注释标签。
+3. Release 工作流只查询 `refs/tags` 命名空间，将注释标签解析到固定提交 SHA；测试、构建和打包都使用该 SHA，发布前再次核对远端标签未移动。
+4. 创建草稿 Release，上传 Universal ZIP、`manifest.json`、`SHA256SUMS`。
+5. 使用 GitHub CLI 下载回验，检查 SHA256 并与刚构建的三个文件逐字节比较。
+6. 验证通过才取消草稿状态并设为 Latest。
+
+整个仓库保持私有，Release 也仅对有仓库访问权限的账号可见，不支持匿名下载。CI 只需读取仓库；只有发布 job 具有 `contents: write`，GitHub 令牌仅在发布步骤通过环境变量提供给 CLI。Actions 固定到具体提交 SHA。
+
+发布失败后可用工作流手动入口填写已有标签重跑。同一源码提交、包含脚本标识的草稿可恢复；其他草稿和正式发布不会被覆盖。已正式发布的版本需要递增版本号再发布，不移动已有标签。
+
+## 安装边界
+
+产物使用 ad-hoc 本地签名，非 Developer ID 签名、非 Apple 公证。签名校验验证包完整性，不提供 Apple 的开发者身份认证。首次打开可能需要在系统隐私与安全性设置中允许该应用，详见 [README 安装说明](../README.md#安装)。

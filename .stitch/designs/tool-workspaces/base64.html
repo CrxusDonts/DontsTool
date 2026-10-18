@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Base64 编解码 · 独立双栏工具窗口 (macOS)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            surface: {
+              DEFAULT: '#f8f9fb',
+              dim: '#e9eef5',
+              bright: '#ffffff',
+            },
+            mac: {
+              border: '#dce1e8',
+              active: '#0066cc',
+              hover: '#f0f3f8',
+              text: '#1d2129',
+              muted: '#687385',
+              subtle: '#8a95a5',
+              badge: '#eef2f7',
+              success: '#10b981',
+              editorbg: '#ffffff'
+            }
+          },
+          fontFamily: {
+            sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Text"', '"SF Pro Display"', '"PingFang SC"', '"Hiragino Sans GB"', 'sans-serif'],
+            mono: ['"SF Mono"', 'Menlo', 'Monaco', 'Consolas', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* macOS Window Custom Properties & Reset */
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #e4e7ed;
+      background-image: radial-gradient(rgba(0, 0, 0, 0.08) 1px, transparent 1px);
+      background-size: 20px 20px;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "PingFang SC", sans-serif;
+      -webkit-font-smoothing: antialiased;
+      user-select: none;
+    }
+    textarea {
+      user-select: text;
+    }
+    /* macOS Traffic Light Buttons */
+    .traffic-btn {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    .traffic-close { background-color: #ff5f56; border: 1px solid #e0443e; }
+    .traffic-min { background-color: #ffbd2e; border: 1px solid #dea123; }
+    .traffic-max { background-color: #27c93f; border: 1px solid #1aab29; }
+
+    /* macOS Segmented Control */
+    .segmented-control {
+      background: #e9ecf2;
+      border-radius: 6px;
+      padding: 2px;
+      display: inline-flex;
+    }
+    .segmented-item {
+      padding: 2px 14px;
+      font-size: 12px;
+      font-weight: 500;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.12s ease;
+      color: #4b5563;
+    }
+    .segmented-item.active {
+      background: #ffffff;
+      color: #111827;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 0 1px rgba(0,0,0,0.12);
+    }
+
+    /* Custom Line Numbers */
+    .line-numbers {
+      font-family: "SF Mono", Menlo, Monaco, monospace;
+      font-size: 12px;
+      line-height: 20px;
+      color: #9ca3af;
+      text-align: right;
+      padding-right: 12px;
+      user-select: none;
+    }
+    .code-editor {
+      font-family: "SF Mono", Menlo, Monaco, monospace;
+      font-size: 12.5px;
+      line-height: 20px;
+      tab-size: 2;
+    }
+    /* Native checkmark */
+    input[type="checkbox"] {
+      accent-color: #0066cc;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body class="w-full min-h-screen flex items-center justify-center p-6 sm:p-10">
+
+  <!-- Main macOS Window Frame (1040x700 content size) -->
+  <div class="w-[1040px] h-[700px] bg-white rounded-xl shadow-[0_24px_50px_rgba(0,0,0,0.18),0_4px_12px_rgba(0,0,0,0.08),0_0_0_1px_rgba(0,0,0,0.1)] flex flex-col overflow-hidden text-mac-text">
+
+    <!-- 1. Window Titlebar with Traffic Lights -->
+    <header class="h-[46px] bg-[#f8f9fa] border-b border-[#e5e7eb] px-4 flex items-center justify-between flex-shrink-0 select-none">
+      <div class="flex items-center gap-2">
+        <span class="traffic-btn traffic-close"></span>
+        <span class="traffic-btn traffic-min"></span>
+        <span class="traffic-btn traffic-max"></span>
+      </div>
+
+      <div class="flex items-center gap-1.5 text-center">
+        <h1 class="text-[13px] font-semibold text-[#1f2937] tracking-tight">Base64 编解码</h1>
+        <span class="text-[10px] font-medium text-[#6b7280] bg-[#eef0f3] px-1.5 py-0.5 rounded border border-[#e2e5ea]">v1.0</span>
+      </div>
+
+      <div class="flex items-center gap-2 text-right">
+        <span class="text-[11px] font-mono text-[#9ca3af]">DontsTool Native</span>
+      </div>
+    </header>
+
+    <!-- 2. Dense Functional Utility Toolbar -->
+    <div class="h-[44px] bg-[#ffffff] border-b border-[#e5e7eb] px-4 flex items-center justify-between flex-shrink-0 text-xs">
+      <!-- Left: Segmented Mode Selector & Options -->
+      <div class="flex items-center gap-4">
+        <!-- Segmented Control: 编码 / 解码 -->
+        <div class="segmented-control" id="modeControl">
+          <button class="segmented-item active" id="btnModeEncode" onclick="setMode('encode')">编码</button>
+          <button class="segmented-item" id="btnModeDecode" onclick="setMode('decode')">解码</button>
+        </div>
+
+        <div class="h-4 w-[1px] bg-[#e5e7eb]"></div>
+
+        <!-- URL-safe option -->
+        <label class="flex items-center gap-1.5 cursor-pointer text-[#374151] select-none hover:text-black">
+          <input type="checkbox" id="chkUrlSafe" class="rounded w-3.5 h-3.5" onchange="runConversion()">
+          <span class="text-[12px]">URL-safe (替换 +/ 为 -_ 并移除尾部 =)</span>
+        </label>
+      </div>
+
+      <!-- Right: Action Button & Hotkey hint -->
+      <div class="flex items-center gap-2.5">
+        <span class="text-[11px] text-[#9ca3af] font-mono">⌘↩</span>
+        <button id="btnExecute" onclick="runConversion()" class="px-3.5 py-1.5 bg-[#0066cc] hover:bg-[#005bb5] active:bg-[#0051a3] text-white text-[12px] font-medium rounded-md shadow-sm transition-all duration-100 flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5 stroke-current" fill="none" viewBox="0 0 24 24" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+          </svg>
+          <span id="btnExecuteLabel">编码</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 3. Main Multi-Pane Area (Two Equal Split Editor Panes) -->
+    <main class="flex-1 flex min-h-0 bg-[#ffffff] divide-x divide-[#e5e7eb]">
+
+      <!-- Left Pane: 输入 (Input) -->
+      <section class="flex-1 flex flex-col min-w-0 bg-white">
+        <!-- Input Header -->
+        <div class="h-8 bg-[#fafafa] border-b border-[#eef0f3] px-3.5 flex items-center justify-between flex-shrink-0">
+          <div class="flex items-center gap-2">
+            <span class="text-[11px] font-semibold text-[#4b5563] tracking-wide uppercase">输入</span>
+            <span id="inputCharCount" class="text-[10px] text-[#9ca3af] font-mono bg-[#f1f3f6] px-1.5 py-0.2 rounded">4 行 · 28 字符</span>
+          </div>
+
+          <div class="flex items-center gap-1">
+            <button onclick="handlePaste()" class="px-2 py-0.5 text-[11px] text-[#4b5563] hover:text-[#111827] hover:bg-[#eaeef3] rounded transition-colors flex items-center gap-1">
+              <svg class="w-3 h-3 text-[#6b7280]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+              粘贴
+            </button>
+            <button onclick="handleClear()" class="px-2 py-0.5 text-[11px] text-[#ef4444] hover:bg-[#fee2e2] rounded transition-colors flex items-center gap-1">
+              <svg class="w-3 h-3 text-[#ef4444]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              清空
+            </button>
+          </div>
+        </div>
+
+        <!-- Input Editor Body (with line numbers) -->
+        <div class="flex-1 flex min-h-0 overflow-hidden relative">
+          <!-- Line Numbers -->
+          <div id="inputLineNumbers" class="line-numbers w-10 py-3 bg-[#fafafa] border-r border-[#f1f3f6] select-none text-[11px]">
+            <div>1</div>
+            <div>2</div>
+            <div>3</div>
+            <div>4</div>
+          </div>
+          <!-- Textarea -->
+          <div class="flex-1 relative h-full">
+            <textarea id="inputEditor" class="w-full h-full p-3 font-mono text-[12.5px] leading-[20px] text-[#111827] bg-white resize-none outline-none border-none focus:ring-0" placeholder="在此输入需要编码的纯文本..." oninput="onInputChanged()" spellcheck="false">你好，世界
+Hello World
+DontsTool Native 工具套件
+支持多行中文字符与 UTF-8 快速编解码</textarea>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Pane: 结果 (Result) -->
+      <section class="flex-1 flex flex-col min-w-0 bg-white">
+        <!-- Result Header -->
+        <div class="h-8 bg-[#fafafa] border-b border-[#eef0f3] px-3.5 flex items-center justify-between flex-shrink-0">
+          <div class="flex items-center gap-2">
+            <span class="text-[11px] font-semibold text-[#4b5563] tracking-wide uppercase">结果</span>
+            <span id="outputCharCount" class="text-[10px] text-[#9ca3af] font-mono bg-[#f1f3f6] px-1.5 py-0.2 rounded">156 字节 Base64</span>
+            <!-- Subtle inline status badge -->
+            <div id="statusBadge" class="flex items-center gap-1 text-[11px] text-[#10b981] bg-[#ecfdf5] border border-[#a7f3d0] px-2 py-0.5 rounded transition-all duration-200">
+              <span class="w-1.5 h-1.5 rounded-full bg-[#10b981]"></span>
+              <span id="statusText">编码完成</span>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-1.5">
+            <button onclick="useAsInput()" class="px-2 py-0.5 text-[11px] text-[#4b5563] hover:text-[#111827] hover:bg-[#eaeef3] rounded transition-colors flex items-center gap-1" title="将结果置入输入框，便于连续反转编解码">
+              <svg class="w-3 h-3 text-[#6b7280]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+              </svg>
+              作为输入
+            </button>
+            <button id="btnCopyResult" onclick="copyResult()" class="px-2.5 py-0.5 text-[11px] text-[#0066cc] bg-[#eef4fd] hover:bg-[#dbeafe] rounded transition-colors flex items-center gap-1 font-medium">
+              <svg class="w-3 h-3 text-[#0066cc]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+              <span id="copyResultText">复制结果</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Result Editor Body (with line numbers & readonly styling) -->
+        <div class="flex-1 flex min-h-0 overflow-hidden relative">
+          <!-- Line Numbers -->
+          <div id="outputLineNumbers" class="line-numbers w-10 py-3 bg-[#fafafa] border-r border-[#f1f3f6] select-none text-[11px]">
+            <div>1</div>
+            <div>2</div>
+            <div>3</div>
+            <div>4</div>
+          </div>
+          <!-- Textarea (Result) -->
+          <div class="flex-1 relative h-full">
+            <textarea id="outputEditor" class="w-full h-full p-3 font-mono text-[12.5px] leading-[20px] text-[#111827] bg-[#fdfdfe] resize-none outline-none border-none focus:ring-0 break-all" readonly placeholder="编码或解码结果将在此处显示..." spellcheck="false"></textarea>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- 4. Truthful Status Footer -->
+    <footer class="h-[28px] bg-[#f8f9fa] border-t border-[#e5e7eb] px-4 flex items-center justify-between flex-shrink-0 text-[11px] text-[#6b7280] select-none font-sans">
+      <div class="flex items-center gap-3">
+        <span class="flex items-center gap-1.5 text-[#374151] font-mono">
+          <span class="w-2 h-2 rounded-full bg-[#10b981]"></span>
+          <span id="footerStatusState">就绪 · UTF-8 编码</span>
+        </span>
+        <span class="text-[#d1d5db]">|</span>
+        <span id="footerCount">输入 59 字节 / 输出 80 字节</span>
+      </div>
+
+      <div class="flex items-center gap-3 font-mono text-[10.5px] text-[#9ca3af]">
+        <span>标准 RFC 4648</span>
+        <span class="text-[#e5e7eb]">·</span>
+        <span class="text-[#6b7280]">快捷键 ⌘↩ 立即执行</span>
+      </div>
+    </footer>
+
+  </div>
+
+  <!-- Interactive Logic adhering to "no fake latency / real truth" -->
+  <script>
+    let currentMode = 'encode'; // 'encode' | 'decode'
+
+    // Multi-line UTF-8 safe Base64 Encoder / Decoder
+    function utf8ToBase64(str, urlSafe = false) {
+      try {
+        const utf8Bytes = new TextEncoder().encode(str);
+        let binary = '';
+        for (let i = 0; i < utf8Bytes.length; i++) {
+          binary += String.fromCharCode(utf8Bytes[i]);
+        }
+        let b64 = btoa(binary);
+        if (urlSafe) {
+          b64 = b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        }
+        return { success: true, text: b64, byteLen: utf8Bytes.length };
+      } catch (e) {
+        return { success: false, error: e.message };
+      }
+    }
+
+    function base64ToUtf8(str, urlSafe = false) {
+      try {
+        let normalized = str.trim();
+        if (urlSafe || normalized.includes('-') || normalized.includes('_')) {
+          normalized = normalized.replace(/-/g, '+').replace(/_/g, '/');
+          while (normalized.length % 4 !== 0) {
+            normalized += '=';
+          }
+        }
+        const binary = atob(normalized);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) {
+          bytes[i] = binary.charCodeAt(i);
+        }
+        const decoded = new TextDecoder().decode(bytes);
+        return { success: true, text: decoded, byteLen: bytes.length };
+      } catch (e) {
+        return { success: false, error: '非法的 Base64 格式或格式损坏' };
+      }
+    }
+
+    function updateLineNumbers(textareaId, lineNumId) {
+      const ta = document.getElementById(textareaId);
+      const ln = document.getElementById(lineNumId);
+      const lines = (ta.value || '').split('\n').length;
+      let html = '';
+      for (let i = 1; i <= Math.max(lines, 1); i++) {
+        html += `<div>${i}</div>`;
+      }
+      ln.innerHTML = html;
+    }
+
+    function setMode(mode) {
+      currentMode = mode;
+      document.getElementById('btnModeEncode').classList.toggle('active', mode === 'encode');
+      document.getElementById('btnModeDecode').classList.toggle('active', mode === 'decode');
+
+      const label = mode === 'encode' ? '编码' : '解码';
+      document.getElementById('btnExecuteLabel').textContent = label;
+      document.getElementById('inputEditor').placeholder = mode === 'encode' 
+        ? '在此输入需要编码的纯文本...' 
+        : '在此输入需要解码的 Base64 字符串...';
+
+      runConversion();
+    }
+
+    function runConversion() {
+      const input = document.getElementById('inputEditor').value;
+      const isUrlSafe = document.getElementById('chkUrlSafe').checked;
+      const outputEditor = document.getElementById('outputEditor');
+      const statusBadge = document.getElementById('statusBadge');
+      const statusText = document.getElementById('statusText');
+      const footerStatus = document.getElementById('footerStatusState');
+      const footerCount = document.getElementById('footerCount');
+      const outputCharCount = document.getElementById('outputCharCount');
+
+      if (!input) {
+        outputEditor.value = '';
+        updateLineNumbers('outputEditor', 'outputLineNumbers');
+        statusBadge.className = 'flex items-center gap-1 text-[11px] text-[#6b7280] bg-[#f3f4f6] border border-[#e5e7eb] px-2 py-0.5 rounded';
+        statusText.textContent = '等待输入';
+        footerStatus.textContent = '就绪 · UTF-8 编码';
+        footerCount.textContent = '输入 0 字节 / 输出 0 字节';
+        outputCharCount.textContent = '0 字符';
+        return;
+      }
+
+      if (currentMode === 'encode') {
+        const res = utf8ToBase64(input, isUrlSafe);
+        outputEditor.value = res.text;
+        statusBadge.className = 'flex items-center gap-1 text-[11px] text-[#10b981] bg-[#ecfdf5] border border-[#a7f3d0] px-2 py-0.5 rounded';
+        statusText.textContent = isUrlSafe ? 'URL-safe 编码完成' : '编码完成';
+        footerStatus.textContent = '成功 · UTF-8 编码';
+        const outBytes = new TextEncoder().encode(res.text).length;
+        footerCount.textContent = `输入 ${res.byteLen} 字节 / 输出 ${outBytes} 字节`;
+        outputCharCount.textContent = `${res.text.length} 字符 Base64`;
+      } else {
+        const res = base64ToUtf8(input, isUrlSafe);
+        if (res.success) {
+          outputEditor.value = res.text;
+          statusBadge.className = 'flex items-center gap-1 text-[11px] text-[#10b981] bg-[#ecfdf5] border border-[#a7f3d0] px-2 py-0.5 rounded';
+          statusText.textContent = '解码完成';
+          footerStatus.textContent = '成功 · UTF-8 解码';
+          const inBytes = new TextEncoder().encode(input).length;
+          footerCount.textContent = `输入 ${inBytes} 字节 / 输出 ${res.byteLen} 字节`;
+          outputCharCount.textContent = `${res.text.length} 字符`;
+        } else {
+          outputEditor.value = `[解码错误] ${res.error}`;
+          statusBadge.className = 'flex items-center gap-1 text-[11px] text-[#ef4444] bg-[#fef2f2] border border-[#fecaca] px-2 py-0.5 rounded';
+          statusText.textContent = '格式错误';
+          footerStatus.textContent = '错误 · 校验失败';
+          footerCount.textContent = '请检查 Base64 字符串合法性';
+          outputCharCount.textContent = '异常';
+        }
+      }
+
+      updateLineNumbers('outputEditor', 'outputLineNumbers');
+    }
+
+    function onInputChanged() {
+      const input = document.getElementById('inputEditor').value;
+      const lines = input ? input.split('\n').length : 0;
+      const chars = input.length;
+      document.getElementById('inputCharCount').textContent = `${lines} 行 · ${chars} 字符`;
+      updateLineNumbers('inputEditor', 'inputLineNumbers');
+      runConversion();
+    }
+
+    function handleClear() {
+      document.getElementById('inputEditor').value = '';
+      onInputChanged();
+      document.getElementById('inputEditor').focus();
+    }
+
+    async function handlePaste() {
+      try {
+        const text = await navigator.clipboard.readText();
+        if (text) {
+          document.getElementById('inputEditor').value = text;
+          onInputChanged();
+        }
+      } catch (err) {
+        // Fallback prompt if clipboard permission denied
+        const val = prompt('请粘贴文本内容：');
+        if (val !== null) {
+          document.getElementById('inputEditor').value = val;
+          onInputChanged();
+        }
+      }
+    }
+
+    function useAsInput() {
+      const output = document.getElementById('outputEditor').value;
+      if (!output || output.startsWith('[解码错误]')) return;
+      document.getElementById('inputEditor').value = output;
+      // Toggle mode automatically for quick back-and-forth roundtrip
+      setMode(currentMode === 'encode' ? 'decode' : 'encode');
+      onInputChanged();
+    }
+
+    function copyResult() {
+      const output = document.getElementById('outputEditor').value;
+      if (!output) return;
+      navigator.clipboard.writeText(output).then(() => {
+        const copyBtn = document.getElementById('copyResultText');
+        const orig = copyBtn.textContent;
+        copyBtn.textContent = '已复制!';
+        setTimeout(() => {
+          copyBtn.textContent = orig;
+        }, 1200);
+      });
+    }
+
+    // Keyboard shortcut Cmd/Ctrl + Enter
+    window.addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+        e.preventDefault();
+        runConversion();
+      }
+    });
+
+    // Initial setup
+    window.onload = () => {
+      onInputChanged();
+    };
+  </script>
+</body>
+</html>

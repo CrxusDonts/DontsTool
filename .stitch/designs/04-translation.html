@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>DontsTool - 翻译</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "primary": "#007AFF",
+            "primary-hover": "#006ee6",
+            "surface": "#f8f9ff",
+            "surface-dim": "#d0dbed",
+            "surface-bright": "#f8f9ff",
+            "surface-container-lowest": "#ffffff",
+            "surface-container-low": "#eff4ff",
+            "surface-container": "#e6eeff",
+            "surface-container-high": "#dee9fc",
+            "surface-container-highest": "#d9e3f6",
+            "on-surface": "#121c2a",
+            "on-surface-variant": "#414755",
+            "outline": "#717786",
+            "outline-variant": "#c1c6d7",
+          },
+          fontFamily: {
+            sans: ["Inter", "-apple-system", "BlinkMacSystemFont", "SF Pro Text", "PingFang SC", "sans-serif"],
+            mono: ["JetBrains Mono", "SF Mono", "Menlo", "Courier New", "monospace"]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    @keyframes cursor-blink {
+      0%, 49% { opacity: 1; }
+      50%, 100% { opacity: 0; }
+    }
+    .native-cursor {
+      animation: cursor-blink 1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+    }
+
+    /* Motion specifications */
+    .panel-enter {
+      animation: panelIn 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    .panel-exit {
+      animation: panelOut 140ms cubic-bezier(0.4, 0, 1, 1) forwards;
+    }
+    @keyframes panelIn {
+      from {
+        opacity: 0;
+        transform: translateY(8px) scale(0.985);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+    @keyframes panelOut {
+      from {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+      to {
+        opacity: 0;
+        transform: translateY(6px) scale(0.985);
+      }
+    }
+    .toast-anim {
+      animation: toastIn 180ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    @keyframes toastIn {
+      from {
+        opacity: 0;
+        transform: translate(-50%, 8px) scale(0.96);
+      }
+      to {
+        opacity: 1;
+        transform: translate(-50%, 0) scale(1);
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .panel-enter, .panel-exit, .toast-anim {
+        animation-duration: 1ms !important;
+        transform: none !important;
+      }
+      .transition-all, .transition-colors, .transition-opacity {
+        transition-duration: 1ms !important;
+      }
+    }
+  </style>
+</head>
+<body class="bg-[#ECEFF2] text-[#121c2a] m-0 p-0 overflow-hidden select-none antialiased flex items-center justify-center min-h-screen font-sans">
+<!-- Desktop Canvas (Quiet Light Desktop with Micro-dot Pattern) -->
+<div class="relative w-[1280px] h-[900px] overflow-hidden bg-[#ECEFF2] flex flex-col items-center justify-center shadow-xl">
+<!-- Subtle Light Micro-dots Canvas Atmosphere -->
+<div class="absolute inset-0 pointer-events-none opacity-[0.4]" style="background-image: radial-gradient(rgba(0, 0, 0, 0.12) 1px, transparent 0); background-size: 20px 20px;"></div>
+<!-- Floating 640x420 Native macOS NSPanel -->
+<div class="panel-enter relative w-[640px] h-[420px] rounded-[14px] bg-white/85 backdrop-blur-2xl border border-black/10 shadow-[0_24px_64px_rgba(0,0,0,0.12),0_1px_2px_rgba(0,0,0,0.06)] flex flex-col overflow-hidden z-20" id="launcherPanel">
+<!-- Top Search Header (flex-shrink: 0) -->
+<header class="flex justify-between items-center h-14 px-4 w-full bg-white/60 backdrop-blur-md border-b border-black/5 shrink-0">
+<div class="flex items-center flex-1 mr-3 min-w-0">
+<!-- Translation Keyword Capsule Badge -->
+<span class="inline-flex items-center justify-center px-2 py-0.5 rounded font-mono text-xs font-medium bg-blue-50 text-blue-600 border border-blue-200 mr-2.5 shrink-0 shadow-xs tracking-wide">tr</span>
+<!-- Query Text Display with Native Caret -->
+<div class="flex items-center text-[15px] font-normal text-[#121c2a] truncate tracking-tight">
+<span id="queryText">Stay curious, keep building.</span>
+<span class="inline-block w-[1.5px] h-[17px] bg-[#007AFF] ml-0.5 native-cursor align-middle rounded-full"></span>
+</div>
+</div>
+<!-- Trailing Clear Action Button -->
+<button class="flex items-center justify-center w-6 h-6 rounded-md hover:bg-black/5 text-[#717786] hover:text-[#121c2a] transition-colors duration-100 ease-out active:scale-95" id="clearBtn" title="清除输入">
+<span class="material-symbols-outlined text-[16px] leading-none" data-icon="close">close</span>
+</button>
+</header>
+<!-- Main Results Canvas (min-height: 0; flex: 1; overflow-y: auto;) -->
+<main class="flex-1 min-h-0 overflow-y-auto px-2 py-2 flex flex-col justify-start">
+<!-- Group Caption -->
+<div class="text-[11px] font-medium text-[#717786] px-3 pt-1.5 pb-1 select-none tracking-wider">
+          翻译
+        </div>
+<!-- Row 1: Selected Action State (macOS Blue #007AFF Background) -->
+<div class="result-row flex items-center justify-between mx-1 px-3 py-2.5 rounded-lg bg-[#007AFF] text-white shadow-sm cursor-pointer transition-all duration-140" id="row1" onclick="selectRow(0)" ondblclick="executeAction()">
+<div class="flex items-center space-x-3 min-w-0">
+<!-- Language Glyph Squircle Icon -->
+<div class="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center shrink-0 border border-white/25 text-white" id="iconBox1">
+<span class="material-symbols-outlined text-lg leading-none" data-icon="translate">translate</span>
+</div>
+<!-- Stacked Label Hierarchy -->
+<div class="flex flex-col min-w-0 text-left">
+<div class="text-sm font-medium text-white truncate tracking-tight" id="title1">
+                翻译：Stay curious, keep building.
+              </div>
+<div class="text-[11px] text-white/80 mt-0.5 truncate flex items-center gap-1.5" id="subtitle1">
+<span>自动识别</span>
+<span class="text-white/50">→</span>
+<span>简体中文</span>
+<span class="text-white/40">·</span>
+<span class="text-white/90">系统原生翻译</span>
+</div>
+</div>
+</div>
+<!-- Trailing Key Action Pill -->
+<div class="shrink-0 pl-3">
+<button class="inline-flex items-center gap-1 bg-white/20 hover:bg-white/30 text-white text-[11px] font-mono px-2 py-1 rounded border border-white/20 shadow-xs transition-colors duration-100" id="actionPill1" onclick="executeAction(); event.stopPropagation();">
+<span>翻译并复制</span>
+<span class="text-[12px] opacity-80 font-sans">↵</span>
+</button>
+</div>
+</div>
+<!-- Row 2: Unselected State -->
+<div class="result-row flex items-center justify-between mx-1 px-3 py-2.5 rounded-lg hover:bg-black/[0.04] text-[#121c2a] cursor-pointer transition-all duration-140 mt-1 group" id="row2" onclick="selectRow(1)" ondblclick="executeAction()">
+<div class="flex items-center space-x-3 min-w-0">
+<!-- Globe/Browser Icon -->
+<div class="w-8 h-8 rounded-lg bg-[#dee9fc]/70 flex items-center justify-center shrink-0 border border-black/5 text-[#414755] group-hover:text-[#121c2a] transition-colors duration-100" id="iconBox2">
+<span class="material-symbols-outlined text-lg leading-none" data-icon="language">language</span>
+</div>
+<!-- Stacked Label Hierarchy -->
+<div class="flex flex-col min-w-0 text-left">
+<div class="text-sm font-medium text-[#121c2a] truncate tracking-tight" id="title2">
+                在网页中翻译
+              </div>
+<div class="text-[11px] text-[#717786] mt-0.5 truncate" id="subtitle2">
+                使用默认浏览器打开 Google 翻译
+              </div>
+</div>
+</div>
+<!-- Trailing External Link Glyph -->
+<div class="shrink-0 pl-3 text-[#717786] group-hover:text-[#121c2a] transition-colors duration-100" id="actionPill2">
+<span class="material-symbols-outlined text-base leading-none" data-icon="open_in_new">open_in_new</span>
+</div>
+</div>
+<!-- Exact Restrained Informational Hint Block -->
+<div class="mt-4 px-4 py-2 flex items-start gap-2.5 select-none">
+<span class="material-symbols-outlined text-[15px] text-[#717786] mt-0.5 shrink-0" data-icon="info">info</span>
+<div class="text-[11px] text-[#717786] leading-relaxed">
+<p>首次使用可能需要下载离线语言资源</p>
+<p class="text-[#717786]/80 mt-0.5">目标语言可在设置中更改</p>
+</div>
+</div>
+<!-- Negative Space -->
+<div class="flex-1 min-h-[40px]"></div>
+</main>
+<!-- Fixed Footer Pinned Status Bar (flex-shrink: 0) -->
+<footer class="flex justify-between items-center h-8 px-4 w-full bg-white/70 backdrop-blur-md border-t border-black/5 shrink-0 select-none">
+<!-- Left Glyph & Status Context -->
+<div class="flex items-center gap-1.5 text-xs font-medium text-[#414755]">
+<span class="material-symbols-outlined text-[14px] leading-none text-[#007AFF]" data-icon="translate">translate</span>
+<span class="text-[11px] font-mono tracking-tight text-[#414755]">DontsTool 翻译</span>
+</div>
+<!-- Right Keyboard Shortcuts -->
+<div class="flex items-center gap-3 text-[11px] font-mono text-[#717786]">
+<span class="hover:text-[#121c2a] transition-opacity duration-150 cursor-default">↑↓ 选择</span>
+<span class="text-black/20">·</span>
+<span class="hover:text-[#121c2a] transition-opacity duration-150 cursor-default font-medium text-[#121c2a]">↵ 执行</span>
+<span class="text-black/20">·</span>
+<span class="hover:text-[#121c2a] transition-opacity duration-150 cursor-default">esc 关闭</span>
+</div>
+</footer>
+</div>
+<!-- Copy Toast Notification (180ms ease-out) -->
+<div class="hidden absolute bottom-12 left-1/2 -translate-x-1/2 px-4 py-2 bg-[#121c2a]/90 backdrop-blur-md text-white text-xs font-medium rounded-lg shadow-lg flex items-center gap-2 z-50 pointer-events-none" id="toast">
+<span class="material-symbols-outlined text-sm text-green-400">check_circle</span>
+<span>已翻译并复制</span>
+</div>
+</div>
+<script>
+    let selectedIndex = 0;
+    const panel = document.getElementById('launcherPanel');
+    const toast = document.getElementById('toast');
+    const row1 = document.getElementById('row1');
+    const row2 = document.getElementById('row2');
+
+    function updateSelection() {
+      if (selectedIndex === 0) {
+        // Row 1 Active
+        row1.className = "result-row flex items-center justify-between mx-1 px-3 py-2.5 rounded-lg bg-[#007AFF] text-white shadow-sm cursor-pointer transition-all duration-140";
+        document.getElementById('iconBox1').className = "w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center shrink-0 border border-white/25 text-white";
+        document.getElementById('title1').className = "text-sm font-medium text-white truncate tracking-tight";
+        document.getElementById('subtitle1').className = "text-[11px] text-white/80 mt-0.5 truncate flex items-center gap-1.5";
+        document.getElementById('actionPill1').className = "inline-flex items-center gap-1 bg-white/20 hover:bg-white/30 text-white text-[11px] font-mono px-2 py-1 rounded border border-white/20 shadow-xs transition-colors duration-100";
+
+        // Row 2 Inactive
+        row2.className = "result-row flex items-center justify-between mx-1 px-3 py-2.5 rounded-lg hover:bg-black/[0.04] text-[#121c2a] cursor-pointer transition-all duration-140 mt-1 group";
+        document.getElementById('iconBox2').className = "w-8 h-8 rounded-lg bg-[#dee9fc]/70 flex items-center justify-center shrink-0 border border-black/5 text-[#414755] group-hover:text-[#121c2a] transition-colors duration-100";
+        document.getElementById('title2').className = "text-sm font-medium text-[#121c2a] truncate tracking-tight";
+        document.getElementById('subtitle2').className = "text-[11px] text-[#717786] mt-0.5 truncate";
+        document.getElementById('actionPill2').className = "shrink-0 pl-3 text-[#717786] group-hover:text-[#121c2a] transition-colors duration-100";
+      } else {
+        // Row 1 Inactive
+        row1.className = "result-row flex items-center justify-between mx-1 px-3 py-2.5 rounded-lg hover:bg-black/[0.04] text-[#121c2a] cursor-pointer transition-all duration-140 group";
+        document.getElementById('iconBox1').className = "w-8 h-8 rounded-lg bg-[#007AFF]/10 flex items-center justify-center shrink-0 border border-[#007AFF]/20 text-[#007AFF]";
+        document.getElementById('title1').className = "text-sm font-medium text-[#121c2a] truncate tracking-tight";
+        document.getElementById('subtitle1').className = "text-[11px] text-[#717786] mt-0.5 truncate flex items-center gap-1.5";
+        document.getElementById('actionPill1').className = "inline-flex items-center gap-1 bg-black/5 hover:bg-black/10 text-[#414755] text-[11px] font-mono px-2 py-1 rounded border border-black/10 shadow-xs transition-colors duration-100";
+
+        // Row 2 Active
+        row2.className = "result-row flex items-center justify-between mx-1 px-3 py-2.5 rounded-lg bg-[#007AFF] text-white shadow-sm cursor-pointer transition-all duration-140 mt-1";
+        document.getElementById('iconBox2').className = "w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center shrink-0 border border-white/25 text-white";
+        document.getElementById('title2').className = "text-sm font-medium text-white truncate tracking-tight";
+        document.getElementById('subtitle2').className = "text-[11px] text-white/80 mt-0.5 truncate";
+        document.getElementById('actionPill2').className = "shrink-0 pl-3 text-white";
+      }
+    }
+
+    function selectRow(index) {
+      selectedIndex = index;
+      updateSelection();
+    }
+
+    function executeAction() {
+      showToast();
+    }
+
+    function showToast() {
+      toast.classList.remove('hidden');
+      toast.classList.remove('toast-anim');
+      void toast.offsetWidth; // trigger reflow
+      toast.classList.add('toast-anim');
+      setTimeout(() => {
+        toast.classList.add('hidden');
+      }, 1800);
+    }
+
+    function closePanel() {
+      panel.classList.remove('panel-enter');
+      panel.classList.add('panel-exit');
+      setTimeout(() => {
+        // Allow reopening with click or esc toggle
+        panel.style.display = 'none';
+        setTimeout(() => {
+          panel.style.display = 'flex';
+          panel.classList.remove('panel-exit');
+          panel.classList.add('panel-enter');
+        }, 1200);
+      }, 140);
+    }
+
+    // Keyboard Interactive Handling
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        selectedIndex = (selectedIndex + 1) % 2;
+        updateSelection();
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        selectedIndex = (selectedIndex - 1 + 2) % 2;
+        updateSelection();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        executeAction();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        closePanel();
+      }
+    });
+
+    // Clear Button
+    document.getElementById('clearBtn').addEventListener('click', () => {
+      const queryEl = document.getElementById('queryText');
+      if (queryEl.textContent !== '') {
+        queryEl.textContent = '';
+      } else {
+        queryEl.textContent = 'Stay curious, keep building.';
+      }
+    });
+  </script>
+</body></html>

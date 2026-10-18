@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>DontsTool - JSON 对比工具</title>
+<!-- Material Symbols Outlined -->
+
+<!-- JetBrains Mono & Inter for macOS-grade native rendering -->
+
+
+
+
+<!-- Tailwind CSS CDN with plugins -->
+
+<!-- Tailwind Config directly honoring the design system tokens -->
+
+<style>
+    /* Custom subtle styling for native OS look */
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 18;
+      font-size: 16px;
+      line-height: 1;
+    }
+    .window-shadow {
+      box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.85),
+                  0 0 0 1px rgba(255, 255, 255, 0.08),
+                  0 1px 3px rgba(0, 0, 0, 0.6);
+    }
+    .well-inset-shadow {
+      box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4);
+    }
+    /* Cursor blink */
+    @keyframes cursor-blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+    .native-cursor {
+      animation: cursor-blink 1.06s steps(1) infinite;
+    }
+  </style>
+<style id="export-refinements">
+    body { background:#171B1D!important; min-height:100vh; height:auto!important; overflow:auto!important; padding:28px!important; }
+    body > div.relative { height:auto!important; min-height:700px; }
+    .whitespace-pre { white-space:normal!important; font-family:ui-monospace,SFMono-Regular,Menlo,monospace!important; line-height:21px!important; }
+    .whitespace-pre>div { white-space:pre!important; }
+    button:focus-visible { outline:2px solid #8BCDBB;outline-offset:3px; }
+    @media(prefers-reduced-motion:reduce){ *,*::before,*::after{animation:none!important;transition:none!important;} }
+    </style>
+<style id="bundled-utilities">*,:after,:before{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }/*! tailwindcss v3.4.17 | MIT License | https://tailwindcss.com*/*,:after,:before{box-sizing:border-box;border:0 solid #e5e7eb}:after,:before{--tw-content:""}:host,html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;-o-tab-size:4;tab-size:4;font-family:ui-sans-serif,system-ui,sans-serif,Apple Color Emoji,Segoe UI Emoji,Segoe UI Symbol,Noto Color Emoji;font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}body{margin:0;line-height:inherit}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:Fira Code,SF Mono,Menlo,Monaco,Consolas,monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}button,select{text-transform:none}button,input:where([type=button]),input:where([type=reset]),input:where([type=submit]){-webkit-appearance:button;background-color:transparent;background-image:none}:-moz-focusring{outline:auto}:-moz-ui-invalid{box-shadow:none}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}blockquote,dd,dl,figure,h1,h2,h3,h4,h5,h6,hr,p,pre{margin:0}fieldset{margin:0}fieldset,legend{padding:0}menu,ol,ul{list-style:none;margin:0;padding:0}dialog{padding:0}textarea{resize:vertical}input::-moz-placeholder,textarea::-moz-placeholder{opacity:1;color:#9ca3af}input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}[role=button],button{cursor:pointer}:disabled{cursor:default}audio,canvas,embed,iframe,img,object,svg,video{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}[hidden]:where(:not([hidden=until-found])){display:none}.relative{position:relative}.sticky{position:sticky}.bottom-0{bottom:0}.top-0{top:0}.z-20{z-index:20}.mx-1{margin-right:.25rem}.ml-1,.mx-1{margin-left:.25rem}.ml-2{margin-left:.5rem}.flex{display:flex}.inline-flex{display:inline-flex}.table{display:table}.grid{display:grid}.h-1\.5{height:.375rem}.h-2\.5{height:.625rem}.h-3{height:.75rem}.h-3\.5{height:.875rem}.h-4{height:1rem}.h-7{height:1.75rem}.h-\[175px\]{height:175px}.h-\[24px\]{height:24px}.h-\[30px\]{height:30px}.h-\[42px\]{height:42px}.h-\[44px\]{height:44px}.h-\[700px\]{height:700px}.min-h-0{min-height:0}.min-h-screen{min-height:100vh}.w-1\.5{width:.375rem}.w-10{width:2.5rem}.w-20{width:5rem}.w-3{width:.75rem}.w-3\.5{width:.875rem}.w-36{width:9rem}.w-7{width:1.75rem}.w-full{width:100%}.w-px{width:1px}.max-w-\[1040px\]{max-width:1040px}.max-w-full{max-width:100%}.flex-1{flex:1 1 0%}.shrink-0{flex-shrink:0}.border-collapse{border-collapse:collapse}@keyframes pulse{50%{opacity:.5}}.animate-pulse{animation:pulse 2s cubic-bezier(.4,0,.6,1) infinite}.cursor-default{cursor:default}.cursor-pointer{cursor:pointer}.select-none{-webkit-user-select:none;-moz-user-select:none;user-select:none}.grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}.flex-col{flex-direction:column}.items-center{align-items:center}.justify-center{justify-content:center}.justify-between{justify-content:space-between}.gap-1{gap:.25rem}.gap-1\.5{gap:.375rem}.gap-2{gap:.5rem}.gap-3{gap:.75rem}.divide-y>:not([hidden])~:not([hidden]){--tw-divide-y-reverse:0;border-top-width:calc(1px*(1 - var(--tw-divide-y-reverse)));border-bottom-width:calc(1px*var(--tw-divide-y-reverse))}.divide-outline-variant\/20>:not([hidden])~:not([hidden]){border-color:rgba(61,74,82,.2)}.overflow-auto{overflow:auto}.overflow-hidden{overflow:hidden}.whitespace-pre{white-space:pre}.rounded{border-radius:.25rem}.rounded-\[10px\]{border-radius:10px}.rounded-\[14px\]{border-radius:14px}.rounded-\[6px\]{border-radius:6px}.rounded-\[7px\]{border-radius:7px}.rounded-full{border-radius:9999px}.rounded-b-\[14px\]{border-bottom-right-radius:14px;border-bottom-left-radius:14px}.rounded-t-\[14px\]{border-top-left-radius:14px;border-top-right-radius:14px}.border{border-width:1px}.border-b{border-bottom-width:1px}.border-r{border-right-width:1px}.border-t{border-top-width:1px}.border-\[\#1AAB29\]\/60{border-color:rgba(26,171,41,.6)}.border-\[\#DEA123\]\/60{border-color:rgba(222,161,35,.6)}.border-\[\#E0443E\]\/60{border-color:rgba(224,68,62,.6)}.border-amber-500\/30{border-color:rgba(245,158,11,.3)}.border-emerald-500\/30{border-color:rgba(16,185,129,.3)}.border-outline{--tw-border-opacity:1;border-color:rgb(106 119 128/var(--tw-border-opacity,1))}.border-outline-variant{--tw-border-opacity:1;border-color:rgb(61 74 82/var(--tw-border-opacity,1))}.border-outline-variant\/30{border-color:rgba(61,74,82,.3)}.border-outline-variant\/40{border-color:rgba(61,74,82,.4)}.border-outline-variant\/50{border-color:rgba(61,74,82,.5)}.border-outline-variant\/60{border-color:rgba(61,74,82,.6)}.border-primary\/40{border-color:rgba(113,216,193,.4)}.bg-\[\#131517\]{--tw-bg-opacity:1;background-color:rgb(19 21 23/var(--tw-bg-opacity,1))}.bg-\[\#1D2225\]{--tw-bg-opacity:1;background-color:rgb(29 34 37/var(--tw-bg-opacity,1))}.bg-\[\#20272B\]{--tw-bg-opacity:1;background-color:rgb(32 39 43/var(--tw-bg-opacity,1))}.bg-\[\#20272B\]\/70{background-color:rgba(32,39,43,.7)}.bg-\[\#20272B\]\/80{background-color:rgba(32,39,43,.8)}.bg-\[\#24282B\]{--tw-bg-opacity:1;background-color:rgb(36 40 43/var(--tw-bg-opacity,1))}.bg-\[\#27C93F\]{--tw-bg-opacity:1;background-color:rgb(39 201 63/var(--tw-bg-opacity,1))}.bg-\[\#2B3034\]{--tw-bg-opacity:1;background-color:rgb(43 48 52/var(--tw-bg-opacity,1))}.bg-\[\#FF5F56\]{--tw-bg-opacity:1;background-color:rgb(255 95 86/var(--tw-bg-opacity,1))}.bg-\[\#FFBD2E\]{--tw-bg-opacity:1;background-color:rgb(255 189 46/var(--tw-bg-opacity,1))}.bg-amber-500\/15{background-color:rgba(245,158,11,.15)}.bg-black\/25{background-color:rgba(0,0,0,.25)}.bg-emerald-500\/15{background-color:rgba(16,185,129,.15)}.bg-outline-variant\/40{background-color:rgba(61,74,82,.4)}.bg-outline-variant\/60{background-color:rgba(61,74,82,.6)}.bg-primary{--tw-bg-opacity:1;background-color:rgb(113 216 193/var(--tw-bg-opacity,1))}.bg-surface-container{--tw-bg-opacity:1;background-color:rgb(19 27 32/var(--tw-bg-opacity,1))}.bg-surface-container-high{--tw-bg-opacity:1;background-color:rgb(23 33 39/var(--tw-bg-opacity,1))}.bg-surface-container-low{--tw-bg-opacity:1;background-color:rgb(14 20 24/var(--tw-bg-opacity,1))}.bg-surface-container-low\/80{background-color:rgba(14,20,24,.8)}.bg-surface-variant{--tw-bg-opacity:1;background-color:rgb(27 39 47/var(--tw-bg-opacity,1))}.bg-surface-variant\/20{background-color:rgba(27,39,47,.2)}.bg-tertiary-container{--tw-bg-opacity:1;background-color:rgb(220 242 206/var(--tw-bg-opacity,1))}.p-0\.5{padding:.125rem}.p-2{padding:.5rem}.p-3{padding:.75rem}.px-1{padding-left:.25rem;padding-right:.25rem}.px-1\.5{padding-left:.375rem;padding-right:.375rem}.px-2\.5{padding-left:.625rem;padding-right:.625rem}.px-3{padding-left:.75rem;padding-right:.75rem}.px-3\.5{padding-left:.875rem;padding-right:.875rem}.px-4{padding-left:1rem;padding-right:1rem}.py-0\.5{padding-top:.125rem;padding-bottom:.125rem}.py-1{padding-top:.25rem;padding-bottom:.25rem}.py-1\.5{padding-top:.375rem;padding-bottom:.375rem}.pl-3{padding-left:.75rem}.pr-2{padding-right:.5rem}.pt-2{padding-top:.5rem}.text-left{text-align:left}.text-right{text-align:right}.font-body{font-family:Inter,-apple-system,PingFang SC,sans-serif}.font-headline{font-family:Inter,-apple-system,BlinkMacSystemFont,PingFang SC,sans-serif}.font-mono{font-family:Fira Code,SF Mono,Menlo,Monaco,Consolas,monospace}.text-\[10\.5px\]{font-size:10.5px}.text-\[10px\]{font-size:10px}.text-\[11\.5px\]{font-size:11.5px}.text-\[11px\]{font-size:11px}.text-\[12\.5px\]{font-size:12.5px}.text-\[12px\]{font-size:12px}.text-\[13px\]{font-size:13px}.text-\[14px\]{font-size:14px}.text-\[15px\]{font-size:15px}.text-\[9px\]{font-size:9px}.font-medium{font-weight:500}.font-semibold{font-weight:600}.uppercase{text-transform:uppercase}.italic{font-style:italic}.leading-4{line-height:1rem}.leading-\[21px\]{line-height:21px}.leading-none{line-height:1}.tracking-tight{letter-spacing:-.025em}.tracking-wider{letter-spacing:.05em}.text-amber-300{--tw-text-opacity:1;color:rgb(252 211 77/var(--tw-text-opacity,1))}.text-emerald-300{--tw-text-opacity:1;color:rgb(110 231 183/var(--tw-text-opacity,1))}.text-on-primary-fixed{--tw-text-opacity:1;color:rgb(0 72 61/var(--tw-text-opacity,1))}.text-on-primary-fixed\/90{color:rgba(0,72,61,.9)}.text-on-surface{--tw-text-opacity:1;color:rgb(218 231 242/var(--tw-text-opacity,1))}.text-on-surface-variant{--tw-text-opacity:1;color:rgb(160 173 183/var(--tw-text-opacity,1))}.text-on-surface-variant\/50{color:rgba(160,173,183,.5)}.text-on-tertiary-container{--tw-text-opacity:1;color:rgb(73 92 65/var(--tw-text-opacity,1))}.text-outline{--tw-text-opacity:1;color:rgb(106 119 128/var(--tw-text-opacity,1))}.text-outline-variant{--tw-text-opacity:1;color:rgb(61 74 82/var(--tw-text-opacity,1))}.text-primary{--tw-text-opacity:1;color:rgb(113 216 193/var(--tw-text-opacity,1))}.text-primary-dim{--tw-text-opacity:1;color:rgb(98 202 180/var(--tw-text-opacity,1))}.text-secondary-fixed{--tw-text-opacity:1;color:rgb(224 227 225/var(--tw-text-opacity,1))}.text-white{--tw-text-opacity:1;color:rgb(255 255 255/var(--tw-text-opacity,1))}.text-white\/90{color:hsla(0,0%,100%,.9)}.line-through{text-decoration-line:line-through}.antialiased{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}.opacity-0{opacity:0}.opacity-85{opacity:.85}.shadow-sm{--tw-shadow:0 1px 2px 0 rgba(0,0,0,.05);--tw-shadow-colored:0 1px 2px 0 var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}.outline{outline-style:solid}.ring{--tw-ring-offset-shadow:var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);--tw-ring-shadow:var(--tw-ring-inset) 0 0 0 calc(3px + var(--tw-ring-offset-width)) var(--tw-ring-color)}.ring,.ring-1{box-shadow:var(--tw-ring-offset-shadow),var(--tw-ring-shadow),var(--tw-shadow,0 0 #0000)}.ring-1{--tw-ring-offset-shadow:var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);--tw-ring-shadow:var(--tw-ring-inset) 0 0 0 calc(1px + var(--tw-ring-offset-width)) var(--tw-ring-color)}.ring-primary\/20{--tw-ring-color:rgba(113,216,193,.2)}.backdrop-blur-md{--tw-backdrop-blur:blur(12px);-webkit-backdrop-filter:var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);backdrop-filter:var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia)}.transition{transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,-webkit-backdrop-filter;transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter;transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter,-webkit-backdrop-filter;transition-timing-function:cubic-bezier(.4,0,.2,1);transition-duration:.15s}.transition-all{transition-property:all;transition-timing-function:cubic-bezier(.4,0,.2,1);transition-duration:.15s}.transition-colors{transition-property:color,background-color,border-color,text-decoration-color,fill,stroke;transition-timing-function:cubic-bezier(.4,0,.2,1);transition-duration:.15s}.transition-opacity{transition-property:opacity;transition-timing-function:cubic-bezier(.4,0,.2,1)}.duration-150,.transition-opacity{transition-duration:.15s}.selection\:bg-primary-container ::-moz-selection{--tw-bg-opacity:1;background-color:rgb(0 81 68/var(--tw-bg-opacity,1))}.selection\:bg-primary-container ::selection{--tw-bg-opacity:1;background-color:rgb(0 81 68/var(--tw-bg-opacity,1))}.selection\:text-on-primary-container ::-moz-selection{--tw-text-opacity:1;color:rgb(123 227 203/var(--tw-text-opacity,1))}.selection\:text-on-primary-container ::selection{--tw-text-opacity:1;color:rgb(123 227 203/var(--tw-text-opacity,1))}.selection\:bg-primary-container::-moz-selection{--tw-bg-opacity:1;background-color:rgb(0 81 68/var(--tw-bg-opacity,1))}.selection\:bg-primary-container::selection{--tw-bg-opacity:1;background-color:rgb(0 81 68/var(--tw-bg-opacity,1))}.selection\:text-on-primary-container::-moz-selection{--tw-text-opacity:1;color:rgb(123 227 203/var(--tw-text-opacity,1))}.selection\:text-on-primary-container::selection{--tw-text-opacity:1;color:rgb(123 227 203/var(--tw-text-opacity,1))}.hover\:bg-primary-dim:hover{--tw-bg-opacity:1;background-color:rgb(98 202 180/var(--tw-bg-opacity,1))}.hover\:bg-surface-variant\/40:hover{background-color:rgba(27,39,47,.4)}.hover\:bg-surface-variant\/50:hover{background-color:rgba(27,39,47,.5)}.hover\:bg-surface-variant\/60:hover{background-color:rgba(27,39,47,.6)}.hover\:text-error:hover{--tw-text-opacity:1;color:rgb(238 125 119/var(--tw-text-opacity,1))}.hover\:text-on-surface:hover{--tw-text-opacity:1;color:rgb(218 231 242/var(--tw-text-opacity,1))}.focus\:ring-0:focus{--tw-ring-offset-shadow:var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);--tw-ring-shadow:var(--tw-ring-inset) 0 0 0 calc(var(--tw-ring-offset-width)) var(--tw-ring-color);box-shadow:var(--tw-ring-offset-shadow),var(--tw-ring-shadow),var(--tw-shadow,0 0 #0000)}.focus\:ring-offset-0:focus{--tw-ring-offset-width:0px}.active\:scale-\[0\.98\]:active{--tw-scale-x:0.98;--tw-scale-y:0.98;transform:translate(var(--tw-translate-x),var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.active\:brightness-75:active{--tw-brightness:brightness(.75);filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)}.group:hover .group-hover\:opacity-100{opacity:1}.dark\:border-outline:is(.dark *){--tw-border-opacity:1;border-color:rgb(106 119 128/var(--tw-border-opacity,1))}.dark\:bg-surface-container:is(.dark *){--tw-bg-opacity:1;background-color:rgb(19 27 32/var(--tw-bg-opacity,1))}.dark\:bg-surface-container-high:is(.dark *){--tw-bg-opacity:1;background-color:rgb(23 33 39/var(--tw-bg-opacity,1))}.dark\:bg-tertiary:is(.dark *){--tw-bg-opacity:1;background-color:rgb(237 255 224/var(--tw-bg-opacity,1))}.dark\:text-inverse-on-surface:is(.dark *){--tw-text-opacity:1;color:rgb(82 85 89/var(--tw-text-opacity,1))}.dark\:text-inverse-primary:is(.dark *){--tw-text-opacity:1;color:rgb(0 108 91/var(--tw-text-opacity,1))}.dark\:text-on-tertiary:is(.dark *){--tw-text-opacity:1;color:rgb(81 100 73/var(--tw-text-opacity,1))}.dark\:text-outline-variant:is(.dark *){--tw-text-opacity:1;color:rgb(61 74 82/var(--tw-text-opacity,1))}.dark\:hover\:bg-surface-container-highest:hover:is(.dark *){--tw-bg-opacity:1;background-color:rgb(27 39 47/var(--tw-bg-opacity,1))}.dark\:hover\:text-inverse-on-surface:hover:is(.dark *){--tw-text-opacity:1;color:rgb(82 85 89/var(--tw-text-opacity,1))}@media (min-width:640px){.sm\:p-6{padding:1.5rem}}</style><style>.font-headline,.font-body,.font-label,.font-display{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif!important}.font-mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace!important}.preview-icon{display:inline-block;flex-shrink:0;vertical-align:middle}body:has(>main){min-width:1096px}body>div.relative{width:1040px!important;min-width:1040px!important}</style></head>
+<body class="bg-[#131517] text-on-surface antialiased min-h-screen flex items-center justify-center p-3 sm:p-6 overflow-hidden select-none font-body">
+<!-- Floating macOS Utility Window (1040x700 bounded workspace) -->
+<main class="w-full max-w-[1040px] h-[700px] bg-[#24282B] rounded-[14px] flex flex-col window-shadow border border-outline-variant/60 relative overflow-hidden backdrop-blur-md">
+<!-- TopNavBar (Shared Component from JSON) -->
+<header class="bg-surface-container dark:bg-surface-container-high border-b border-outline-variant dark:border-outline flat no shadows docked full-width top rounded-t-[14px] flex justify-between items-center w-full px-4 h-[44px] max-w-full select-none shrink-0 z-20">
+<!-- Left: macOS Traffic Lights + Title + Badge -->
+<div class="flex items-center gap-3">
+<!-- Traffic lights -->
+<div class="flex items-center gap-2 group">
+<button aria-label="Close" class="w-3 h-3 rounded-full bg-[#FF5F56] border border-[#E0443E]/60 flex items-center justify-center transition-all duration-150 active:brightness-75" type="button"></button>
+<button aria-label="Minimize" class="w-3 h-3 rounded-full bg-[#FFBD2E] border border-[#DEA123]/60 flex items-center justify-center transition-all duration-150 active:brightness-75" type="button"></button>
+<button aria-label="Zoom" class="w-3 h-3 rounded-full bg-[#27C93F] border border-[#1AAB29]/60 flex items-center justify-center transition-all duration-150 active:brightness-75" type="button"></button>
+</div>
+<div class="h-3.5 w-px bg-outline-variant/40 ml-1"></div>
+<!-- Window App Identity -->
+<div class="flex items-center gap-2">
+<span class="font-headline text-[13px] font-semibold text-on-surface dark:text-inverse-on-surface tracking-tight text-white/90">
+            JSON 工具
+          </span>
+<span class="font-mono text-[9px] tracking-wider uppercase px-1.5 py-0.5 rounded bg-surface-variant text-on-surface-variant border border-outline-variant/50 font-medium">
+            DontsTool
+          </span>
+</div>
+</div>
+<!-- Center: Segmented Navigation Links (Strictly mapped to JSON: ["编辑", "对比"]) -->
+<div class="flex items-center bg-surface-container-low/80 p-0.5 rounded-[7px] border border-outline-variant/40">
+<!-- Inactive tab: 编辑 -->
+<button class="text-on-surface-variant hover:text-on-surface dark:text-outline-variant px-3 py-1 font-medium transition-all duration-150 font-headline text-[12px] leading-4 hover:bg-surface-variant/50 dark:hover:bg-surface-container-highest active:scale-[0.98]" type="button">
+          编辑
+        </button>
+<!-- Active tab: 对比 (Mapped via style_active_navigation) -->
+<button class="bg-tertiary-container text-on-tertiary-container dark:bg-tertiary dark:text-on-tertiary rounded-[6px] px-3 py-1 font-medium transition-all duration-150 font-headline text-[12px] leading-4 shadow-sm active:scale-[0.98]" type="button">
+          对比
+        </button>
+</div>
+<!-- Right: Trailing Actions / Utility Buttons -->
+<div class="flex items-center gap-1.5">
+<button class="w-7 h-7 flex items-center justify-center rounded-[6px] text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/60 active:scale-[0.98] transition-all" title="视图切换" type="button">
+<svg class="preview-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M12 4v16"/></svg>
+</button>
+<button class="w-7 h-7 flex items-center justify-center rounded-[6px] text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/60 active:scale-[0.98] transition-all" title="格式化选项" type="button">
+<svg class="preview-icon" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 17h16"/><circle cx="8" cy="7" r="2"/><circle cx="16" cy="17" r="2"/></svg>
+</button>
+</div>
+</header>
+<!-- Sub-Toolbar (Command Bar - 42px) -->
+<section class="h-[42px] bg-[#2B3034] border-b border-outline-variant/50 px-3.5 flex items-center justify-between shrink-0 select-none text-[12px]">
+<!-- Left action buttons group -->
+<div class="flex items-center gap-2">
+<!-- Action: 交换左右 (trailing_secondary_action from JSON) -->
+<button class="flex items-center gap-1.5 px-2.5 py-1 rounded-[6px] text-on-surface hover:bg-surface-variant/60 active:scale-[0.98] transition-all text-secondary-fixed" type="button">
+<svg class="preview-icon text-[15px]" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h15m-4-4 4 4-4 4M20 17H5m4-4-4 4 4 4"/></svg>
+<span class="font-headline text-[12px] font-medium leading-none">交换左右</span>
+</button>
+<!-- Icon Action: 粘贴到左侧 (content_paste from JSON) -->
+<button class="flex items-center gap-1.5 px-2.5 py-1 rounded-[6px] text-on-surface hover:bg-surface-variant/60 active:scale-[0.98] transition-all text-secondary-fixed" type="button">
+<svg class="preview-icon text-[15px]" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="5" width="14" height="16" rx="2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>
+<span class="font-headline text-[12px] font-medium leading-none">粘贴到左侧</span>
+</button>
+<!-- Hairline Divider -->
+<div class="h-4 w-px bg-outline-variant/60 mx-1"></div>
+<!-- Compact wrap_text toggle option (from trailing_icon_actions) -->
+<label class="flex items-center gap-1.5 cursor-pointer text-on-surface-variant hover:text-on-surface text-[12px] py-1 px-1.5 rounded transition-colors">
+<input checked="" class="w-3.5 h-3.5 rounded bg-surface-container-high border-outline text-primary focus:ring-0 focus:ring-offset-0 transition cursor-pointer" type="checkbox"/>
+<svg class="preview-icon text-[15px]" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M3 11h14a4 4 0 0 1 0 8h-3m0 0 3-3m-3 3 3 3M3 17h5"/></svg>
+<span class="font-headline text-[12px] select-none">自动换行</span>
+</label>
+</div>
+<!-- Right action: 对比 ⌘↩ (trailing_primary_action from JSON) -->
+<div class="flex items-center gap-2">
+<button class="bg-primary text-on-primary-fixed font-headline font-semibold px-3 py-1 rounded-[6px] hover:bg-primary-dim active:scale-[0.98] transition-all flex items-center gap-2 shadow-sm text-[12px]" type="button">
+<span>对比</span>
+<kbd class="bg-black/25 text-on-primary-fixed/90 px-1 py-0.5 rounded text-[10px] font-mono leading-none font-medium tracking-tight">⌘↩</kbd>
+</button>
+</div>
+</section>
+<!-- Main Workspace (Editor Wells side-by-side) -->
+<div class="flex-1 min-h-0 p-3 flex flex-col gap-3 bg-[#24282B]">
+<!-- Split Code Editor Wells -->
+<div class="flex-1 grid grid-cols-2 gap-3 min-h-0">
+<!-- Left Editor Pane: 原始文件 -->
+<section class="bg-[#1D2225] border border-outline-variant/60 rounded-[10px] flex flex-col overflow-hidden well-inset-shadow">
+<!-- Editor Title Header -->
+<div class="h-[30px] bg-[#20272B] border-b border-outline-variant/50 px-2.5 flex items-center justify-between shrink-0 text-[11px] font-headline select-none">
+<div class="flex items-center gap-1.5 text-on-surface">
+<svg class="preview-icon text-[14px] text-on-surface-variant" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8zM14 3v5h5M9 12h6m-6 4h6"/></svg>
+<span class="font-medium text-white/90">左侧 JSON</span>
+<span class="text-on-surface-variant font-mono text-[10px]">· 原始内容</span>
+</div>
+<button class="text-on-surface-variant hover:text-error text-[11px] px-1.5 py-0.5 rounded hover:bg-surface-variant/40 transition-colors" type="button">
+              清空
+            </button>
+</div>
+<!-- Code Body & Gutter -->
+<div class="flex-1 overflow-auto font-mono text-[12.5px] leading-[21px] flex selection:bg-primary-container selection:text-on-primary-container">
+<!-- Gutter (Line Numbers & State Indicators) -->
+<div class="w-10 bg-[#20272B]/70 border-r border-outline-variant/30 text-right pr-2 select-none text-[11px] text-outline pt-2 font-mono flex flex-col"><div style="height:21px;line-height:21px">1</div><div style="height:21px;line-height:21px">2</div><div style="height:21px;line-height:21px">3</div><div style="height:21px;line-height:21px">4</div><div style="height:21px;line-height:21px">5</div><div style="height:21px;line-height:21px">6</div><div style="height:21px;line-height:21px">7</div><div style="height:21px;line-height:21px">8</div><div style="height:21px;line-height:21px">9</div><div style="height:21px;line-height:21px">10</div><div style="height:21px;line-height:21px">11</div><div style="height:21px;line-height:21px">12</div><div style="height:21px;line-height:21px">13</div></div>
+<!-- Code Content Area -->
+<div class="flex-1 p-2 pl-3 whitespace-pre text-on-surface"><div style="height:21px;white-space:pre;background:transparent" data-source-line="1">{</div><div style="height:21px;white-space:pre;background:rgba(190,145,53,.13)" data-source-line="2">  <span style="color:#8BCDBB">&quot;name&quot;</span>: <span style="color:#E4B28B">&quot;DontsTool&quot;</span>,</div><div style="height:21px;white-space:pre;background:rgba(190,145,53,.13)" data-source-line="3">  <span style="color:#8BCDBB">&quot;version&quot;</span>: <span style="color:#E4B28B">&quot;1.0.0&quot;</span>,</div><div style="height:21px;white-space:pre;background:transparent" data-source-line="4">  <span style="color:#8BCDBB">&quot;enabled&quot;</span>: <span style="color:#B6A4DF">true</span>,</div><div style="height:21px;white-space:pre;background:transparent" data-source-line="5">  <span style="color:#8BCDBB">&quot;shortcuts&quot;</span>: [</div><div style="height:21px;white-space:pre;background:transparent" data-source-line="6">    <span style="color:#E4B28B">&quot;json&quot;</span>,</div><div style="height:21px;white-space:pre;background:transparent" data-source-line="7">    <span style="color:#E4B28B">&quot;uuid&quot;</span></div><div style="height:21px;white-space:pre;background:transparent" data-source-line="8">  ],</div><div style="height:21px;white-space:pre;background:transparent" data-source-line="9">  <span style="color:#8BCDBB">&quot;preferences&quot;</span>: {</div><div style="height:21px;white-space:pre;background:transparent" data-source-line="10">    <span style="color:#8BCDBB">&quot;wrap&quot;</span>: <span style="color:#B6A4DF">true</span>,</div><div style="height:21px;white-space:pre;background:transparent" data-source-line="11">    <span style="color:#8BCDBB">&quot;indent&quot;</span>: <span style="color:#B6A4DF">2</span></div><div style="height:21px;white-space:pre;background:transparent" data-source-line="12">  }</div><div style="height:21px;white-space:pre;background:transparent" data-source-line="13">}</div></div>
+</div>
+</section>
+<!-- Right Editor Pane: 修改后 (Focused active ring) -->
+<section class="bg-[#1D2225] border border-primary/40 rounded-[10px] flex flex-col overflow-hidden well-inset-shadow ring-1 ring-primary/20">
+<!-- Editor Title Header -->
+<div class="h-[30px] bg-[#20272B] border-b border-outline-variant/50 px-2.5 flex items-center justify-between shrink-0 text-[11px] font-headline select-none">
+<div class="flex items-center gap-1.5 text-on-surface">
+<svg class="preview-icon text-[14px] text-primary" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3H6v18h12v-8M13 3v6h6M10 18l8-8 3 3-8 8z"/></svg>
+<span class="font-medium text-white">右侧 JSON</span>
+<span class="text-primary font-mono text-[10px]">· 修改内容 (焦点)</span>
+</div>
+<button class="text-on-surface-variant hover:text-error text-[11px] px-1.5 py-0.5 rounded hover:bg-surface-variant/40 transition-colors" type="button">
+              清空
+            </button>
+</div>
+<!-- Code Body & Gutter -->
+<div class="flex-1 overflow-auto font-mono text-[12.5px] leading-[21px] flex selection:bg-primary-container selection:text-on-primary-container">
+<!-- Gutter -->
+<div class="w-10 bg-[#20272B]/70 border-r border-outline-variant/30 text-right pr-2 select-none text-[11px] text-outline pt-2 font-mono flex flex-col"><div style="height:21px;line-height:21px">1</div><div style="height:21px;line-height:21px">2</div><div style="height:21px;line-height:21px">3</div><div style="height:21px;line-height:21px">4</div><div style="height:21px;line-height:21px">5</div><div style="height:21px;line-height:21px">6</div><div style="height:21px;line-height:21px">7</div><div style="height:21px;line-height:21px">8</div><div style="height:21px;line-height:21px">9</div><div style="height:21px;line-height:21px">10</div><div style="height:21px;line-height:21px">11</div><div style="height:21px;line-height:21px">12</div><div style="height:21px;line-height:21px">13</div><div style="height:21px;line-height:21px">14</div></div>
+<!-- Code Content Area with live caret -->
+<div class="flex-1 p-2 pl-3 whitespace-pre text-on-surface relative"><div style="height:21px;white-space:pre;background:transparent" data-source-line="1">{</div><div style="height:21px;white-space:pre;background:rgba(190,145,53,.13)" data-source-line="2">  <span style="color:#8BCDBB">&quot;name&quot;</span>: <span style="color:#E4B28B">&quot;DontsTool Studio&quot;</span>,</div><div style="height:21px;white-space:pre;background:rgba(190,145,53,.13)" data-source-line="3">  <span style="color:#8BCDBB">&quot;version&quot;</span>: <span style="color:#E4B28B">&quot;1.0.1&quot;</span>,</div><div style="height:21px;white-space:pre;background:transparent" data-source-line="4">  <span style="color:#8BCDBB">&quot;enabled&quot;</span>: <span style="color:#B6A4DF">true</span>,</div><div style="height:21px;white-space:pre;background:transparent" data-source-line="5">  <span style="color:#8BCDBB">&quot;shortcuts&quot;</span>: [</div><div style="height:21px;white-space:pre;background:transparent" data-source-line="6">    <span style="color:#E4B28B">&quot;json&quot;</span>,</div><div style="height:21px;white-space:pre;background:transparent" data-source-line="7">    <span style="color:#E4B28B">&quot;uuid&quot;</span></div><div style="height:21px;white-space:pre;background:transparent" data-source-line="8">  ],</div><div style="height:21px;white-space:pre;background:rgba(74,170,120,.14)" data-source-line="9">  <span style="color:#8BCDBB">&quot;theme&quot;</span>: <span style="color:#E4B28B">&quot;system&quot;</span>,</div><div style="height:21px;white-space:pre;background:transparent" data-source-line="10">  <span style="color:#8BCDBB">&quot;preferences&quot;</span>: {</div><div style="height:21px;white-space:pre;background:transparent" data-source-line="11">    <span style="color:#8BCDBB">&quot;wrap&quot;</span>: <span style="color:#B6A4DF">true</span>,</div><div style="height:21px;white-space:pre;background:transparent" data-source-line="12">    <span style="color:#8BCDBB">&quot;indent&quot;</span>: <span style="color:#B6A4DF">2</span></div><div style="height:21px;white-space:pre;background:transparent" data-source-line="13">  }</div><div style="height:21px;white-space:pre;background:transparent" data-source-line="14">}</div></div>
+</div>
+</section>
+</div>
+<!-- Difference Inspector Panel (Structured Diff Table) -->
+<section class="h-[175px] bg-[#1D2225] border border-outline-variant/60 rounded-[10px] flex flex-col overflow-hidden shrink-0">
+<!-- Inspector Grip / Header Handle -->
+<div class="h-[30px] bg-[#20272B] border-b border-outline-variant/50 px-3 flex items-center justify-between shrink-0 select-none">
+<div class="flex items-center gap-2">
+<svg class="preview-icon text-[15px] text-on-surface-variant" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="3" width="14" height="17" rx="2"/><path d="M3 7v15h13M10 8h6m-3-3v6m-3 5h6"/></svg>
+<span class="font-headline text-[12px] font-semibold text-white/90">结构差异</span>
+<!-- Diff summary badges -->
+<div class="flex items-center gap-1.5 ml-2 font-mono text-[10px]">
+<span class="px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-300 font-medium border border-emerald-500/30">
+                + 新增 1
+              </span>
+<span class="px-1.5 py-0.5 rounded bg-surface-variant text-on-surface-variant font-medium border border-outline-variant/40">
+                - 删除 0
+              </span>
+<span class="px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 font-medium border border-amber-500/30">
+                ~ 修改 2
+              </span>
+</div>
+</div>
+<!-- Total count info -->
+<div class="flex items-center gap-2 font-headline text-[11px] text-on-surface-variant">
+<span>共发现 3 处变更</span>
+<div class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
+</div>
+</div>
+<!-- Diff Table -->
+<div class="flex-1 overflow-auto text-[11.5px] font-mono">
+<table class="w-full text-left border-collapse">
+<thead class="bg-[#20272B]/80 sticky top-0 text-on-surface-variant text-[10.5px] border-b border-outline-variant/40 select-none">
+<tr>
+<th class="py-1.5 px-3 font-medium w-20">类型</th>
+<th class="py-1.5 px-3 font-medium w-36">JSON 路径</th>
+<th class="py-1.5 px-3 font-medium">左侧内容 (原始)</th>
+<th class="py-1.5 px-3 font-medium">右侧内容 (修改)</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant/20 text-on-surface">
+<!-- Row 1: Modified /name (Selected row) -->
+<tr class="hover:bg-surface-variant/40 bg-surface-variant/20 transition-colors cursor-pointer group">
+<td class="py-1.5 px-3">
+<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                    ~ 修改
+                  </span>
+</td>
+<td class="py-1.5 px-3 text-primary-dim font-medium">/name</td>
+<td class="py-1.5 px-3 text-on-surface-variant line-through opacity-85">"DontsTool"</td>
+<td class="py-1.5 px-3 text-emerald-300 font-medium flex items-center justify-between">
+<span>"DontsTool Studio"</span>
+<svg class="preview-icon text-[13px] opacity-0 group-hover:opacity-100 text-outline transition-opacity" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h16m-6-6 6 6-6 6"/></svg>
+</td>
+</tr>
+<!-- Row 2: Modified /version -->
+<tr class="hover:bg-surface-variant/40 transition-colors cursor-pointer group">
+<td class="py-1.5 px-3">
+<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                    ~ 修改
+                  </span>
+</td>
+<td class="py-1.5 px-3 text-primary-dim font-medium">/version</td>
+<td class="py-1.5 px-3 text-on-surface-variant line-through opacity-85">"1.0.0"</td>
+<td class="py-1.5 px-3 text-emerald-300 font-medium flex items-center justify-between">
+<span>"1.0.1"</span>
+<svg class="preview-icon text-[13px] opacity-0 group-hover:opacity-100 text-outline transition-opacity" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h16m-6-6 6 6-6 6"/></svg>
+</td>
+</tr>
+<!-- Row 3: Added /theme -->
+<tr class="hover:bg-surface-variant/40 transition-colors cursor-pointer group">
+<td class="py-1.5 px-3">
+<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                    + 新增
+                  </span>
+</td>
+<td class="py-1.5 px-3 text-primary-dim font-medium">/theme</td>
+<td class="py-1.5 px-3 text-on-surface-variant/50 italic">(缺失)</td>
+<td class="py-1.5 px-3 text-emerald-300 font-medium flex items-center justify-between">
+<span>"system"</span>
+<svg class="preview-icon text-[13px] opacity-0 group-hover:opacity-100 text-outline transition-opacity" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h16m-6-6 6 6-6 6"/></svg>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</div>
+<!-- Footer / Status Bar (Shared Component from JSON) -->
+<footer class="bg-surface-container-low dark:bg-surface-container border-t border-outline-variant dark:border-outline flat no shadows docked full-width bottom-0 rounded-b-[14px] flex justify-between items-center w-full px-3 h-[24px] max-w-full select-none cursor-default shrink-0 z-20">
+<!-- Left: Diff summary chips (links from JSON: ["新增 1", "删除 0", "修改 2"]) -->
+<div class="flex items-center gap-3">
+<div class="flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+<span class="font-headline text-[11px] leading-4 text-primary dark:text-inverse-primary font-medium">
+            对比完成 · 3 处差异
+          </span>
+</div>
+<div class="h-2.5 w-px bg-outline-variant/60"></div>
+<div class="flex items-center gap-2 font-headline text-[11px] leading-4 text-on-surface-variant dark:text-outline-variant">
+<span class="hover:text-on-surface dark:hover:text-inverse-on-surface transition-colors duration-120">新增 1</span>
+<span>·</span>
+<span class="hover:text-on-surface dark:hover:text-inverse-on-surface transition-colors duration-120">删除 0</span>
+<span>·</span>
+<span class="hover:text-on-surface dark:hover:text-inverse-on-surface transition-colors duration-120">修改 2</span>
+</div>
+</div>
+<!-- Right: Technical Status (copyright_text from JSON: "UTF-8  |  Ln 1, Col 1  |  JSON 校验成功") -->
+<div class="flex items-center gap-2 font-headline text-[11px] font-mono leading-4 text-on-surface-variant dark:text-outline-variant">
+<span>UTF-8</span>
+<span class="text-outline-variant">|</span>
+<span>Ln 3, Col 18</span>
+<span class="text-outline-variant">|</span>
+<span class="flex items-center gap-1 text-primary">
+<svg class="preview-icon text-[13px]" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></svg>
+<span>JSON 校验成功</span>
+</span>
+</div>
+</footer>
+</main>
+</body></html>

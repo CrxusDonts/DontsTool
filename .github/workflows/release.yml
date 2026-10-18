@@ -1,0 +1,89 @@
+name: Release
+
+on:
+  push:
+    tags: ['v[0-9]*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing stable version tag, for example v0.1.0
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  resolve:
+    name: Resolve exact tag commit
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      sha: ${{ steps.tag.outputs.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Resolve only refs/tags
+        id: tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          DT_RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+          DT_EXPECTED_COMMIT: ${{ github.event_name == 'push' && github.sha || '' }}
+        run: |
+          tag_sha="$(./scripts/resolve-release-tag.sh)"
+          printf 'sha=%s\n' "$tag_sha" >> "$GITHUB_OUTPUT"
+
+  verify:
+    needs: resolve
+    uses: ./.github/workflows/ci.yml
+    with:
+      ref: ${{ needs.resolve.outputs.sha }}
+
+  publish:
+    name: Build and publish ad-hoc Universal app
+    needs: [resolve, verify]
+    runs-on: macos-26
+    timeout-minutes: 25
+    permissions:
+      contents: write
+    env:
+      DT_RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+      HOMEBREW_NO_AUTO_UPDATE: '1'
+    steps:
+      - name: Validate requested tag
+        run: |
+          if [[ ! "$DT_RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo 'Use a stable vMAJOR.MINOR.PATCH tag.' >&2
+            exit 1
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+          persist-credentials: false
+      - name: Prepare build tools
+        run: |
+          xcodebuild -version
+          brew list --versions xcodegen >/dev/null || brew install xcodegen
+          xcodegen --version
+      - name: Package Universal release
+        env:
+          DT_BUILD_NUMBER: ${{ github.run_number }}
+        run: |
+          DT_SOURCE_COMMIT="$(git rev-parse HEAD)"
+          export DT_SOURCE_COMMIT
+          make release
+      - name: Publish verified assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: ./scripts/publish-release.sh

@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DontsTool · 知识库插件 (DontsKb)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+            mono: ['JetBrains Mono', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace']
+          },
+          colors: {
+            canvas: '#161819',
+            window: {
+              bg: '#F9F8F5',
+              surface: '#FFFFFF',
+              border: '#E3DFD5',
+              hover: '#F2EFE8',
+              active: '#E7F2EE',
+              header: '#F2EFE8'
+            },
+            teal: {
+              50: '#E7F4F1',
+              100: '#CBE5DE',
+              600: '#18786F',
+              700: '#13625B',
+              800: '#0E4944'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background-color: #17191A;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    .window-shadow {
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.08);
+    }
+    .line-clamp-1 {
+      display: -webkit-box;
+      -webkit-line-clamp: 1;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+  </style>
+</head>
+<body class="p-6">
+
+  <!-- Desktop Presentation Workspace Container -->
+  <div class="relative flex items-center justify-center">
+
+    <!-- Native macOS Plugin Window: Exactly 760px x 560px -->
+    <div class="w-[760px] h-[560px] bg-[#FAF9F5] rounded-[12px] border border-[#DDD9CE] window-shadow flex flex-col overflow-hidden text-[#2C3131] select-none text-[13px]">
+      
+      <!-- 1. Native macOS Unified Titlebar -->
+      <header class="h-[44px] bg-[#EFECE3] border-b border-[#DDD9CE] px-4 flex items-center justify-between shrink-0">
+        <!-- Traffic lights -->
+        <div class="flex items-center gap-[7px] w-28">
+          <span class="w-3 h-3 rounded-full bg-[#FF5F56] border border-[#E0443E] inline-block"></span>
+          <span class="w-3 h-3 rounded-full bg-[#FFBD2E] border border-[#DEA123] inline-block"></span>
+          <span class="w-3 h-3 rounded-full bg-[#27C93F] border border-[#1AAB29] inline-block"></span>
+        </div>
+
+        <!-- Centered window title and companion mark -->
+        <div class="flex items-baseline gap-1.5 cursor-default">
+          <span class="font-semibold text-[#1F2424] text-[13.5px] tracking-tight">知识库</span>
+          <span class="text-[11px] font-mono font-medium text-[#7A8381] tracking-normal">DontsKb</span>
+          <span class="px-1 py-[1px] rounded bg-[#E4DFCFA0] border border-[#D5CFBF] text-[9.5px] font-mono text-[#5B6361] uppercase ml-0.5">Companion</span>
+        </div>
+
+        <!-- Top Right Window Actions: Pin toggle and overflow -->
+        <div class="flex items-center justify-end gap-1.5 w-28 text-[#626A68]">
+          <button title="置顶窗口" class="w-7 h-7 flex items-center justify-center rounded-[5px] hover:bg-[#E2DDD0] text-[#555C5B] transition-colors">
+            <!-- Pin icon -->
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 17v5"></path>
+              <path d="M5 17h14l-2-6V4H7v7l-2 6z"></path>
+              <line x1="9" y1="4" x2="15" y2="4"></line>
+            </svg>
+          </button>
+          <button title="更多操作" class="w-7 h-7 flex items-center justify-center rounded-[5px] hover:bg-[#E2DDD0] text-[#555C5B] transition-colors">
+            <!-- Overflow dots -->
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="1"></circle>
+              <circle cx="19" cy="12" r="1"></circle>
+              <circle cx="5" cy="12" r="1"></circle>
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- 2. Minimal Navigation Tab Bar: Only 3 horizontal entries -->
+      <nav class="h-[36px] bg-[#F4F1E9] border-b border-[#E3DFD5] px-4 flex items-center justify-between shrink-0">
+        <div class="flex items-center space-x-1">
+          <!-- Active Tab: 搜索文章 -->
+          <button class="flex items-center gap-1.5 px-3 py-1 rounded-[5px] bg-[#E1DDD1] text-[#145C55] font-medium text-[12px] shadow-sm">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <span>搜索文章</span>
+          </button>
+
+          <!-- Inactive Tab: 快速收集 -->
+          <button class="flex items-center gap-1.5 px-3 py-1 rounded-[5px] text-[#697270] hover:text-[#252A2A] hover:bg-[#EBE7DC] font-medium text-[12px] transition-colors">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+            </svg>
+            <span>快速收集</span>
+          </button>
+
+          <!-- Inactive Tab: 收集箱 -->
+          <button class="flex items-center gap-1.5 px-3 py-1 rounded-[5px] text-[#697270] hover:text-[#252A2A] hover:bg-[#EBE7DC] font-medium text-[12px] transition-colors">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 12h-6l-2 3h-4l-2-3H2"></path>
+              <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>
+            </svg>
+            <span>收集箱</span>
+            <span class="ml-0.5 text-[10px] px-1.5 py-0.2 rounded-full bg-[#E5E1D5] text-[#636C6A] font-mono">3</span>
+          </button>
+        </div>
+
+        <!-- Connection indicator -->
+        <div class="flex items-center gap-1.5 text-[11px] text-[#6E7775]">
+          <span class="w-1.5 h-1.5 rounded-full bg-[#18786F]"></span>
+          <span class="font-mono text-[10.5px]">API就绪</span>
+        </div>
+      </nav>
+
+      <!-- 3. Integrated Search Bar Container -->
+      <section class="p-3.5 bg-[#FAF9F5] border-b border-[#E6E2D8] shrink-0">
+        <div class="relative flex items-center">
+          <!-- Magnifier icon -->
+          <span class="absolute left-3 text-[#798380] pointer-events-none">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+          </span>
+
+          <!-- Search Input with typed query "编辑器" -->
+          <input 
+            type="text" 
+            readonly
+            value="编辑器"
+            class="w-full h-[38px] pl-9 pr-14 bg-[#FFFFFF] border border-[#D3CEBF] focus:border-[#18786F] rounded-[7px] text-[13.5px] text-[#1F2424] font-medium outline-none shadow-[inset_0_1px_2px_rgba(0,0,0,0.03)] cursor-default"
+          />
+
+          <!-- Shortcut badge ⌘K -->
+          <span class="absolute right-2.5 flex items-center px-1.5 py-0.5 rounded bg-[#F0EDE4] border border-[#DDD8C9] text-[10.5px] font-mono text-[#666F6D]">
+            ⌘ K
+          </span>
+        </div>
+
+        <!-- Result Metadata Bar -->
+        <div class="flex items-center justify-between mt-2.5 px-0.5">
+          <div class="flex items-center gap-1 text-[11.5px] text-[#606967]">
+            <span>找到</span>
+            <span class="font-semibold text-[#1F2424] font-mono">6</span>
+            <span>篇文章</span>
+            <span class="text-[#A5AEA9] mx-1">/</span>
+            <span class="text-[#7D8684]">按相关度排序</span>
+          </div>
+
+          <!-- Scope selector -->
+          <div class="flex items-center gap-1 text-[11px] text-[#555E5C] cursor-pointer hover:text-[#18786F] transition-colors bg-[#EFECE2] px-2 py-0.5 rounded border border-[#DFD9CB]">
+            <span>范围:</span>
+            <span class="font-medium text-[#2A302F]">全部知识库</span>
+            <svg class="w-3 h-3 text-[#75807D]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. Compact Vertical List of Six Articles -->
+      <main class="flex-1 overflow-y-auto divide-y divide-[#EBE7DC] bg-[#FCFBF8]">
+        
+        <!-- Row 1: Selected Item (编辑器与保存机制) -->
+        <div class="group px-4 py-2.5 bg-[#E8F3EF] border-l-[3.5px] border-[#18786F] flex items-center justify-between transition-colors cursor-pointer">
+          <div class="flex-1 min-w-0 pr-3">
+            <!-- Title & Path -->
+            <div class="flex items-center gap-2 mb-1">
+              <h3 class="text-[13px] font-semibold text-[#0E4944] tracking-tight truncate">
+                编辑器与保存机制
+              </h3>
+              <span class="text-[10.5px] px-1.5 py-0.5 rounded bg-[#D3E8E1] text-[#145C55] font-mono shrink-0">
+                DontsKb / 产品设计
+              </span>
+            </div>
+            <!-- One-line preview excerpt -->
+            <p class="text-[11.5px] text-[#416B64] line-clamp-1 leading-relaxed">
+              复用现有 Tiptap 编辑器，保存前校验版本，离开时保护未保存内容。
+            </p>
+          </div>
+
+          <!-- Right side: date & external window open action -->
+          <div class="flex items-center gap-3 shrink-0 text-right">
+            <span class="text-[11px] font-mono text-[#58817A]">
+              14:20
+            </span>
+            <div class="flex items-center gap-1 px-1.5 py-1 rounded bg-[#D8EAE4] border border-[#BDDCD2] text-[#0E4944] text-[10.5px] font-medium shadow-xs">
+              <span>独立窗口</span>
+              <!-- External Window Icon -->
+              <svg class="w-3 h-3 text-[#18786F]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                <polyline points="15 3 21 3 21 9"></polyline>
+                <line x1="10" y1="14" x2="21" y2="3"></line>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- Row 2: 桌面插件接入边界 -->
+        <div class="group px-4 py-2.5 border-l-[3.5px] border-transparent hover:bg-[#F2EFE8] flex items-center justify-between transition-colors cursor-pointer">
+          <div class="flex-1 min-w-0 pr-3">
+            <div class="flex items-center gap-2 mb-1">
+              <h3 class="text-[13px] font-medium text-[#252A2A] group-hover:text-[#18786F] tracking-tight truncate">
+                桌面插件接入边界
+              </h3>
+              <span class="text-[10.5px] px-1.5 py-0.5 rounded bg-[#ECE7DC] text-[#697270] font-mono shrink-0">
+                DontsKb / 架构规范
+              </span>
+            </div>
+            <p class="text-[11.5px] text-[#6C7674] line-clamp-1 leading-relaxed">
+              定义伴侣窗口通信协议，仅承担快速查询与碎片采集，核心编辑调度独立应用窗口。
+            </p>
+          </div>
+          <div class="flex items-center gap-3 shrink-0 text-right">
+            <span class="text-[11px] font-mono text-[#8C9593]">
+              昨天
+            </span>
+            <span class="w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 text-[#6C7674] transition-opacity">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                <polyline points="15 3 21 3 21 9"></polyline>
+                <line x1="10" y1="14" x2="21" y2="3"></line>
+              </svg>
+            </span>
+          </div>
+        </div>
+
+        <!-- Row 3: 结构化内容与附件 -->
+        <div class="group px-4 py-2.5 border-l-[3.5px] border-transparent hover:bg-[#F2EFE8] flex items-center justify-between transition-colors cursor-pointer">
+          <div class="flex-1 min-w-0 pr-3">
+            <div class="flex items-center gap-2 mb-1">
+              <h3 class="text-[13px] font-medium text-[#252A2A] group-hover:text-[#18786F] tracking-tight truncate">
+                结构化内容与附件
+              </h3>
+              <span class="text-[10.5px] px-1.5 py-0.5 rounded bg-[#ECE7DC] text-[#697270] font-mono shrink-0">
+                DontsKb / 数据存储
+              </span>
+            </div>
+            <p class="text-[11.5px] text-[#6C7674] line-clamp-1 leading-relaxed">
+              Markdown 与 JSON Schema 混合渲染规格，支持代码块语法高亮与本地二进制缓存。
+            </p>
+          </div>
+          <div class="flex items-center gap-3 shrink-0 text-right">
+            <span class="text-[11px] font-mono text-[#8C9593]">
+              3天前
+            </span>
+            <span class="w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 text-[#6C7674] transition-opacity">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                <polyline points="15 3 21 3 21 9"></polyline>
+                <line x1="10" y1="14" x2="21" y2="3"></line>
+              </svg>
+            </span>
+          </div>
+        </div>
+
+        <!-- Row 4: 移动端收集流程 -->
+        <div class="group px-4 py-2.5 border-l-[3.5px] border-transparent hover:bg-[#F2EFE8] flex items-center justify-between transition-colors cursor-pointer">
+          <div class="flex-1 min-w-0 pr-3">
+            <div class="flex items-center gap-2 mb-1">
+              <h3 class="text-[13px] font-medium text-[#252A2A] group-hover:text-[#18786F] tracking-tight truncate">
+                移动端收集流程
+              </h3>
+              <span class="text-[10.5px] px-1.5 py-0.5 rounded bg-[#ECE7DC] text-[#697270] font-mono shrink-0">
+                DontsKb / 客户端
+              </span>
+            </div>
+            <p class="text-[11.5px] text-[#6C7674] line-clamp-1 leading-relaxed">
+              系统 Share Sheet 快捷录入文本与网页链接，写入临时收件箱等待桌面端规整。
+            </p>
+          </div>
+          <div class="flex items-center gap-3 shrink-0 text-right">
+            <span class="text-[11px] font-mono text-[#8C9593]">
+              5月12日
+            </span>
+            <span class="w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 text-[#6C7674] transition-opacity">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                <polyline points="15 3 21 3 21 9"></polyline>
+                <line x1="10" y1="14" x2="21" y2="3"></line>
+              </svg>
+            </span>
+          </div>
+        </div>
+
+        <!-- Row 5: 知识库信息架构 -->
+        <div class="group px-4 py-2.5 border-l-[3.5px] border-transparent hover:bg-[#F2EFE8] flex items-center justify-between transition-colors cursor-pointer">
+          <div class="flex-1 min-w-0 pr-3">
+            <div class="flex items-center gap-2 mb-1">
+              <h3 class="text-[13px] font-medium text-[#252A2A] group-hover:text-[#18786F] tracking-tight truncate">
+                知识库信息架构
+              </h3>
+              <span class="text-[10.5px] px-1.5 py-0.5 rounded bg-[#ECE7DC] text-[#697270] font-mono shrink-0">
+                DontsKb / 文档指南
+              </span>
+            </div>
+            <p class="text-[11.5px] text-[#6C7674] line-clamp-1 leading-relaxed">
+              采用平铺层级与空间树混合结构，通过全局唯一短 ID 保证跨工具引用不断裂。
+            </p>
+          </div>
+          <div class="flex items-center gap-3 shrink-0 text-right">
+            <span class="text-[11px] font-mono text-[#8C9593]">
+              4月29日
+            </span>
+            <span class="w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 text-[#6C7674] transition-opacity">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                <polyline points="15 3 21 3 21 9"></polyline>
+                <line x1="10" y1="14" x2="21" y2="3"></line>
+              </svg>
+            </span>
+          </div>
+        </div>
+
+        <!-- Row 6: 编辑快捷键 -->
+        <div class="group px-4 py-2.5 border-l-[3.5px] border-transparent hover:bg-[#F2EFE8] flex items-center justify-between transition-colors cursor-pointer">
+          <div class="flex-1 min-w-0 pr-3">
+            <div class="flex items-center gap-2 mb-1">
+              <h3 class="text-[13px] font-medium text-[#252A2A] group-hover:text-[#18786F] tracking-tight truncate">
+                编辑快捷键
+              </h3>
+              <span class="text-[10.5px] px-1.5 py-0.5 rounded bg-[#ECE7DC] text-[#697270] font-mono shrink-0">
+                DontsKb / 快捷键参考
+              </span>
+            </div>
+            <p class="text-[11.5px] text-[#6C7674] line-clamp-1 leading-relaxed">
+              全局命令呼出、多光标行操作与实时 Markdown 符号折叠清单。
+            </p>
+          </div>
+          <div class="flex items-center gap-3 shrink-0 text-right">
+            <span class="text-[11px] font-mono text-[#8C9593]">
+              4月15日
+            </span>
+            <span class="w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 text-[#6C7674] transition-opacity">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                <polyline points="15 3 21 3 21 9"></polyline>
+                <line x1="10" y1="14" x2="21" y2="3"></line>
+              </svg>
+            </span>
+          </div>
+        </div>
+
+      </main>
+
+      <!-- 5. Thin Native Status Bar / Footer -->
+      <footer class="h-[28px] bg-[#EFECE3] border-t border-[#DDD9CE] px-3.5 flex items-center justify-between shrink-0 text-[11px] text-[#666F6D]">
+        <!-- Connection status -->
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-[#18786F]"></span>
+          <span class="font-medium text-[#38403E]">已连接 DontsKb</span>
+          <span class="text-[#A2AAA6]">·</span>
+          <span class="font-mono text-[#798380]">v1.4.2</span>
+        </div>
+
+        <!-- Keyboard hints -->
+        <div class="flex items-center gap-3 font-mono text-[10.5px] text-[#555E5C]">
+          <span class="flex items-center gap-1">
+            <kbd class="px-1 py-0.2 rounded bg-[#E4DFCFA0] border border-[#D5CFBF] text-[#414846]">↑↓</kbd>
+            <span>选择</span>
+          </span>
+          <span class="flex items-center gap-1">
+            <kbd class="px-1 py-0.2 rounded bg-[#E4DFCFA0] border border-[#D5CFBF] text-[#414846]">↵</kbd>
+            <span>独立窗口打开</span>
+          </span>
+          <span class="flex items-center gap-1">
+            <kbd class="px-1 py-0.2 rounded bg-[#E4DFCFA0] border border-[#D5CFBF] text-[#414846]">esc</kbd>
+            <span>关闭</span>
+          </span>
+        </div>
+      </footer>
+
+    </div>
+  </div>
+
+</body>
+</html>

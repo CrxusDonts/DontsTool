@@ -1,0 +1,445 @@
+{
+  "projectId": "17734721049138626585",
+  "designSystem": "assets/9888066698243714071",
+  "generatedAt": "2026-10-18",
+  "screens": [
+    {
+      "slug": "json-diff",
+      "screen": {
+        "screenshot": {
+          "name": "projects/17734721049138626585/files/2bc94fc804f749b18fee0fbdc86ac5f1",
+          "downloadUrl": "https://lh3.googleusercontent.com/aida/AEtjO1VISFupoMMRebz3y7hPnJeHt7Mos553P5pf3VUuO-yPQqh5W44NQ4NtgBUVgBEDmV5AUOzzkgP0tM7tnzH8cgnba5jSuRW5i6_nQqJQtJqbPpJ8obGStW6Q-iO6zV9PLE-2ooFk6SRQ105YPMzwWCyqpwFRBuhEU2_YFXLzyOpsnII-f-_kjMc-T0O2QxXZxdgoOumHnE-i9tViOHx9jmHxB-Vm4zSQK_I5dPxeDsZV8nw1RQbWOnb4NOo"
+        },
+        "htmlCode": {
+          "name": "projects/17734721049138626585/files/7ba9acea86314de096047263cbc29412",
+          "downloadUrl": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ8Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpbCiVodG1sXzU2MWQ2NTAwZjRhNTQ2ZTI5YzZkNjBkMTQ1NzkxNmUyEgsSBxCLp4bSiwoYAZIBJAoKcHJvamVjdF9pZBIWQhQxNzczNDcyMTA0OTEzODYyNjU4NQ&filename=&opi=96797242",
+          "mimeType": "text/html"
+        },
+        "id": "b5d67926651c40d29cc650462d55353a",
+        "generatedBy": "create_datastore_entry",
+        "width": "2560",
+        "height": "2048",
+        "title": "JSON 工具 · 独立对比与编辑窗口 (macOS)",
+        "name": "projects/17734721049138626585/screens/b5d67926651c40d29cc650462d55353a",
+        "theme": {},
+        "deviceType": "DESKTOP",
+        "screenType": "DESIGN",
+        "screenMetadata": {
+          "agentType": "PRO_AGENT",
+          "status": "COMPLETE"
+        },
+        "designSystem": {
+          "name": "assets/9888066698243714071",
+          "designSystem": {
+            "displayName": "DontsTool — Quiet Native",
+            "styleGuidelines": "## Brand & Style\nA compact, keyboard-first native macOS utility rendered as a floating NSPanel rather than a conventional website. Calm, precise, tactile, and translucent. Now presented in an elegant light appearance with subtle backdrop blur and refined neutral surfaces. The desktop canvas is a subdued neutral backdrop with gentle ambient texture; no photographs, loud gradients, marketing headlines, charts, account widgets, AI fluff, or decorative dashboards.\n\n## Layout & Spacing\nA disciplined fixed-width utility panel floating centered in the desktop viewport. \n- Desktop presentation canvas: 1280 by 900pt.\n- Panel dimensions: Strictly 640 by 420pt.\n- Insets: 16pt horizontal margins (`space-lg`) across search and result groups.\n- Spacing rhythm: 4pt to 8pt between rows, 12pt padding inside search field.\n\n## Elevation & Depth\nDepth is produced via subtle translucent layered materials and soft ambient drop shadows rather than heavy skeuomorphism:\n- Floating launcher panel: Layered backdrop blur with diffuse shadow (`rgba(0, 0, 0, 0.12)` 0px 16px 36px, `rgba(0, 0, 0, 0.06)` 0px 2px 8px) with a fine 0.5pt border (`#00000012`).\n- Insets & keycaps: Subtle bottom-edge rim highlight and recessed white inset backgrounds.\n\n## Components\n- **Floating Panel**: Fixed 640x420pt container, 14pt corners, borderless header, ambient drop shadow.\n- **Search Header**: 60pt tall integrated search zone with magnifying glyph, text field, and quick keyword badge.\n- **Result Row**: 48-52pt rows with 32pt app/tool icons, primary title, middle-truncated path subtitle, and keyboard shortcut pill on the right. Focus state renders in `#3478F61A` with system blue highlight.\n- **Keycaps & Footer**: 32pt fixed bottom bar with hairline separator, icon status indicator, and inline keyboard caps (↑↓ 选择, ↵ 执行, esc 关闭).\n- **Settings Window**: Standard 820x620pt window with native traffic lights, 172pt left navigation sidebar, and macOS style grouped controls.",
+            "theme": {
+              "colorMode": "LIGHT",
+              "font": "INTER",
+              "roundness": "ROUND_EIGHT",
+              "customColor": "#3478f6",
+              "headlineFont": "INTER",
+              "bodyFont": "INTER",
+              "labelFont": "INTER",
+              "namedColors": {
+                "secondary": "#5e5f65",
+                "on_secondary_fixed": "#3e3f45",
+                "on_tertiary_fixed": "#3e3a54",
+                "error": "#9f403d",
+                "error_container": "#fe8983",
+                "surface_container": "#e5eff8",
+                "surface": "#f6faff",
+                "surface_tint": "#0058cc",
+                "inverse_surface": "#0a0f12",
+                "surface_dim": "#c9ddec",
+                "on_tertiary_container": "#514d68",
+                "on_primary_container": "#004cb2",
+                "outline_variant": "#a4b4c0",
+                "surface_bright": "#f6faff",
+                "secondary_fixed": "#e2e2e9",
+                "on_primary_fixed": "#003a8d",
+                "primary_fixed_dim": "#c5d4ff",
+                "surface_container_low": "#eef4fb",
+                "on_secondary": "#f9f8ff",
+                "error_dim": "#4e0309",
+                "on_error_container": "#752121",
+                "surface_container_highest": "#d5e5f2",
+                "secondary_dim": "#525359",
+                "on_secondary_fixed_variant": "#5a5b61",
+                "on_background": "#25343e",
+                "outline": "#6d7d88",
+                "on_error": "#fff7f6",
+                "primary_dim": "#004cb4",
+                "tertiary": "#605c78",
+                "surface_container_lowest": "#ffffff",
+                "on_tertiary_fixed_variant": "#5b5672",
+                "on_primary": "#f7f7ff",
+                "primary_fixed": "#d9e2ff",
+                "on_surface_variant": "#52616c",
+                "tertiary_dim": "#54506b",
+                "tertiary_container": "#e2dbfd",
+                "primary_container": "#d9e2ff",
+                "primary": "#0058cc",
+                "secondary_container": "#e2e2e9",
+                "on_primary_fixed_variant": "#0055c6",
+                "on_secondary_container": "#505157",
+                "on_surface": "#25343e",
+                "surface_variant": "#d5e5f2",
+                "tertiary_fixed": "#e2dbfd",
+                "on_tertiary": "#fcf7ff",
+                "inverse_on_surface": "#999da2",
+                "secondary_fixed_dim": "#d4d4db",
+                "surface_container_high": "#ddeaf5",
+                "tertiary_fixed_dim": "#d4cdee",
+                "inverse_primary": "#568cff",
+                "background": "#f6faff"
+              },
+              "designMd": "---\nname: DontsTool — Quiet Native\ncolors:\n  surface: '#f6faff'\n  surface-dim: '#c9ddec'\n  surface-bright: '#f6faff'\n  surface-container-lowest: '#ffffff'\n  surface-container-low: '#eef4fb'\n  surface-container: '#e5eff8'\n  surface-container-high: '#ddeaf5'\n  surface-container-highest: '#d5e5f2'\n  on-surface: '#25343e'\n  on-surface-variant: '#52616c'\n  inverse-surface: '#0a0f12'\n  inverse-on-surface: '#999da2'\n  outline: '#6d7d88'\n  outline-variant: '#a4b4c0'\n  surface-tint: '#0058cc'\n  primary: '#0058cc'\n  primary-dim: '#004cb4'\n  on-primary: '#f7f7ff'\n  primary-container: '#d9e2ff'\n  on-primary-container: '#004cb2'\n  inverse-primary: '#568cff'\n  secondary: '#5e5f65'\n  secondary-dim: '#525359'\n  on-secondary: '#f9f8ff'\n  secondary-container: '#e2e2e9'\n  on-secondary-container: '#505157'\n  tertiary: '#605c78'\n  tertiary-dim: '#54506b'\n  on-tertiary: '#fcf7ff'\n  tertiary-container: '#e2dbfd'\n  on-tertiary-container: '#514d68'\n  error: '#9f403d'\n  error-dim: '#4e0309'\n  on-error: '#fff7f6'\n  error-container: '#fe8983'\n  on-error-container: '#752121'\n  primary-fixed: '#d9e2ff'\n  primary-fixed-dim: '#c5d4ff'\n  on-primary-fixed: '#003a8d'\n  on-primary-fixed-variant: '#0055c6'\n  secondary-fixed: '#e2e2e9'\n  secondary-fixed-dim: '#d4d4db'\n  on-secondary-fixed: '#3e3f45'\n  on-secondary-fixed-variant: '#5a5b61'\n  tertiary-fixed: '#e2dbfd'\n  tertiary-fixed-dim: '#d4cdee'\n  on-tertiary-fixed: '#3e3a54'\n  on-tertiary-fixed-variant: '#5b5672'\n  background: '#f6faff'\n  on-background: '#25343e'\n  surface-variant: '#d5e5f2'\ntypography:\n  headline-lg:\n    fontFamily: Inter\n    fontSize: 20px\n    fontWeight: '400'\n    lineHeight: 28px\n  body-md:\n    fontFamily: Inter\n    fontSize: 14px\n    fontWeight: '500'\n    lineHeight: 20px\n  body-sm:\n    fontFamily: Inter\n    fontSize: 11px\n    fontWeight: '400'\n    lineHeight: 16px\n  label-sm:\n    fontFamily: Inter\n    fontSize: 11px\n    fontWeight: '500'\n    lineHeight: 16px\nrounded:\n  sm: 0.25rem\n  DEFAULT: 0.5rem\n  md: 0.75rem\n  lg: 1rem\n  xl: 1.5rem\n  full: 9999px\nspacing:\n  gutter: 0.75rem\n  margin: 1rem\n  space-xs: 0.25rem\n  space-sm: 0.5rem\n  space-md: 0.75rem\n  space-lg: 1rem\n  space-xl: 1.5rem\n---\n\n# Design System: DontsTool — Quiet Native\n**Project ID:** 17734721049138626585\n\n## 1. Visual Theme & Atmosphere\nA compact, keyboard-first native macOS utility, rendered as a floating NSPanel rather than a website. Calm, precise, tactile, translucent light silver material. Content and selection are the visual anchors. Desktop canvas is a subdued neutral wallpaper (#E9EDF2) with gentle ambient texture; no photographs, giant gradients, marketing headlines, charts, account widgets, AI features or decorative dashboards.\n\n## 2. Color Palette & Roles\n- Soft silver panel #F5F6F8: popover background, 94% opaque with restrained backdrop blur.\n- Neutral backdrop #E9EDF2: desktop environment and outer canvas frame.\n- Inset white #FFFFFF: search field background, hover cards, and inset controls.\n- Hairline divider #00000014: separators and boundary highlights.\n- Ink black #1F2228: primary labels and headings.\n- Muted slate #5E6470: secondary labels and file paths.\n- Quiet gray #8A909C: tertiary hints; never use for critical small text.\n- System blue #3478F6: keyboard selection, focus, active controls; selected row uses #3478F61A with a thin subtle border.\n- Soft green #2DA46F: confirmed copy success only.\n- Amber #D9822B: actionable permission and degradation notices.\nDefault appearance in this project is light native.\n\n## 3. Typography Rules\nUse native system UI typography (-apple-system, BlinkMacSystemFont, SF Pro Text, PingFang SC, sans-serif); Inter is only a fallback token. Simplified Chinese UI, real app/product names remain original. Search 20px regular; row title 14px medium; row subtitle 11px; group caption and footer 11px. Monospaced font for commands, snippets and keyboard symbols. No oversized display headings. Strongly respect native macOS density.\n\n## 4. Component Stylings\n- Floating panel: exactly 640 by 420pt for all launcher states, gently rounded 14pt corners, fine translucent border, soft broad shadow; 16pt horizontal insets. No traffic-light window controls on launcher.\n- Search: integrated borderless header 60pt tall, magnifier, input and a small shortcut or keyword capsule. Thin divider below.\n- Results: 48-52pt rows, 30-32pt icons, left alignment across groups, one primary title, optional middle-truncated path or preview, restrained action on the right. Selected row has softened 8pt corners and subtle system accent fill, clearly visible keyboard focus.\n- Compact group labels: 常用 / 工具 / 应用 / 文件; no extra tabs or category rail in the launcher.\n- Footer: pinned 32pt area with thin top divider; small product glyph at left and real status text when necessary; inline keycaps ↑↓ 选择, ↵ 执行, esc 关闭 at right. No fake latency or live performance metrics.\n- Controls: compact 6-8pt corners; toggle switches and segmented controls reflect native macOS forms. Keyboard keycaps have a fine stroke and inset highlight.\n- Settings: separate 820 by 620pt standard native window with macOS traffic lights, 172pt sidebar, grouped forms; only settings has sidebar navigation. Sidebar entries 通用, 搜索, 工具, 翻译, 索引, 关于.\n- Toasts: concise, small, nonmodal. Error recovery keeps the panel open.\n\n## 5. Layout Principles\nShow a single app window on a 1280 by 900 desktop presentation canvas, positioned horizontally centered and toward the upper middle. Launcher window is always 640 by 420pt. Outside the window leave generous desktop negative space, with no editorial annotations or website chrome. Lists scroll internally when needed; never stretch launcher to a full page. Empty query shows app rows and keyword tool hints. Search shows apps then files then browser fallback only when local matches are absent. Text tools stay in rows with truncated snippets, not a two-pane editor. Translation uses one primary system action and one web fallback, not a chat or paragraph editor. Settings may show planned V1 controls because this is a target design, not a claim that current M1 code implements them.",
+              "colorVariant": "NEUTRAL",
+              "overridePrimaryColor": "#3478f6",
+              "overrideNeutralColor": "#e9edf2",
+              "spacingScale": 2,
+              "typography": {
+                "headline-lg": {
+                  "fontFamily": "Inter",
+                  "fontSize": "20px",
+                  "fontWeight": "400",
+                  "lineHeight": "28px"
+                },
+                "label-sm": {
+                  "fontFamily": "Inter",
+                  "fontSize": "11px",
+                  "fontWeight": "500",
+                  "lineHeight": "16px"
+                },
+                "body-sm": {
+                  "fontFamily": "Inter",
+                  "fontSize": "11px",
+                  "fontWeight": "400",
+                  "lineHeight": "16px"
+                },
+                "body-md": {
+                  "fontFamily": "Inter",
+                  "fontSize": "14px",
+                  "fontWeight": "500",
+                  "lineHeight": "20px"
+                }
+              },
+              "spacing": {
+                "space-lg": "1rem",
+                "space-xs": "0.25rem",
+                "margin": "1rem",
+                "space-sm": "0.5rem",
+                "space-md": "0.75rem",
+                "space-xl": "1.5rem",
+                "gutter": "0.75rem"
+              },
+              "headlineFontFamily": "Inter",
+              "bodyFontFamily": "Inter",
+              "labelFontFamily": "Inter"
+            }
+          },
+          "version": "3"
+        }
+      },
+      "insights": [
+        "已遵循 DontsTool 最新桌面原生工具窗口规范，构建了独立的 macOS **「JSON 工具」** 多栏窗口（尺寸 `1040×700`），采用项目的 **Quiet Light** 设计语言（[Design_System]）：\n\n### 核心结构与设计考量：\n1. **原生独立窗口规格 (1040×700)**：\n   - 顶部标准 macOS 红黄绿交通灯控制器与窗口标题「JSON 工具」。\n   - 无冗余导航侧边栏、无网站 Hero 宣传卡片，纯粹的桌面生产力工具密度。\n   - 顶部中心提供原生 **分段控制器（Segmented Control）**：`编辑` 与 `对比`（当前激活选中 `对比`）。\n\n2. **紧凑原生功能栏（Toolbar）**：\n   - 工具操作：「对比」、「交换左右」、「清空」。\n   - 集成「编辑」模式常用工具条引用：`格式化`、`压缩`、`转义`、`去转义`。\n   - 语法实时诊断状态：`● JSON 语法合法`。\n\n3. **双栏等宽代码编辑器 (左侧 JSON vs 右侧 JSON)**：\n   - 顶部标头清晰指示 `左侧 JSON (原始 / 基准)` 与 `右侧 JSON (目标 / 修改后)` 及行数/字节统计。\n   - 等宽字体行号（SF Mono）、语法高亮与行内变动标记。\n   - 包含真实的对比对象示例：\n     - 行 3：`/name` 从 `\"DontsTool\"` 修改为 `\"DontsTool Studio\"`（高亮蓝）。\n     - 行 6：`/enabled` 新增 `true`（高亮绿）。\n\n4. **下层可调尺寸差异列表（Differences Table）**：\n   - 表头包含「类型」、「路径」、「左侧 (旧值)」、「右侧 (新值)」。\n   - 当前选中行 `/name`（带左侧粗蓝条高亮），与上方第 3 行源码精准联动对应；变动带有纯文本属性徽标（`修改`、`+新增`）。\n\n5. **真实状态栏（Footer）**：\n   - 左侧展示统计数据：`新增 1 · 删除 0 · 修改 1 | 对比完成 (耗时 4ms)`。\n   - 右侧常驻快速执行操作按钮：`重新对比 ⌘↵`。",
+        "切换查看「编辑」单栏编辑态（含格式化与压缩实时预览）",
+        "添加语法错误（如 JSON 缺少逗号）时的原生错误提示条",
+        "补充深色模式（Quiet Dark）对应的窗口对比状态"
+      ]
+    },
+    {
+      "slug": "base64",
+      "screen": {
+        "screenshot": {
+          "name": "projects/17734721049138626585/files/c4d5609c296a48a6951219b04572d067",
+          "downloadUrl": "https://lh3.googleusercontent.com/aida/AEtjO1WB1Kd2uWjUkR-97J-vVuKam59yKZ0R1Cc1vS5j0DhkkjlWItb8HfAhDhR48F__AA34qydTuxlBYb1gyieeDQq8u3UU3SrAxCO_XMf3b8bnSdycvQ_qYWva1z11u3A9TXqwyBy1NCiNrkUccaSq88ukI_rnidb1-PR3alpxwvG8nb8_QGn07NrF2mPiBxri2ZT_MPdLzHz__dRwkawkSCH8VU8GdxE0Bv4Sq_M0XGXCYp5eDu-gTtB_pQ5E"
+        },
+        "htmlCode": {
+          "name": "projects/17734721049138626585/files/f59be5967a1c46f4a85621bdcf430948",
+          "downloadUrl": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ8Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpbCiVodG1sX2M2Mjg3MTI0N2U4YzQ2YzU4MzQ2YzdhYzhiNjQzYzkyEgsSBxCLp4bSiwoYAZIBJAoKcHJvamVjdF9pZBIWQhQxNzczNDcyMTA0OTEzODYyNjU4NQ&filename=&opi=96797242",
+          "mimeType": "text/html"
+        },
+        "id": "7e1d17799b3248a0884f0bbc7d799f4f",
+        "generatedBy": "create_datastore_entry",
+        "width": "2560",
+        "height": "2048",
+        "title": "Base64 编解码 · 独立双栏工具窗口 (macOS)",
+        "name": "projects/17734721049138626585/screens/7e1d17799b3248a0884f0bbc7d799f4f",
+        "theme": {},
+        "deviceType": "DESKTOP",
+        "screenType": "DESIGN",
+        "screenMetadata": {
+          "agentType": "PRO_AGENT",
+          "status": "COMPLETE"
+        },
+        "designSystem": {
+          "name": "assets/9888066698243714071",
+          "designSystem": {
+            "displayName": "DontsTool — Quiet Native",
+            "styleGuidelines": "## Brand & Style\nA compact, keyboard-first native macOS utility rendered as a floating NSPanel rather than a conventional website. Calm, precise, tactile, and translucent. Now presented in an elegant light appearance with subtle backdrop blur and refined neutral surfaces. The desktop canvas is a subdued neutral backdrop with gentle ambient texture; no photographs, loud gradients, marketing headlines, charts, account widgets, AI fluff, or decorative dashboards.\n\n## Layout & Spacing\nA disciplined fixed-width utility panel floating centered in the desktop viewport. \n- Desktop presentation canvas: 1280 by 900pt.\n- Panel dimensions: Strictly 640 by 420pt.\n- Insets: 16pt horizontal margins (`space-lg`) across search and result groups.\n- Spacing rhythm: 4pt to 8pt between rows, 12pt padding inside search field.\n\n## Elevation & Depth\nDepth is produced via subtle translucent layered materials and soft ambient drop shadows rather than heavy skeuomorphism:\n- Floating launcher panel: Layered backdrop blur with diffuse shadow (`rgba(0, 0, 0, 0.12)` 0px 16px 36px, `rgba(0, 0, 0, 0.06)` 0px 2px 8px) with a fine 0.5pt border (`#00000012`).\n- Insets & keycaps: Subtle bottom-edge rim highlight and recessed white inset backgrounds.\n\n## Components\n- **Floating Panel**: Fixed 640x420pt container, 14pt corners, borderless header, ambient drop shadow.\n- **Search Header**: 60pt tall integrated search zone with magnifying glyph, text field, and quick keyword badge.\n- **Result Row**: 48-52pt rows with 32pt app/tool icons, primary title, middle-truncated path subtitle, and keyboard shortcut pill on the right. Focus state renders in `#3478F61A` with system blue highlight.\n- **Keycaps & Footer**: 32pt fixed bottom bar with hairline separator, icon status indicator, and inline keyboard caps (↑↓ 选择, ↵ 执行, esc 关闭).\n- **Settings Window**: Standard 820x620pt window with native traffic lights, 172pt left navigation sidebar, and macOS style grouped controls.",
+            "theme": {
+              "colorMode": "LIGHT",
+              "font": "INTER",
+              "roundness": "ROUND_EIGHT",
+              "customColor": "#3478f6",
+              "headlineFont": "INTER",
+              "bodyFont": "INTER",
+              "labelFont": "INTER",
+              "namedColors": {
+                "background": "#f6faff",
+                "primary_dim": "#004cb4",
+                "surface_container_lowest": "#ffffff",
+                "error": "#9f403d",
+                "surface_container_highest": "#d5e5f2",
+                "on_secondary_fixed": "#3e3f45",
+                "on_surface_variant": "#52616c",
+                "tertiary_dim": "#54506b",
+                "tertiary_fixed": "#e2dbfd",
+                "on_primary_fixed_variant": "#0055c6",
+                "inverse_on_surface": "#999da2",
+                "primary_container": "#d9e2ff",
+                "tertiary_container": "#e2dbfd",
+                "on_tertiary_fixed": "#3e3a54",
+                "surface_tint": "#0058cc",
+                "on_primary": "#f7f7ff",
+                "on_background": "#25343e",
+                "primary_fixed": "#d9e2ff",
+                "surface_bright": "#f6faff",
+                "secondary": "#5e5f65",
+                "on_error": "#fff7f6",
+                "secondary_fixed": "#e2e2e9",
+                "error_dim": "#4e0309",
+                "on_secondary": "#f9f8ff",
+                "surface": "#f6faff",
+                "on_tertiary": "#fcf7ff",
+                "on_primary_container": "#004cb2",
+                "on_tertiary_fixed_variant": "#5b5672",
+                "surface_container_high": "#ddeaf5",
+                "tertiary_fixed_dim": "#d4cdee",
+                "secondary_dim": "#525359",
+                "secondary_container": "#e2e2e9",
+                "primary_fixed_dim": "#c5d4ff",
+                "surface_container": "#e5eff8",
+                "on_surface": "#25343e",
+                "primary": "#0058cc",
+                "tertiary": "#605c78",
+                "on_error_container": "#752121",
+                "on_secondary_container": "#505157",
+                "inverse_surface": "#0a0f12",
+                "surface_container_low": "#eef4fb",
+                "on_secondary_fixed_variant": "#5a5b61",
+                "surface_dim": "#c9ddec",
+                "outline_variant": "#a4b4c0",
+                "secondary_fixed_dim": "#d4d4db",
+                "error_container": "#fe8983",
+                "on_primary_fixed": "#003a8d",
+                "on_tertiary_container": "#514d68",
+                "surface_variant": "#d5e5f2",
+                "outline": "#6d7d88",
+                "inverse_primary": "#568cff"
+              },
+              "designMd": "---\nname: DontsTool — Quiet Native\ncolors:\n  surface: '#f6faff'\n  surface-dim: '#c9ddec'\n  surface-bright: '#f6faff'\n  surface-container-lowest: '#ffffff'\n  surface-container-low: '#eef4fb'\n  surface-container: '#e5eff8'\n  surface-container-high: '#ddeaf5'\n  surface-container-highest: '#d5e5f2'\n  on-surface: '#25343e'\n  on-surface-variant: '#52616c'\n  inverse-surface: '#0a0f12'\n  inverse-on-surface: '#999da2'\n  outline: '#6d7d88'\n  outline-variant: '#a4b4c0'\n  surface-tint: '#0058cc'\n  primary: '#0058cc'\n  primary-dim: '#004cb4'\n  on-primary: '#f7f7ff'\n  primary-container: '#d9e2ff'\n  on-primary-container: '#004cb2'\n  inverse-primary: '#568cff'\n  secondary: '#5e5f65'\n  secondary-dim: '#525359'\n  on-secondary: '#f9f8ff'\n  secondary-container: '#e2e2e9'\n  on-secondary-container: '#505157'\n  tertiary: '#605c78'\n  tertiary-dim: '#54506b'\n  on-tertiary: '#fcf7ff'\n  tertiary-container: '#e2dbfd'\n  on-tertiary-container: '#514d68'\n  error: '#9f403d'\n  error-dim: '#4e0309'\n  on-error: '#fff7f6'\n  error-container: '#fe8983'\n  on-error-container: '#752121'\n  primary-fixed: '#d9e2ff'\n  primary-fixed-dim: '#c5d4ff'\n  on-primary-fixed: '#003a8d'\n  on-primary-fixed-variant: '#0055c6'\n  secondary-fixed: '#e2e2e9'\n  secondary-fixed-dim: '#d4d4db'\n  on-secondary-fixed: '#3e3f45'\n  on-secondary-fixed-variant: '#5a5b61'\n  tertiary-fixed: '#e2dbfd'\n  tertiary-fixed-dim: '#d4cdee'\n  on-tertiary-fixed: '#3e3a54'\n  on-tertiary-fixed-variant: '#5b5672'\n  background: '#f6faff'\n  on-background: '#25343e'\n  surface-variant: '#d5e5f2'\ntypography:\n  headline-lg:\n    fontFamily: Inter\n    fontSize: 20px\n    fontWeight: '400'\n    lineHeight: 28px\n  body-md:\n    fontFamily: Inter\n    fontSize: 14px\n    fontWeight: '500'\n    lineHeight: 20px\n  body-sm:\n    fontFamily: Inter\n    fontSize: 11px\n    fontWeight: '400'\n    lineHeight: 16px\n  label-sm:\n    fontFamily: Inter\n    fontSize: 11px\n    fontWeight: '500'\n    lineHeight: 16px\nrounded:\n  sm: 0.25rem\n  DEFAULT: 0.5rem\n  md: 0.75rem\n  lg: 1rem\n  xl: 1.5rem\n  full: 9999px\nspacing:\n  gutter: 0.75rem\n  margin: 1rem\n  space-xs: 0.25rem\n  space-sm: 0.5rem\n  space-md: 0.75rem\n  space-lg: 1rem\n  space-xl: 1.5rem\n---\n\n# Design System: DontsTool — Quiet Native\n**Project ID:** 17734721049138626585\n\n## 1. Visual Theme & Atmosphere\nA compact, keyboard-first native macOS utility, rendered as a floating NSPanel rather than a website. Calm, precise, tactile, translucent light silver material. Content and selection are the visual anchors. Desktop canvas is a subdued neutral wallpaper (#E9EDF2) with gentle ambient texture; no photographs, giant gradients, marketing headlines, charts, account widgets, AI features or decorative dashboards.\n\n## 2. Color Palette & Roles\n- Soft silver panel #F5F6F8: popover background, 94% opaque with restrained backdrop blur.\n- Neutral backdrop #E9EDF2: desktop environment and outer canvas frame.\n- Inset white #FFFFFF: search field background, hover cards, and inset controls.\n- Hairline divider #00000014: separators and boundary highlights.\n- Ink black #1F2228: primary labels and headings.\n- Muted slate #5E6470: secondary labels and file paths.\n- Quiet gray #8A909C: tertiary hints; never use for critical small text.\n- System blue #3478F6: keyboard selection, focus, active controls; selected row uses #3478F61A with a thin subtle border.\n- Soft green #2DA46F: confirmed copy success only.\n- Amber #D9822B: actionable permission and degradation notices.\nDefault appearance in this project is light native.\n\n## 3. Typography Rules\nUse native system UI typography (-apple-system, BlinkMacSystemFont, SF Pro Text, PingFang SC, sans-serif); Inter is only a fallback token. Simplified Chinese UI, real app/product names remain original. Search 20px regular; row title 14px medium; row subtitle 11px; group caption and footer 11px. Monospaced font for commands, snippets and keyboard symbols. No oversized display headings. Strongly respect native macOS density.\n\n## 4. Component Stylings\n- Floating panel: exactly 640 by 420pt for all launcher states, gently rounded 14pt corners, fine translucent border, soft broad shadow; 16pt horizontal insets. No traffic-light window controls on launcher.\n- Search: integrated borderless header 60pt tall, magnifier, input and a small shortcut or keyword capsule. Thin divider below.\n- Results: 48-52pt rows, 30-32pt icons, left alignment across groups, one primary title, optional middle-truncated path or preview, restrained action on the right. Selected row has softened 8pt corners and subtle system accent fill, clearly visible keyboard focus.\n- Compact group labels: 常用 / 工具 / 应用 / 文件; no extra tabs or category rail in the launcher.\n- Footer: pinned 32pt area with thin top divider; small product glyph at left and real status text when necessary; inline keycaps ↑↓ 选择, ↵ 执行, esc 关闭 at right. No fake latency or live performance metrics.\n- Controls: compact 6-8pt corners; toggle switches and segmented controls reflect native macOS forms. Keyboard keycaps have a fine stroke and inset highlight.\n- Settings: separate 820 by 620pt standard native window with macOS traffic lights, 172pt sidebar, grouped forms; only settings has sidebar navigation. Sidebar entries 通用, 搜索, 工具, 翻译, 索引, 关于.\n- Toasts: concise, small, nonmodal. Error recovery keeps the panel open.\n\n## 5. Layout Principles\nShow a single app window on a 1280 by 900 desktop presentation canvas, positioned horizontally centered and toward the upper middle. Launcher window is always 640 by 420pt. Outside the window leave generous desktop negative space, with no editorial annotations or website chrome. Lists scroll internally when needed; never stretch launcher to a full page. Empty query shows app rows and keyword tool hints. Search shows apps then files then browser fallback only when local matches are absent. Text tools stay in rows with truncated snippets, not a two-pane editor. Translation uses one primary system action and one web fallback, not a chat or paragraph editor. Settings may show planned V1 controls because this is a target design, not a claim that current M1 code implements them.",
+              "colorVariant": "NEUTRAL",
+              "overridePrimaryColor": "#3478f6",
+              "overrideNeutralColor": "#e9edf2",
+              "spacingScale": 2,
+              "typography": {
+                "body-sm": {
+                  "fontFamily": "Inter",
+                  "fontSize": "11px",
+                  "fontWeight": "400",
+                  "lineHeight": "16px"
+                },
+                "label-sm": {
+                  "fontFamily": "Inter",
+                  "fontSize": "11px",
+                  "fontWeight": "500",
+                  "lineHeight": "16px"
+                },
+                "headline-lg": {
+                  "fontFamily": "Inter",
+                  "fontSize": "20px",
+                  "fontWeight": "400",
+                  "lineHeight": "28px"
+                },
+                "body-md": {
+                  "fontFamily": "Inter",
+                  "fontSize": "14px",
+                  "fontWeight": "500",
+                  "lineHeight": "20px"
+                }
+              },
+              "spacing": {
+                "space-md": "0.75rem",
+                "space-xl": "1.5rem",
+                "gutter": "0.75rem",
+                "space-lg": "1rem",
+                "margin": "1rem",
+                "space-sm": "0.5rem",
+                "space-xs": "0.25rem"
+              },
+              "headlineFontFamily": "Inter",
+              "bodyFontFamily": "Inter",
+              "labelFontFamily": "Inter"
+            }
+          },
+          "version": "3"
+        }
+      },
+      "insights": [
+        "已遵循 DontsTool Native 全新原生独立多栏工具窗口规范，完成「Base64 编解码」原生 macOS 独立工具窗口设计：\n\n### 核心设计与规格实现：\n1. **macOS 独立窗口规格 (1040×700)**：\n   - 带有红黄绿三色原生红绿灯控制钮及居中标题「Base64 编解码 v1.0」，右侧标注 `DontsTool Native`。\n   - 无任何多余导航侧边栏、网页 Hero 或无关装饰，纯粹聚焦高密度开发者实用工具。\n\n2. **工具栏配置 (Toolbar)**：\n   - **分段选择器**：`编码` / `解码` 快速切换，自动联动占位符与按钮文案。\n   - **URL-safe 选项**：复选框支持（替换 `+` `/` 为 `-` `_`，并移除末尾填充符 `=`）。\n   - **主动作按键**：原生 Primary 蓝色按键「编码」，配以 macOS 风格快捷键提示 `⌘↩`。\n\n3. **双栏多面板编辑器 (Multi-Pane Editors)**：\n   - **左侧「输入」**：包含行号计数器、字符统计徽标、`粘贴` 与 `清空` 快捷功能；初始预置包含多行中文字符在内的多行样本文本。\n   - **右侧「结果」**：实时高保真编码结果呈现，支持 `作为输入`（支持快速来回反转校验）与 `复制结果`，带有精致微小的行内状态徽标（`● 编码完成`）。\n\n4. **真实状态底部状态栏 (Truthful Status Footer)**：\n   - 真实反馈编码状态（如 `就绪 · UTF-8 编码`、`输入 59 字节 / 输出 80 字节`），展示 `标准 RFC 4648` 与快捷键指引，杜绝虚假延迟与伪状态。\n   - 包含真实的 UTF-8 编解码及错误校验逻辑。",
+        "添加一键交换左右面板内容功能",
+        "增加常用编码选项（如 HEX / URL 编码）Tab 切换",
+        "提供大文本输入时的性能与换行折叠设置"
+      ]
+    },
+    {
+      "slug": "uuid",
+      "screen": {
+        "screenshot": {
+          "name": "projects/17734721049138626585/files/e67c0245bc614f048d27cdbae4dbd53a",
+          "downloadUrl": "https://lh3.googleusercontent.com/aida/AEtjO1V16KOkexLHoTaS8zEIfXYD5pzZnD7Fptv63ExIdTDzWGyuX8xSKQJUUw2Zd9Fk9DwCfTgp-PgmdNzm4GRCXWBmSXHutSAozzLDl7UkgCM8DgEZ81o_BUkZYGu4eSrTLaX6b4aPt-s7dNemcmSTaHbCfMuWIwoRrZltsl7yBu8hE_7tytSlG1JGGu_spdXlHoMZQmU7DSN4BPdME9OGkoVQp0FxSJf_nWc1lAyhqjTRnQiKj-I5yyJs6Q9g"
+        },
+        "htmlCode": {
+          "name": "projects/17734721049138626585/files/5861fbc969fe4e8fabfc332082339129",
+          "downloadUrl": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ8Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpbCiVodG1sX2QyNmY3ODk3Mzc3YTRiMGJiNzljODFhYTU2YTA1OTFlEgsSBxCLp4bSiwoYAZIBJAoKcHJvamVjdF9pZBIWQhQxNzczNDcyMTA0OTEzODYyNjU4NQ&filename=&opi=96797242",
+          "mimeType": "text/html"
+        },
+        "id": "7be4f5b3c41745e19ba8c94939e886ae",
+        "generatedBy": "create_datastore_entry",
+        "width": "2560",
+        "height": "2048",
+        "title": "UUID 工具 · 独立生成窗口 (macOS)",
+        "name": "projects/17734721049138626585/screens/7be4f5b3c41745e19ba8c94939e886ae",
+        "theme": {},
+        "deviceType": "DESKTOP",
+        "screenType": "DESIGN",
+        "screenMetadata": {
+          "agentType": "PRO_AGENT",
+          "status": "COMPLETE"
+        },
+        "designSystem": {
+          "name": "assets/9888066698243714071",
+          "designSystem": {
+            "displayName": "DontsTool — Quiet Native",
+            "styleGuidelines": "## Brand & Style\nA compact, keyboard-first native macOS utility rendered as a floating NSPanel rather than a conventional website. Calm, precise, tactile, and translucent. Now presented in an elegant light appearance with subtle backdrop blur and refined neutral surfaces. The desktop canvas is a subdued neutral backdrop with gentle ambient texture; no photographs, loud gradients, marketing headlines, charts, account widgets, AI fluff, or decorative dashboards.\n\n## Layout & Spacing\nA disciplined fixed-width utility panel floating centered in the desktop viewport. \n- Desktop presentation canvas: 1280 by 900pt.\n- Panel dimensions: Strictly 640 by 420pt.\n- Insets: 16pt horizontal margins (`space-lg`) across search and result groups.\n- Spacing rhythm: 4pt to 8pt between rows, 12pt padding inside search field.\n\n## Elevation & Depth\nDepth is produced via subtle translucent layered materials and soft ambient drop shadows rather than heavy skeuomorphism:\n- Floating launcher panel: Layered backdrop blur with diffuse shadow (`rgba(0, 0, 0, 0.12)` 0px 16px 36px, `rgba(0, 0, 0, 0.06)` 0px 2px 8px) with a fine 0.5pt border (`#00000012`).\n- Insets & keycaps: Subtle bottom-edge rim highlight and recessed white inset backgrounds.\n\n## Components\n- **Floating Panel**: Fixed 640x420pt container, 14pt corners, borderless header, ambient drop shadow.\n- **Search Header**: 60pt tall integrated search zone with magnifying glyph, text field, and quick keyword badge.\n- **Result Row**: 48-52pt rows with 32pt app/tool icons, primary title, middle-truncated path subtitle, and keyboard shortcut pill on the right. Focus state renders in `#3478F61A` with system blue highlight.\n- **Keycaps & Footer**: 32pt fixed bottom bar with hairline separator, icon status indicator, and inline keyboard caps (↑↓ 选择, ↵ 执行, esc 关闭).\n- **Settings Window**: Standard 820x620pt window with native traffic lights, 172pt left navigation sidebar, and macOS style grouped controls.",
+            "theme": {
+              "colorMode": "LIGHT",
+              "font": "INTER",
+              "roundness": "ROUND_EIGHT",
+              "customColor": "#3478f6",
+              "headlineFont": "INTER",
+              "bodyFont": "INTER",
+              "labelFont": "INTER",
+              "namedColors": {
+                "on_background": "#25343e",
+                "surface_dim": "#c9ddec",
+                "on_error_container": "#752121",
+                "primary_dim": "#004cb4",
+                "on_tertiary": "#fcf7ff",
+                "primary_fixed": "#d9e2ff",
+                "on_secondary_fixed_variant": "#5a5b61",
+                "on_tertiary_fixed_variant": "#5b5672",
+                "inverse_on_surface": "#999da2",
+                "on_tertiary_container": "#514d68",
+                "on_secondary": "#f9f8ff",
+                "secondary_dim": "#525359",
+                "on_primary_container": "#004cb2",
+                "error_container": "#fe8983",
+                "inverse_surface": "#0a0f12",
+                "on_surface": "#25343e",
+                "background": "#f6faff",
+                "surface_container_lowest": "#ffffff",
+                "tertiary_fixed": "#e2dbfd",
+                "surface_container_highest": "#d5e5f2",
+                "outline": "#6d7d88",
+                "tertiary_container": "#e2dbfd",
+                "outline_variant": "#a4b4c0",
+                "secondary_fixed_dim": "#d4d4db",
+                "surface_bright": "#f6faff",
+                "tertiary_dim": "#54506b",
+                "surface": "#f6faff",
+                "surface_variant": "#d5e5f2",
+                "on_tertiary_fixed": "#3e3a54",
+                "on_secondary_fixed": "#3e3f45",
+                "on_error": "#fff7f6",
+                "error_dim": "#4e0309",
+                "error": "#9f403d",
+                "tertiary_fixed_dim": "#d4cdee",
+                "surface_container_low": "#eef4fb",
+                "secondary_container": "#e2e2e9",
+                "on_primary_fixed_variant": "#0055c6",
+                "tertiary": "#605c78",
+                "primary_fixed_dim": "#c5d4ff",
+                "on_primary": "#f7f7ff",
+                "secondary": "#5e5f65",
+                "surface_container_high": "#ddeaf5",
+                "surface_container": "#e5eff8",
+                "on_primary_fixed": "#003a8d",
+                "primary": "#0058cc",
+                "inverse_primary": "#568cff",
+                "on_surface_variant": "#52616c",
+                "secondary_fixed": "#e2e2e9",
+                "surface_tint": "#0058cc",
+                "primary_container": "#d9e2ff",
+                "on_secondary_container": "#505157"
+              },
+              "designMd": "---\nname: DontsTool — Quiet Native\ncolors:\n  surface: '#f6faff'\n  surface-dim: '#c9ddec'\n  surface-bright: '#f6faff'\n  surface-container-lowest: '#ffffff'\n  surface-container-low: '#eef4fb'\n  surface-container: '#e5eff8'\n  surface-container-high: '#ddeaf5'\n  surface-container-highest: '#d5e5f2'\n  on-surface: '#25343e'\n  on-surface-variant: '#52616c'\n  inverse-surface: '#0a0f12'\n  inverse-on-surface: '#999da2'\n  outline: '#6d7d88'\n  outline-variant: '#a4b4c0'\n  surface-tint: '#0058cc'\n  primary: '#0058cc'\n  primary-dim: '#004cb4'\n  on-primary: '#f7f7ff'\n  primary-container: '#d9e2ff'\n  on-primary-container: '#004cb2'\n  inverse-primary: '#568cff'\n  secondary: '#5e5f65'\n  secondary-dim: '#525359'\n  on-secondary: '#f9f8ff'\n  secondary-container: '#e2e2e9'\n  on-secondary-container: '#505157'\n  tertiary: '#605c78'\n  tertiary-dim: '#54506b'\n  on-tertiary: '#fcf7ff'\n  tertiary-container: '#e2dbfd'\n  on-tertiary-container: '#514d68'\n  error: '#9f403d'\n  error-dim: '#4e0309'\n  on-error: '#fff7f6'\n  error-container: '#fe8983'\n  on-error-container: '#752121'\n  primary-fixed: '#d9e2ff'\n  primary-fixed-dim: '#c5d4ff'\n  on-primary-fixed: '#003a8d'\n  on-primary-fixed-variant: '#0055c6'\n  secondary-fixed: '#e2e2e9'\n  secondary-fixed-dim: '#d4d4db'\n  on-secondary-fixed: '#3e3f45'\n  on-secondary-fixed-variant: '#5a5b61'\n  tertiary-fixed: '#e2dbfd'\n  tertiary-fixed-dim: '#d4cdee'\n  on-tertiary-fixed: '#3e3a54'\n  on-tertiary-fixed-variant: '#5b5672'\n  background: '#f6faff'\n  on-background: '#25343e'\n  surface-variant: '#d5e5f2'\ntypography:\n  headline-lg:\n    fontFamily: Inter\n    fontSize: 20px\n    fontWeight: '400'\n    lineHeight: 28px\n  body-md:\n    fontFamily: Inter\n    fontSize: 14px\n    fontWeight: '500'\n    lineHeight: 20px\n  body-sm:\n    fontFamily: Inter\n    fontSize: 11px\n    fontWeight: '400'\n    lineHeight: 16px\n  label-sm:\n    fontFamily: Inter\n    fontSize: 11px\n    fontWeight: '500'\n    lineHeight: 16px\nrounded:\n  sm: 0.25rem\n  DEFAULT: 0.5rem\n  md: 0.75rem\n  lg: 1rem\n  xl: 1.5rem\n  full: 9999px\nspacing:\n  gutter: 0.75rem\n  margin: 1rem\n  space-xs: 0.25rem\n  space-sm: 0.5rem\n  space-md: 0.75rem\n  space-lg: 1rem\n  space-xl: 1.5rem\n---\n\n# Design System: DontsTool — Quiet Native\n**Project ID:** 17734721049138626585\n\n## 1. Visual Theme & Atmosphere\nA compact, keyboard-first native macOS utility, rendered as a floating NSPanel rather than a website. Calm, precise, tactile, translucent light silver material. Content and selection are the visual anchors. Desktop canvas is a subdued neutral wallpaper (#E9EDF2) with gentle ambient texture; no photographs, giant gradients, marketing headlines, charts, account widgets, AI features or decorative dashboards.\n\n## 2. Color Palette & Roles\n- Soft silver panel #F5F6F8: popover background, 94% opaque with restrained backdrop blur.\n- Neutral backdrop #E9EDF2: desktop environment and outer canvas frame.\n- Inset white #FFFFFF: search field background, hover cards, and inset controls.\n- Hairline divider #00000014: separators and boundary highlights.\n- Ink black #1F2228: primary labels and headings.\n- Muted slate #5E6470: secondary labels and file paths.\n- Quiet gray #8A909C: tertiary hints; never use for critical small text.\n- System blue #3478F6: keyboard selection, focus, active controls; selected row uses #3478F61A with a thin subtle border.\n- Soft green #2DA46F: confirmed copy success only.\n- Amber #D9822B: actionable permission and degradation notices.\nDefault appearance in this project is light native.\n\n## 3. Typography Rules\nUse native system UI typography (-apple-system, BlinkMacSystemFont, SF Pro Text, PingFang SC, sans-serif); Inter is only a fallback token. Simplified Chinese UI, real app/product names remain original. Search 20px regular; row title 14px medium; row subtitle 11px; group caption and footer 11px. Monospaced font for commands, snippets and keyboard symbols. No oversized display headings. Strongly respect native macOS density.\n\n## 4. Component Stylings\n- Floating panel: exactly 640 by 420pt for all launcher states, gently rounded 14pt corners, fine translucent border, soft broad shadow; 16pt horizontal insets. No traffic-light window controls on launcher.\n- Search: integrated borderless header 60pt tall, magnifier, input and a small shortcut or keyword capsule. Thin divider below.\n- Results: 48-52pt rows, 30-32pt icons, left alignment across groups, one primary title, optional middle-truncated path or preview, restrained action on the right. Selected row has softened 8pt corners and subtle system accent fill, clearly visible keyboard focus.\n- Compact group labels: 常用 / 工具 / 应用 / 文件; no extra tabs or category rail in the launcher.\n- Footer: pinned 32pt area with thin top divider; small product glyph at left and real status text when necessary; inline keycaps ↑↓ 选择, ↵ 执行, esc 关闭 at right. No fake latency or live performance metrics.\n- Controls: compact 6-8pt corners; toggle switches and segmented controls reflect native macOS forms. Keyboard keycaps have a fine stroke and inset highlight.\n- Settings: separate 820 by 620pt standard native window with macOS traffic lights, 172pt sidebar, grouped forms; only settings has sidebar navigation. Sidebar entries 通用, 搜索, 工具, 翻译, 索引, 关于.\n- Toasts: concise, small, nonmodal. Error recovery keeps the panel open.\n\n## 5. Layout Principles\nShow a single app window on a 1280 by 900 desktop presentation canvas, positioned horizontally centered and toward the upper middle. Launcher window is always 640 by 420pt. Outside the window leave generous desktop negative space, with no editorial annotations or website chrome. Lists scroll internally when needed; never stretch launcher to a full page. Empty query shows app rows and keyword tool hints. Search shows apps then files then browser fallback only when local matches are absent. Text tools stay in rows with truncated snippets, not a two-pane editor. Translation uses one primary system action and one web fallback, not a chat or paragraph editor. Settings may show planned V1 controls because this is a target design, not a claim that current M1 code implements them.",
+              "colorVariant": "NEUTRAL",
+              "overridePrimaryColor": "#3478f6",
+              "overrideNeutralColor": "#e9edf2",
+              "spacingScale": 2,
+              "typography": {
+                "body-md": {
+                  "fontFamily": "Inter",
+                  "fontSize": "14px",
+                  "fontWeight": "500",
+                  "lineHeight": "20px"
+                },
+                "body-sm": {
+                  "fontFamily": "Inter",
+                  "fontSize": "11px",
+                  "fontWeight": "400",
+                  "lineHeight": "16px"
+                },
+                "headline-lg": {
+                  "fontFamily": "Inter",
+                  "fontSize": "20px",
+                  "fontWeight": "400",
+                  "lineHeight": "28px"
+                },
+                "label-sm": {
+                  "fontFamily": "Inter",
+                  "fontSize": "11px",
+                  "fontWeight": "500",
+                  "lineHeight": "16px"
+                }
+              },
+              "spacing": {
+                "gutter": "0.75rem",
+                "space-md": "0.75rem",
+                "margin": "1rem",
+                "space-xs": "0.25rem",
+                "space-xl": "1.5rem",
+                "space-lg": "1rem",
+                "space-sm": "0.5rem"
+              },
+              "headlineFontFamily": "Inter",
+              "bodyFontFamily": "Inter",
+              "labelFontFamily": "Inter"
+            }
+          },
+          "version": "3"
+        }
+      },
+      "insights": [
+        "已为您创建符合 DontsTool 原生 macOS 独立工具窗口最新规范的 **「UUID 生成器」**（窗口规格 `1040×700`）：\n\n### 关键设计与架构实现：\n1. **macOS 标准独立工具窗口**：\n   - 采用标准红黄绿红绿灯窗口控制按键，右上角标示 `DontsTool Native`。\n   - 严格遵循 `1040×700` 规格，无导航侧边栏、无装饰性冗余图，完全聚焦高密度效能工具本身。\n2. **紧凑控制工具栏（Toolbar）**：\n   - **数量控制**：数字输入框预设 `5` 条（支持步进与修改）。\n   - **大写切换**：原生风格轻量 Toggle 切换。\n   - **保留连字符**：默认勾选复选框，可自由切换带 `-` 或无分隔符的 Hex 字符串。\n   - **核心操作**：显眼的蓝色主按键「重新生成」并标注 `⌘R` 原生快捷键。\n3. **真实结果列表与复制反馈**：\n   - 结果区表头标注「本次结果 · 5 条」及「复制全部 (⇧⌘C)」。\n   - 每行清晰展示行号（`01`–`05`）、大字号等宽高辨识度 UUID v4 文本（支持选中文本），以及独立的轻量「复制」按钮。\n   - 复制操作即时显示原位微提示「已复制」，全局复制触发顶部绿色确认状态。\n4. **真实状态底部栏（Truthful Status Bar）**：\n   - 底部仅显示状态 `UUID v4 · 仅在点击时重新生成`，杜绝伪造加载与装饰。\n   - 界面整体与 DontsTool Quiet Native 设计系统的冷色调中性灰与柔和蓝调完全融为一体。",
+        "添加生成历史记录侧边抽屉或面板",
+        "支持批量导出为 TXT 或 JSON 格式",
+        "切换为深色模式 (macOS Dark Mode) 视效"
+      ]
+    }
+  ]
+}
