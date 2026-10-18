@@ -150,7 +150,7 @@ make release       # 构建、ad-hoc 签名、校验并打包 Universal 版
 发布产物位于 `dist/`：
 
 ```text
-DontsTool-0.1.1-macos-universal.zip
+DontsTool-0.1.2-macos-universal.zip
 manifest.json
 SHA256SUMS
 ```
@@ -166,10 +166,10 @@ SHA256SUMS
 发布新版本时，先修改 [Resources/Info.plist](Resources/Info.plist) 的 `CFBundleShortVersionString`，提交到 `main`，再推送一致的标签：
 
 ```bash
-# 示例：将源码版本更新为 0.1.2 并提交后
+# 示例：将源码版本更新为 0.1.3 并提交后
 git push origin main
-git tag -a v0.1.2 -m 'DontsTool v0.1.2'
-git push origin v0.1.2
+git tag -a v0.1.3 -m 'DontsTool v0.1.3'
+git push origin v0.1.3
 ```
 
 也可在 Release 工作流的手动运行入口填写**已存在的标签**重试。版本不匹配、测试失败或校验失败都会阻止发布。流程细节见 [发布说明](docs/releasing.md)。
