@@ -29,7 +29,7 @@ xcodebuild -project DontsTool.xcodeproj -scheme DontsTool -configuration Release
 dt_app="$dt_derived/Build/Products/Release/DontsTool.app"
 dt_binary="$dt_app/Contents/MacOS/DontsTool"
 for dt_arch in arm64 x86_64; do
-  lipo -verify_arch "$dt_arch" "$dt_binary"
+  lipo "$dt_binary" -verify_arch "$dt_arch"
 done
 codesign --force --sign - --timestamp=none "$dt_app"
 codesign --verify --deep --strict "$dt_app"
@@ -66,7 +66,7 @@ trap 'rm -rf "$dt_verify_dir"' EXIT
 ditto -x -k "$dt_dist/$dt_archive" "$dt_verify_dir"
 codesign --verify --deep --strict "$dt_verify_dir/DontsTool.app"
 for dt_arch in arm64 x86_64; do
-  lipo -verify_arch "$dt_arch" "$dt_verify_dir/DontsTool.app/Contents/MacOS/DontsTool"
+  lipo "$dt_verify_dir/DontsTool.app/Contents/MacOS/DontsTool" -verify_arch "$dt_arch"
 done
 cmp "$dt_binary" "$dt_verify_dir/DontsTool.app/Contents/MacOS/DontsTool"
 printf '\nRelease package: %s\n' "$dt_dist/$dt_archive"

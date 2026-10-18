@@ -37,6 +37,6 @@ Web 提交 `4075439f88946ee4a5e62ddf1f5406e5d568406f` 已推送；[Actions 39122
 
 实际安装版保留原有登录，在生产搜索列表普通点击文章后窗口标识仍为 0，显示返回搜索、新窗口打开与原生置顶工具栏，没有整套首页导航。仅打开与查看文章，未编辑真实文章内容。
 
-![实际安装版文章顶部](assets/knowledge-installed-current.jpg)
+实际安装版的生产文章截图仅在本机保留，不随仓库提交。上图为隔离数据界面。
 
 独立匿名生产桥接探针首次等待 ready 超时；同一构建重试成功，确认 protocol v1、dark 外观事件、匿名搜索 authenticated=false/items=0、prepareClose(lock=true) 和 resumeInteraction 握手。首次超时未复现，不能据此声称网络或无窗口 WK 加载始终稳定；实际安装版与本地集成测试均已完成上述验证。
