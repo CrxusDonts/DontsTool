@@ -20,6 +20,7 @@ struct SettingsStoreTests {
         #expect(store.enabledProviderIDs == Set(ProviderID.allCases.map(\.rawValue)))
         #expect(store.fileSearchEnabled)
         #expect(store.translationTarget == "zh-Hans")
+        #expect(!store.selectionTranslationEnabled)
         #expect(!store.hasCompletedOnboarding)
         #expect(store.knowledgeBaseURL.isEmpty)
     }
@@ -34,6 +35,7 @@ struct SettingsStoreTests {
         store.setProviderEnabled(ProviderID.web.rawValue, to: false)
         store.setFileSearchEnabled(false)
         store.setTranslationTarget("ja")
+        store.setSelectionTranslationEnabled(true)
         store.setKnowledgeBaseURL("https://kb.example.com")
         store.completeOnboarding()
 
@@ -43,6 +45,7 @@ struct SettingsStoreTests {
         #expect(!reloaded.isProviderEnabled(ProviderID.web.rawValue))
         #expect(!reloaded.fileSearchEnabled)
         #expect(reloaded.translationTarget == "ja")
+        #expect(reloaded.selectionTranslationEnabled)
         #expect(reloaded.hasCompletedOnboarding)
         #expect(reloaded.knowledgeBaseURL == "https://kb.example.com")
     }

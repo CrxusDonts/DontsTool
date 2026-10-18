@@ -66,6 +66,8 @@ targets:
       - path: Sources/DontsTool/UI/Knowledge/KnowledgeWindowView.swift
       - path: Sources/DontsTool/UI/Tools/ToolTheme.swift
       - path: Sources/DontsTool/UI/DesignSystem/Theme.swift
+      - path: Sources/DontsTool/Shell/Selection
+      - path: Sources/DontsTool/UI/Tools/SelectionTranslationView.swift
     dependencies:
       - target: DontsToolCore
     settings:

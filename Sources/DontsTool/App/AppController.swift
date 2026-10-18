@@ -16,6 +16,7 @@ final class AppController {
     private var panel: LauncherPanelController?
     private var coordinator: SearchCoordinator?
     private var toolWindows: ToolWindowManager?
+    private var selectionTranslation: SelectionTranslationController?
     private var knowledgeWindows: KnowledgeWindowManager?
     private var settingsWindow: SettingsWindowController?
     private var onboardingWindow: OnboardingWindowController?
@@ -39,6 +40,8 @@ final class AppController {
         let translator = RemoteTranslationService(settings: settings, secrets: secrets)
         let toolWindows = ToolWindowManager(settings: settings, translator: translator)
         self.toolWindows = toolWindows
+        let selectionTranslation = SelectionTranslationController(settings: settings, translator: translator)
+        self.selectionTranslation = selectionTranslation
         let knowledgeWindows = KnowledgeWindowManager(settings: settings)
         self.knowledgeWindows = knowledgeWindows
         let knowledgeProvider = KnowledgeProvider(settings: settings, service: knowledgeWindows)
@@ -80,6 +83,7 @@ final class AppController {
             login: login,
             secrets: secrets,
             appIndex: appIndex,
+            selectionTranslation: selectionTranslation,
             onRescan: { [weak self] in self?.rescanApps() },
             onHotKeyRecordingChanged: { [weak self] isRecording in
                 self?.setHotKeyRecording(isRecording)
@@ -92,6 +96,10 @@ final class AppController {
         knowledgeWindows.onOpenSettings = { [weak settingsWindow] in settingsWindow?.show() }
         knowledgeWindows.onSearchChanged = { [weak panel] in panel?.refreshSearch() }
         self.settingsWindow = settingsWindow
+        selectionTranslation.onOpenSettings = { [weak settingsWindow] in settingsWindow?.showTranslation() }
+        selectionTranslation.onEditSource = { [weak toolWindows] text in
+            toolWindows?.openTool(ToolOpenRequest(kind: .translation, input: text))
+        }
         self.coordinator = coordinator
         self.panel = panel
         websitesCancellable = websites.$configuration.dropFirst().sink { [weak panel] _ in
@@ -163,6 +171,7 @@ final class AppController {
     func prepareToTerminate() async -> Bool { await knowledgeWindows?.prepareToTerminate() ?? true }
 
     func shutdown() {
+        selectionTranslation?.shutdown()
         doubleTapMonitor.stop()
         usage.flush()
         toolWindows?.shutdown()

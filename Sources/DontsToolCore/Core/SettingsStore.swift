@@ -108,6 +108,7 @@ public final class SettingsStore: ObservableObject {
         static let translationTarget = "dontstool.translationTarget"
         static let translationAPIBaseURL = "dontstool.translationAPIBaseURL"
         static let translationAPIModel = "dontstool.translationAPIModel"
+        static let selectionTranslationEnabled = "dontstool.selectionTranslationEnabled"
         static let knowledgeProviderMigrationCompleted = "dontstool.knowledgeProviderMigrationCompleted"
         static let knowledgeBaseURL = "dontstool.knowledgeBaseURL"
         static let hasCompletedOnboarding = "dontstool.hasCompletedOnboarding"
@@ -122,6 +123,7 @@ public final class SettingsStore: ObservableObject {
     @Published public private(set) var translationTarget: String
     @Published public private(set) var translationAPIBaseURL: String
     @Published public private(set) var translationAPIModel: String
+    @Published public private(set) var selectionTranslationEnabled: Bool
     @Published public private(set) var knowledgeBaseURL: String
     @Published public private(set) var hasCompletedOnboarding: Bool
 
@@ -171,6 +173,7 @@ public final class SettingsStore: ObservableObject {
         translationTarget = defaults.string(forKey: Key.translationTarget) ?? fallbackTarget
         translationAPIBaseURL = defaults.string(forKey: Key.translationAPIBaseURL) ?? ""
         translationAPIModel = defaults.string(forKey: Key.translationAPIModel) ?? ""
+        selectionTranslationEnabled = defaults.bool(forKey: Key.selectionTranslationEnabled)
         knowledgeBaseURL = defaults.string(forKey: Key.knowledgeBaseURL) ?? ""
         hasCompletedOnboarding = defaults.bool(forKey: Key.hasCompletedOnboarding)
     }
@@ -218,6 +221,11 @@ public final class SettingsStore: ObservableObject {
     public func setTranslationAPIModel(_ model: String) {
         translationAPIModel = model
         defaults.set(model, forKey: Key.translationAPIModel)
+    }
+
+    public func setSelectionTranslationEnabled(_ enabled: Bool) {
+        selectionTranslationEnabled = enabled
+        defaults.set(enabled, forKey: Key.selectionTranslationEnabled)
     }
 
     public func setKnowledgeBaseURL(_ url: String) {

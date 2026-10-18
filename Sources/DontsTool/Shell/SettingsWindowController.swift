@@ -5,12 +5,14 @@ import SwiftUI
 /// 独立设置窗口：820 × 620，标准标题栏 + SwiftUI 内容（design/05-settings.html）。
 @MainActor
 final class SettingsWindowController: NSWindowController {
+    private let navigation = SettingsNavigationState()
     init(
         settings: SettingsStore,
         websites: WebsiteShortcutStore,
         login: LoginItemManager,
         secrets: SecretStoring,
         appIndex: AppIndex,
+        selectionTranslation: SelectionTranslationController,
         onRescan: @escaping () -> Void,
         onHotKeyRecordingChanged: @escaping (Bool) -> Void
     ) {
@@ -30,6 +32,8 @@ final class SettingsWindowController: NSWindowController {
             login: login,
             secrets: secrets,
             appIndex: appIndex,
+            selectionTranslation: selectionTranslation,
+            navigation: navigation,
             onRescan: onRescan,
             onHotKeyRecordingChanged: onHotKeyRecordingChanged
         ))
@@ -44,5 +48,10 @@ final class SettingsWindowController: NSWindowController {
     func show() {
         NSApp.activate(ignoringOtherApps: true)
         window?.makeKeyAndOrderFront(nil)
+    }
+
+    func showTranslation() {
+        navigation.tab = .translation
+        show()
     }
 }

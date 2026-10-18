@@ -2,6 +2,11 @@ import AppKit
 import DontsToolCore
 import SwiftUI
 
+@MainActor
+final class SettingsNavigationState: ObservableObject {
+    @Published var tab: SettingsRootView.Tab = .general
+}
+
 /// 设置窗口内容：172pt 侧边栏 + 分组表单（design/05-settings.html）。
 struct SettingsRootView: View {
     enum Tab: String, CaseIterable, Identifiable {
@@ -35,10 +40,12 @@ struct SettingsRootView: View {
     @ObservedObject var login: LoginItemManager
     let secrets: SecretStoring
     @ObservedObject var appIndex: AppIndex
+    @ObservedObject var selectionTranslation: SelectionTranslationController
+    @ObservedObject var navigation: SettingsNavigationState
     let onRescan: () -> Void
     let onHotKeyRecordingChanged: (Bool) -> Void
 
-    @State private var tab: Tab = .general
+    private var tab: Tab { navigation.tab }
     @State private var apiKey: String = ""
     @State private var apiKeyStatus: String?
 
@@ -98,7 +105,7 @@ struct SettingsRootView: View {
 
     private func sidebarItem(_ entry: Tab) -> some View {
         Button {
-            tab = entry
+            navigation.tab = entry
         } label: {
             HStack(spacing: 10) {
                 Image(systemName: entry.symbol)
@@ -258,6 +265,27 @@ struct SettingsRootView: View {
 
     private var translationTab: some View {
         VStack(alignment: .leading, spacing: 16) {
+            SettingsGroup(caption: "划词翻译") {
+                SettingsRow(title: "右键长按翻译", subtitle: "选中文字后，右键或双指按住触控板 0.5 秒") {
+                    Toggle("", isOn: Binding(get: { settings.selectionTranslationEnabled },
+                        set: { settings.setSelectionTranslationEnabled($0) }))
+                        .toggleStyle(.switch).labelsHidden()
+                }
+                SettingsDivider()
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(selectionTranslation.status).font(.system(size: 12))
+                    Text("通过辅助功能读取其他应用选中的文字，触发后才发送到你配置的翻译 API。不会自动复制，也不读取剪贴板。")
+                        .font(.caption).foregroundStyle(Theme.secondary)
+                    Text("短按在松开时显示原有右键菜单；移动会取消长按。不支持取词的应用仍可手动复制到翻译窗口。")
+                        .font(.caption).foregroundStyle(Theme.secondary)
+                    HStack {
+                        if !selectionTranslation.accessibilityGranted {
+                            SettingsButton(title: "授权辅助功能") { selectionTranslation.requestAccessibility() }
+                        }
+                        SettingsButton(title: "重新检查") { selectionTranslation.refresh() }
+                    }
+                }.padding(12)
+            }
             SettingsGroup(caption: "翻译目标") {
                 SettingsRow(title: "目标语言", subtitle: "tr 关键词翻译的目标语言") {
                     Picker("", selection: Binding(
