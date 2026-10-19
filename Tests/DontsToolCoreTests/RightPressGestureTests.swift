@@ -12,18 +12,26 @@ struct RightPressGestureTests {
         #expect(gesture.advance(at: 11) == .forward)
     }
 
-    @Test func longPressFiresOnlyOnceAndConsumesRelease() {
+    @Test func twoSecondPressFiresOnlyOnceAndConsumesRelease() {
         var gesture = RightPressGesture()
         _ = gesture.down(at: 0, point: .zero)
         _ = gesture.selectionResolved(available: true, at: 0.01)
-        #expect(gesture.advance(at: 0.49) == .hold)
-        #expect(gesture.advance(at: 0.5) == .translate)
-        #expect(gesture.advance(at: 0.7) == .hold)
-        #expect(gesture.up(at: 0.8) == .hold)
-        #expect(gesture.up(at: 1) == .forward)
+        #expect(gesture.advance(at: 1.99) == .hold)
+        #expect(gesture.advance(at: 2) == .translate)
+        #expect(gesture.advance(at: 2.1) == .hold)
+        #expect(gesture.up(at: 2.2) == .hold)
+        #expect(gesture.up(at: 3) == .forward)
     }
 
-    @Test func missingSelectionImmediatelyRestoresNativeRightClick() {
+    @Test func oneAndHalfSecondsIsStillAnOrdinaryRightClick() {
+        var gesture = RightPressGesture()
+        _ = gesture.down(at: 0, point: .zero)
+        _ = gesture.selectionResolved(available: true, at: 0.01)
+        #expect(gesture.advance(at: 1.5) == .hold)
+        #expect(gesture.up(at: 1.6) == .replayClick)
+    }
+
+    @Test func missingSelectionFallsBackToNativeRightClick() {
         var gesture = RightPressGesture()
         _ = gesture.down(at: 0, point: .zero)
         #expect(gesture.selectionResolved(available: false, at: 0.03) == .replayDown)
@@ -41,11 +49,11 @@ struct RightPressGestureTests {
         #expect(gesture.up(at: 0.7) == .forward)
     }
 
-    @Test func releaseCanCrossThresholdBeforeTimerRuns() {
+    @Test func releasingBeforeTimerNeverStartsTranslation() {
         var gesture = RightPressGesture()
         _ = gesture.down(at: 0, point: .zero)
         _ = gesture.selectionResolved(available: true, at: 0.02)
-        #expect(gesture.up(at: 0.6) == .translate)
+        #expect(gesture.up(at: 2.5) == .replayClick)
         #expect(gesture.advance(at: 1) == .forward)
     }
 
@@ -60,8 +68,8 @@ struct RightPressGestureTests {
     @Test func selectionArrivingAfterThresholdFiresWhileStillHeld() {
         var gesture = RightPressGesture()
         _ = gesture.down(at: 0, point: .zero)
-        #expect(gesture.selectionResolved(available: true, at: 0.6) == .translate)
-        #expect(gesture.up(at: 0.7) == .hold)
+        #expect(gesture.selectionResolved(available: true, at: 2.1) == .translate)
+        #expect(gesture.up(at: 2.2) == .hold)
     }
 
     @Test func cancellingRestoresDownAndPreventsLateTrigger() {
@@ -77,9 +85,9 @@ struct RightPressGestureTests {
         var gesture = RightPressGesture()
         _ = gesture.down(at: 0, point: .zero)
         _ = gesture.selectionResolved(available: true, at: 0.02)
-        #expect(gesture.advance(at: 0.5) == .translate)
+        #expect(gesture.advance(at: 2) == .translate)
         #expect(gesture.cancel() == .hold)
-        #expect(gesture.up(at: 0.8) == .hold)
+        #expect(gesture.up(at: 2.2) == .hold)
     }
 
     @Test func switchingApplicationsDiscardsBothSuppressedEvents() {
@@ -88,7 +96,7 @@ struct RightPressGestureTests {
         gesture.abandon()
         #expect(gesture.advance(at: 0.5) == .hold)
         #expect(gesture.selectionResolved(available: true, at: 0.6) == .hold)
-        #expect(gesture.up(at: 0.8) == .hold)
+        #expect(gesture.up(at: 2.2) == .hold)
     }
 
     @Test func delayedTimerCannotTurnReleasedShortClickIntoTranslation() {

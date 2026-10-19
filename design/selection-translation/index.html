@@ -14,8 +14,8 @@ function dispatch(event: Event) {
   return pipeline.handle(event);
 }
 
-// 选中文字，右键按住 0.5 秒。</pre></section>
-<section class="card" role="dialog" aria-label="划词翻译"><div class="header"><strong>划词翻译</strong><button id="pin" aria-label="固定窗口" aria-pressed="false">♧</button><button id="close" aria-label="关闭">×</button></div><div class="content"><div class="label">原文</div><p class="source">event propagation</p><hr><div class="label">简体中文</div><div id="result" aria-live="polite"></div></div><div class="footer"><div class="actions"><button id="edit">编辑原文</button><button id="retry">重试</button><button class="primary" id="copy">复制译文</button></div><p class="hint">右键长按 0.5 秒 · Esc 关闭</p></div></section>
+// 选中文字，右键按住 2 秒。</pre></section>
+<section class="card" role="dialog" aria-label="划词翻译"><div class="header"><strong>划词翻译</strong><button id="pin" aria-label="固定窗口" aria-pressed="false">♧</button><button id="close" aria-label="关闭">×</button></div><div class="content"><div class="label">原文</div><p class="source">event propagation</p><hr><div class="label">简体中文</div><div id="result" aria-live="polite"></div></div><div class="footer"><div class="actions"><button id="edit">编辑原文</button><button id="retry">重试</button><button class="primary" id="copy">复制译文</button></div><p class="hint">右键长按 2 秒 · Esc 关闭</p></div></section>
 <p class="note">这是 Stitch 生成后按实际功能收敛的交互参考。译文为固定示例；这里不会读取其他应用、申请权限或调用翻译服务。原生应用需在「设置 → 翻译」开启并授权辅助功能。</p>
 </main>
 <script>
@@ -23,10 +23,10 @@ const card=document.querySelector('.card'),result=document.querySelector('#resul
 function show(next){state=next;card.classList.remove('hidden');copy.textContent='复制译文';copy.disabled=next!=='ready';retry.disabled=next==='loading'||next==='unconfigured';result.replaceChildren();const p=document.createElement('p');p.className=next==='ready'?'result':'status';p.textContent={ready:'事件传播',loading:'正在翻译…',error:'翻译服务连接失败，请重试。',unconfigured:'请先配置翻译 API 的地址、模型和密钥。'}[next];if(next==='loading'){const s=document.createElement('span');s.className='spin';s.ariaHidden='true';p.prepend(s)}result.append(p)}
 document.querySelectorAll('[data-state]').forEach(b=>b.onclick=()=>show(b.dataset.state));
 document.querySelector('#theme').onclick=()=>document.body.classList.toggle('light');
-pin.onclick=()=>{pin.setAttribute('aria-pressed',pin.getAttribute('aria-pressed')!=='true');document.querySelector('.hint').textContent=pin.getAttribute('aria-pressed')==='true'?'窗口已固定 · Esc 关闭':'右键长按 0.5 秒 · Esc 关闭'};
+pin.onclick=()=>{pin.setAttribute('aria-pressed',pin.getAttribute('aria-pressed')!=='true');document.querySelector('.hint').textContent=pin.getAttribute('aria-pressed')==='true'?'窗口已固定 · Esc 关闭':'右键长按 2 秒 · Esc 关闭'};
 document.querySelector('#close').onclick=()=>card.classList.add('hidden');
 document.addEventListener('keydown',e=>{if(e.key==='Escape')card.classList.add('hidden')});
-document.querySelector('.editor').onpointerdown=e=>{if(e.button===2){timer=setTimeout(()=>show('ready'),500)}};
+document.querySelector('.editor').onpointerdown=e=>{if(e.button===2){timer=setTimeout(()=>show('ready'),2000)}};
 document.querySelector('.editor').onpointerup=()=>clearTimeout(timer);
 document.querySelector('.editor').onpointermove=()=>clearTimeout(timer);
 document.querySelector('.editor').oncontextmenu=e=>e.preventDefault();

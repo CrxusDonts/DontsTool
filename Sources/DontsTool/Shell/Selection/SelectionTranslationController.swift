@@ -49,7 +49,7 @@ final class SelectionTranslationController: ObservableObject {
         guard accessibilityGranted else {
             monitor.stop(); dismiss(); status = "需要辅助功能授权，授权后返回即可生效"; return
         }
-        status = monitor.start() ? "已开启 · 选中文字后右键长按 0.5 秒" : "无法启动鼠标监听，请检查系统授权后重试"
+        status = monitor.start() ? "已开启 · 选中文字后右键长按 2 秒" : "无法启动鼠标监听，请检查系统授权后重试"
     }
 
     func requestAccessibility() {

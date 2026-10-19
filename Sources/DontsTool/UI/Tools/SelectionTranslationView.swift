@@ -52,7 +52,7 @@ struct SelectionTranslationView: View {
                     .disabled(!session.canCopy)
                     .tint(ToolTheme.accent)
             }.controlSize(.small).padding(.horizontal, 12).padding(.top, 10)
-            Text(controller.pinned ? "窗口已固定 · Esc 关闭" : "右键长按 0.5 秒 · Esc 关闭")
+            Text(controller.pinned ? "窗口已固定 · Esc 关闭" : "右键长按 2 秒 · Esc 关闭")
                 .font(.system(size: 10)).foregroundStyle(ToolTheme.secondary)
                 .padding(.top, 7).padding(.bottom, 10)
         }

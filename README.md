@@ -82,7 +82,7 @@ open "/Applications/DontsTool.app"
 
 在「设置 → 翻译」打开「右键长按翻译」，点击「授权辅助功能」，在 macOS 系统设置中允许 DontsTool。返回应用后会重新检查授权，也可点击「重新检查」。此功能默认关闭，不会在启动时请求权限；原有启动器快捷键不需要该授权。
 
-在其他应用中先选中文字，再按住鼠标右键或用双指**按下触控板并保持约 0.5 秒**，鼠标旁会显示原文和译文卡片。仅把手指放在触控板上、双指轻点或单指 Force Click 均不是该触发方式。卡片支持复制译文、重试、固定及打开原文编辑；Esc 关闭，未固定时点击外部或切换应用也会关闭。一次只保留一张卡片。
+在其他应用中先选中文字，再按住鼠标右键或用双指**按下触控板并保持约 2 秒**，鼠标旁会显示原文和译文卡片。仅把手指放在触控板上、双指轻点或单指 Force Click 均不是该触发方式。卡片支持复制译文、重试、固定及打开原文编辑；Esc 关闭，未固定时点击外部或切换应用也会关闭。一次只保留一张卡片。
 
 短按在松开时还原原有右键，移动超过容差则恢复右键拖动。取不到选区或取词超时时放行原有操作。仅处理鼠标所在的前台普通窗口；后台窗口、菜单和带修饰键的右键保持原样。
 
@@ -150,7 +150,7 @@ make release       # 构建、ad-hoc 签名、校验并打包 Universal 版
 发布产物位于 `dist/`：
 
 ```text
-DontsTool-0.1.2-macos-universal.zip
+DontsTool-0.1.3-macos-universal.zip
 manifest.json
 SHA256SUMS
 ```
@@ -166,10 +166,10 @@ SHA256SUMS
 发布新版本时，先修改 [Resources/Info.plist](Resources/Info.plist) 的 `CFBundleShortVersionString`，提交到 `main`，再推送一致的标签：
 
 ```bash
-# 示例：将源码版本更新为 0.1.3 并提交后
+# 示例：将源码版本更新为 0.1.4 并提交后
 git push origin main
-git tag -a v0.1.3 -m 'DontsTool v0.1.3'
-git push origin v0.1.3
+git tag -a v0.1.4 -m 'DontsTool v0.1.4'
+git push origin v0.1.4
 ```
 
 也可在 Release 工作流的手动运行入口填写**已存在的标签**重试。版本不匹配、测试失败或校验失败都会阻止发布。流程细节见 [发布说明](docs/releasing.md)。

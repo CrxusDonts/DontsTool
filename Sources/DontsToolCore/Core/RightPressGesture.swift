@@ -6,7 +6,7 @@ public struct RightPressGesture: Sendable {
         case forward, hold, replayDown, replayClick, translate
     }
     private enum Phase: Sendable { case idle, waiting, passedThrough, triggered }
-    public static let holdDuration: TimeInterval = 0.5
+    public static let holdDuration: TimeInterval = 2
     private var phase: Phase = .idle
     private var startedAt: TimeInterval = 0
     private var origin = CGPoint.zero
@@ -44,13 +44,14 @@ public struct RightPressGesture: Sendable {
         return .hold
     }
 
-    public mutating func up(at time: TimeInterval) -> Action {
+    public mutating func up(at _: TimeInterval) -> Action {
         defer { phase = .idle; hasSelection = false }
         switch phase {
         case .idle, .passedThrough: return .forward
         case .triggered: return .hold
-        case .waiting:
-            return hasSelection && time - startedAt >= Self.holdDuration ? .translate : .replayClick
+        // Only a live hold may trigger translation. A delayed mouse-up must never
+        // start a new request after the user has already released the button.
+        case .waiting: return .replayClick
         }
     }
 

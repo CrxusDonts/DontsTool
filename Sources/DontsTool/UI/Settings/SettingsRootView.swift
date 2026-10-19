@@ -266,7 +266,7 @@ struct SettingsRootView: View {
     private var translationTab: some View {
         VStack(alignment: .leading, spacing: 16) {
             SettingsGroup(caption: "划词翻译") {
-                SettingsRow(title: "右键长按翻译", subtitle: "选中文字后，右键或双指按住触控板 0.5 秒") {
+                SettingsRow(title: "右键长按翻译", subtitle: "选中文字后，右键或双指按住触控板 2 秒") {
                     Toggle("", isOn: Binding(get: { settings.selectionTranslationEnabled },
                         set: { settings.setSelectionTranslationEnabled($0) }))
                         .toggleStyle(.switch).labelsHidden()
