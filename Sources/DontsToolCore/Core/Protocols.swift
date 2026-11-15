@@ -22,6 +22,7 @@ public protocol AppLaunching: AnyObject {
     func openApplication(at url: URL) async throws
     func openFile(at url: URL) throws
     func revealInFinder(_ url: URL)
+    func quitApplication(at url: URL) -> Bool
 }
 
 @MainActor

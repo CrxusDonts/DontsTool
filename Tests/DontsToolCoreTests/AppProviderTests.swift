@@ -7,7 +7,9 @@ final class MockAppLauncher: AppLaunching {
     var openedApplications: [URL] = []
     var openedFiles: [URL] = []
     var revealed: [URL] = []
+    var quitRequests: [URL] = []
     var error: Error?
+    var quitSucceeds = true
 
     func openApplication(at url: URL) async throws {
         if let error { throw error }
@@ -21,6 +23,11 @@ final class MockAppLauncher: AppLaunching {
 
     func revealInFinder(_ url: URL) {
         revealed.append(url)
+    }
+
+    func quitApplication(at url: URL) -> Bool {
+        quitRequests.append(url)
+        return quitSucceeds
     }
 }
 
@@ -41,6 +48,219 @@ struct AppProviderTests {
             url: URL(fileURLWithPath: path),
             modifiedAt: nil
         )
+    }
+
+    @Test(arguments: ["weixin", "wei xin", "wx"])
+    func matchesChineseNameByPinyin(query: String) async {
+        let defaultsName = "dontstool.tests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: defaultsName)!
+        defer { defaults.removePersistentDomain(forName: defaultsName) }
+        let index = AppIndex(scanner: AppScanner(roots: []))
+        index.setAppsForTesting([makeEntry("微信", path: "/Applications/WeChat.app")])
+        let provider = AppProvider(
+            index: index,
+            settings: SettingsStore(defaults: defaults, systemLanguageCode: "zh"),
+            usage: UsageStore(defaults: defaults),
+            launcher: MockAppLauncher(),
+            feedback: MockFeedback()
+        )
+
+        let items = await provider.search(SearchContext(rawQuery: query, mode: .global))
+        #expect(items.map(\.title) == ["微信"])
+    }
+
+    @Test(arguments: [
+        ("网易云音乐", "wangyiyunyinyue"),
+        ("网易云音乐", "wyyyy"),
+        ("QQ音乐", "qqyinyue"),
+        ("QQ音乐", "qqyy"),
+        ("绿联", "lvlian")
+    ])
+    func matchesWordAwarePinyinAndMixedLatinInitials(name: String, query: String) async {
+        let defaultsName = "dontstool.tests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: defaultsName)!
+        defer { defaults.removePersistentDomain(forName: defaultsName) }
+        let index = AppIndex(scanner: AppScanner(roots: []))
+        index.setAppsForTesting([makeEntry(name, path: "/Applications/Music.app")])
+        let provider = AppProvider(
+            index: index,
+            settings: SettingsStore(defaults: defaults, systemLanguageCode: "zh"),
+            usage: UsageStore(defaults: defaults),
+            launcher: MockAppLauncher(),
+            feedback: MockFeedback()
+        )
+
+        let items = await provider.search(SearchContext(rawQuery: query, mode: .global))
+        #expect(items.map(\.title) == [name])
+    }
+
+    @Test(arguments: ["vsc", "vscode", "vs code"])
+    func matchesEnglishWordAbbreviation(query: String) async {
+        let defaultsName = "dontstool.tests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: defaultsName)!
+        defer { defaults.removePersistentDomain(forName: defaultsName) }
+        let index = AppIndex(scanner: AppScanner(roots: []))
+        index.setAppsForTesting([makeEntry("Visual Studio Code", path: "/Applications/Visual Studio Code.app")])
+        let provider = AppProvider(
+            index: index,
+            settings: SettingsStore(defaults: defaults, systemLanguageCode: "en"),
+            usage: UsageStore(defaults: defaults),
+            launcher: MockAppLauncher(),
+            feedback: MockFeedback()
+        )
+
+        let items = await provider.search(SearchContext(rawQuery: query, mode: .global))
+        #expect(items.map(\.title) == ["Visual Studio Code"])
+    }
+
+    @Test func matchesApplicationFilenameWhenDisplayNameIsLocalized() async {
+        let defaultsName = "dontstool.tests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: defaultsName)!
+        defer { defaults.removePersistentDomain(forName: defaultsName) }
+        let index = AppIndex(scanner: AppScanner(roots: []))
+        index.setAppsForTesting([makeEntry("终端", path: "/System/Applications/Utilities/Terminal.app")])
+        let provider = AppProvider(
+            index: index,
+            settings: SettingsStore(defaults: defaults, systemLanguageCode: "zh"),
+            usage: UsageStore(defaults: defaults),
+            launcher: MockAppLauncher(),
+            feedback: MockFeedback()
+        )
+
+        let items = await provider.search(SearchContext(rawQuery: "terminal", mode: .global))
+        #expect(items.map(\.title) == ["终端"])
+    }
+
+    @Test func englishInitialsRankAboveLooseSubsequenceMatches() async {
+        let defaultsName = "dontstool.tests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: defaultsName)!
+        defer { defaults.removePersistentDomain(forName: defaultsName) }
+        let index = AppIndex(scanner: AppScanner(roots: []))
+        index.setAppsForTesting([
+            makeEntry("Vasculum", path: "/Applications/Vasculum.app"),
+            makeEntry("Visual Studio Code", path: "/Applications/Visual Studio Code.app")
+        ])
+        let provider = AppProvider(
+            index: index,
+            settings: SettingsStore(defaults: defaults, systemLanguageCode: "en"),
+            usage: UsageStore(defaults: defaults),
+            launcher: MockAppLauncher(),
+            feedback: MockFeedback()
+        )
+
+        let items = await provider.search(SearchContext(rawQuery: "vsc", mode: .global))
+        #expect(items.map(\.title) == ["Visual Studio Code", "Vasculum"])
+    }
+
+    @Test func literalNameRanksAboveFrequentlyUsedPinyinMatch() async {
+        let defaultsName = "dontstool.tests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: defaultsName)!
+        defer { defaults.removePersistentDomain(forName: defaultsName) }
+        let index = AppIndex(scanner: AppScanner(roots: []))
+        index.setAppsForTesting([
+            makeEntry("微信", path: "/Applications/WeChat.app"),
+            makeEntry("My Weixin Utility", path: "/Applications/My Weixin Utility.app")
+        ])
+        let usage = UsageStore(defaults: defaults)
+        for _ in 0..<100 { usage.recordUse(of: "/Applications/WeChat.app") }
+        let provider = AppProvider(
+            index: index,
+            settings: SettingsStore(defaults: defaults, systemLanguageCode: "en"),
+            usage: usage,
+            launcher: MockAppLauncher(),
+            feedback: MockFeedback()
+        )
+
+        let items = await provider.search(SearchContext(rawQuery: "weixin", mode: .global))
+        #expect(items.map(\.title) == ["My Weixin Utility", "微信"])
+    }
+
+    @Test func refreshedApplicationNamesReplacePreviousSearchAliases() async {
+        let defaultsName = "dontstool.tests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: defaultsName)!
+        defer { defaults.removePersistentDomain(forName: defaultsName) }
+        let index = AppIndex(scanner: AppScanner(roots: []))
+        let appPath = "/Applications/Chat.app"
+        index.setAppsForTesting([makeEntry("微信", path: appPath)])
+        let provider = AppProvider(
+            index: index,
+            settings: SettingsStore(defaults: defaults, systemLanguageCode: "zh"),
+            usage: UsageStore(defaults: defaults),
+            launcher: MockAppLauncher(),
+            feedback: MockFeedback()
+        )
+        let before = await provider.search(SearchContext(rawQuery: "weixin", mode: .global))
+        #expect(before.map(\.title) == ["微信"])
+
+        index.setAppsForTesting([makeEntry("飞书", path: appPath)])
+
+        let oldName = await provider.search(SearchContext(rawQuery: "weixin", mode: .global))
+        let newName = await provider.search(SearchContext(rawQuery: "feishu", mode: .global))
+        #expect(oldName.isEmpty)
+        #expect(newName.map(\.title) == ["飞书"])
+
+        index.setAppsForTesting([])
+        let removed = await provider.search(SearchContext(rawQuery: "feishu", mode: .global))
+        #expect(removed.isEmpty)
+    }
+
+    @Test(arguments: [
+        ("", ["Bravo", "Zulu", "Alpha"]),
+        ("recent", ["Bravo", "Zulu", "Alpha"]),
+        ("frequency", ["Zulu", "Bravo", "Alpha"]),
+        ("name", ["Alpha", "Bravo", "Zulu"])
+    ])
+    func emptyQueryUsesApplicationSortOrder(storedOrder: String, expectedNames: [String]) async {
+        let defaultsName = "dontstool.tests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: defaultsName)!
+        defer { defaults.removePersistentDomain(forName: defaultsName) }
+        if !storedOrder.isEmpty {
+            defaults.set(storedOrder, forKey: "dontstool.applicationSortOrder")
+        }
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let usage = UsageStore(defaults: defaults, now: { now })
+        for _ in 0..<4 {
+            usage.recordUse(of: "/Applications/Zulu.app", at: now.addingTimeInterval(-100))
+        }
+        usage.recordUse(of: "/Applications/Bravo.app", at: now)
+        let index = AppIndex(scanner: AppScanner(roots: []))
+        index.setAppsForTesting([
+            makeEntry("Zulu", path: "/Applications/Zulu.app"),
+            makeEntry("Alpha", path: "/Applications/Alpha.app"),
+            makeEntry("Bravo", path: "/Applications/Bravo.app")
+        ])
+        let provider = AppProvider(
+            index: index,
+            settings: SettingsStore(defaults: defaults, systemLanguageCode: "en"),
+            usage: usage,
+            launcher: MockAppLauncher(),
+            feedback: MockFeedback()
+        )
+
+        let items = await provider.search(SearchContext(rawQuery: "", mode: .global))
+        #expect(items.map(\.title) == expectedNames)
+    }
+
+    @Test func applicationNameOrderDoesNotOverrideQueryQuality() async {
+        let defaultsName = "dontstool.tests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: defaultsName)!
+        defer { defaults.removePersistentDomain(forName: defaultsName) }
+        defaults.set("name", forKey: "dontstool.applicationSortOrder")
+        let index = AppIndex(scanner: AppScanner(roots: []))
+        index.setAppsForTesting([
+            makeEntry("Alphabet Chrome", path: "/Applications/Alphabet Chrome.app"),
+            makeEntry("Chrome", path: "/Applications/Chrome.app")
+        ])
+        let provider = AppProvider(
+            index: index,
+            settings: SettingsStore(defaults: defaults, systemLanguageCode: "en"),
+            usage: UsageStore(defaults: defaults),
+            launcher: MockAppLauncher(),
+            feedback: MockFeedback()
+        )
+
+        let items = await provider.search(SearchContext(rawQuery: "chrome", mode: .global))
+        #expect(items.map(\.title) == ["Chrome", "Alphabet Chrome"])
     }
 
     @Test func fuzzyMatchesAndUsesRecencyBoost() async throws {
@@ -108,5 +328,56 @@ struct AppProviderTests {
 
         let items = await provider.search(SearchContext(rawQuery: "saf", mode: .global))
         #expect(items.isEmpty)
+    }
+
+    @Test func exposesQuitAndCopyPathActions() async throws {
+        let defaultsName = "dontstool.tests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: defaultsName)!
+        defer { defaults.removePersistentDomain(forName: defaultsName) }
+        let settings = SettingsStore(defaults: defaults, systemLanguageCode: "en")
+        let index = AppIndex(scanner: AppScanner(roots: []))
+        index.setAppsForTesting([makeEntry("Safari", path: "/Applications/Safari.app")])
+        let launcher = MockAppLauncher()
+        let clipboard = MockClipboard()
+        let provider = AppProvider(
+            index: index,
+            settings: settings,
+            usage: UsageStore(defaults: defaults),
+            launcher: launcher,
+            feedback: MockFeedback(),
+            clipboard: clipboard
+        )
+
+        let items = await provider.search(SearchContext(rawQuery: "saf", mode: .global))
+        #expect(items[0].actions.map(\.id) == ["app.open", "app.reveal", "app.quit", "app.copyPath"])
+
+        try await items[0].actions.first(where: { $0.id == "app.copyPath" })?.run()
+        #expect(clipboard.written == ["/Applications/Safari.app"])
+
+        try await items[0].actions.first(where: { $0.id == "app.quit" })?.run()
+        #expect(launcher.quitRequests.map(\.path) == ["/Applications/Safari.app"])
+    }
+
+    @Test func quitActionReportsWhenApplicationIsNotRunning() async throws {
+        let defaultsName = "dontstool.tests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: defaultsName)!
+        defer { defaults.removePersistentDomain(forName: defaultsName) }
+        let settings = SettingsStore(defaults: defaults, systemLanguageCode: "en")
+        let index = AppIndex(scanner: AppScanner(roots: []))
+        index.setAppsForTesting([makeEntry("Safari", path: "/Applications/Safari.app")])
+        let launcher = MockAppLauncher()
+        launcher.quitSucceeds = false
+        let feedback = MockFeedback()
+        let provider = AppProvider(
+            index: index,
+            settings: settings,
+            usage: UsageStore(defaults: defaults),
+            launcher: launcher,
+            feedback: feedback
+        )
+
+        let items = await provider.search(SearchContext(rawQuery: "saf", mode: .global))
+        try await items[0].actions.first(where: { $0.id == "app.quit" })?.run()
+        #expect(feedback.messages == ["应用未在运行或无法退出"])
     }
 }

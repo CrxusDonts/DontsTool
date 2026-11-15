@@ -14,6 +14,9 @@ public final class AppProvider: ToolProvider {
     private let usage: UsageStore
     private let launcher: AppLaunching
     private let feedback: FeedbackProviding
+    private let clipboard: ClipboardProviding
+    private var indexedApps: [AppEntry] = []
+    private var searchDocuments: [String: AppSearchDocument] = [:]
 
     public var isEnabled: Bool {
         get { settings.isProviderEnabled(id) }
@@ -25,13 +28,15 @@ public final class AppProvider: ToolProvider {
         settings: SettingsStore,
         usage: UsageStore,
         launcher: AppLaunching,
-        feedback: FeedbackProviding
+        feedback: FeedbackProviding,
+        clipboard: ClipboardProviding = SystemClipboard()
     ) {
         self.index = index
         self.settings = settings
         self.usage = usage
         self.launcher = launcher
         self.feedback = feedback
+        self.clipboard = clipboard
     }
 
     public func search(_ context: SearchContext) async -> [SearchItem] {
@@ -42,8 +47,11 @@ public final class AppProvider: ToolProvider {
             }
         }
 
+        refreshSearchDocuments()
+        let query = FuzzyMatcher.normalize(context.query.trimmingCharacters(in: .whitespacesAndNewlines))
+        let compactQuery = query.components(separatedBy: CharacterSet.alphanumerics.inverted).joined()
         let scored = index.apps.compactMap { entry -> (AppEntry, Double)? in
-            guard let match = FuzzyMatcher.score(query: context.query, candidate: entry.displayName) else {
+            guard let match = searchDocuments[entry.id]?.score(normalizedQuery: query, compactQuery: compactQuery) else {
                 return nil
             }
             return (entry, match + usage.boost(for: entry.id))
@@ -57,28 +65,52 @@ public final class AppProvider: ToolProvider {
         return scored.map { makeItem($0.0, score: $0.1) }
     }
 
+    private func refreshSearchDocuments() {
+        guard indexedApps != index.apps else { return }
+        var updated: [String: AppSearchDocument] = [:]
+        updated.reserveCapacity(index.apps.count)
+        for entry in index.apps {
+            if let existing = searchDocuments[entry.id],
+               existing.displayName == entry.displayName, existing.url == entry.url {
+                updated[entry.id] = existing
+            } else {
+                updated[entry.id] = AppSearchDocument(entry: entry)
+            }
+        }
+        searchDocuments = updated
+        indexedApps = index.apps
+    }
+
     private func commonApps() -> [AppEntry] {
-        var seen: Set<String> = []
-        var result: [AppEntry] = []
-        let byID = Dictionary(uniqueKeysWithValues: index.apps.map { ($0.id, $0) })
-
-        for key in usage.topKeys(limit: 32) {
-            guard let entry = byID[key], seen.insert(entry.id).inserted else { continue }
-            result.append(entry)
-            if result.count == 4 { return result }
-        }
-
-        for entry in index.apps where seen.insert(entry.id).inserted {
-            result.append(entry)
-            if result.count == 4 { break }
-        }
-        return result
+        Array(index.apps.sorted { lhs, rhs in
+            let left = usage.record(for: lhs.id)
+            let right = usage.record(for: rhs.id)
+            switch settings.applicationSortOrder {
+            case .recent:
+                let leftDate = left?.lastUsed ?? .distantPast
+                let rightDate = right?.lastUsed ?? .distantPast
+                if leftDate != rightDate { return leftDate > rightDate }
+            case .frequency:
+                let leftCount = left?.count ?? 0
+                let rightCount = right?.count ?? 0
+                if leftCount != rightCount { return leftCount > rightCount }
+                let leftDate = left?.lastUsed ?? .distantPast
+                let rightDate = right?.lastUsed ?? .distantPast
+                if leftDate != rightDate { return leftDate > rightDate }
+            case .name:
+                break
+            }
+            let order = lhs.displayName.localizedStandardCompare(rhs.displayName)
+            if order != .orderedSame { return order == .orderedAscending }
+            return lhs.id < rhs.id
+        }.prefix(4))
     }
 
     private func makeItem(_ entry: AppEntry, score: Double) -> SearchItem {
         let launcher = self.launcher
         let usage = self.usage
         let feedback = self.feedback
+        let clipboard = self.clipboard
         let key = entry.id
 
         return SearchItem(
@@ -90,7 +122,7 @@ public final class AppProvider: ToolProvider {
             score: score,
             canonicalKey: key,
             actions: [
-                ItemAction(id: "app.open", title: "打开") {
+                ItemAction(id: "app.open", title: "打开", symbol: "arrow.up.forward.app") {
                     do {
                         try await launcher.openApplication(at: entry.url)
                         usage.recordUse(of: key)
@@ -99,8 +131,18 @@ public final class AppProvider: ToolProvider {
                         Log.provider.error("打开应用失败: \(entry.url.path, privacy: .public), \(error.localizedDescription, privacy: .public)")
                     }
                 },
-                ItemAction(id: "app.reveal", title: "在 Finder 中显示") {
+                ItemAction(id: "app.reveal", title: "在访达中显示", symbol: "folder") {
                     launcher.revealInFinder(entry.url)
+                },
+                ItemAction(id: "app.quit", title: "退出应用", symbol: "power") {
+                    guard launcher.quitApplication(at: entry.url) else {
+                        feedback.show("应用未在运行或无法退出")
+                        return
+                    }
+                },
+                ItemAction(id: "app.copyPath", title: "复制路径", symbol: "doc.on.doc") {
+                    clipboard.writeString(entry.url.path)
+                    feedback.show("已复制路径")
                 }
             ]
         )

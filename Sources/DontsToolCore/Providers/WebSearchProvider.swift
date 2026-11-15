@@ -19,6 +19,7 @@ public final class WebSearchProvider: ToolProvider {
     private let opener: URLOpening
     private let feedback: FeedbackProviding
     private let prefill: QueryPrefilling
+    private let clipboard: ClipboardProviding
 
     public var isEnabled: Bool {
         get { settings.isProviderEnabled(id) }
@@ -30,13 +31,15 @@ public final class WebSearchProvider: ToolProvider {
         usage: UsageStore,
         opener: URLOpening,
         feedback: FeedbackProviding,
-        prefill: QueryPrefilling
+        prefill: QueryPrefilling,
+        clipboard: ClipboardProviding = SystemClipboard()
     ) {
         self.settings = settings
         self.usage = usage
         self.opener = opener
         self.feedback = feedback
         self.prefill = prefill
+        self.clipboard = clipboard
     }
 
     public func search(_ context: SearchContext) async -> [SearchItem] {
@@ -141,6 +144,7 @@ public final class WebSearchProvider: ToolProvider {
         let opener = self.opener
         let feedback = self.feedback
         let usage = self.usage
+        let clipboard = self.clipboard
         let canonicalKey = url.absoluteString
 
         return SearchItem(
@@ -152,13 +156,17 @@ public final class WebSearchProvider: ToolProvider {
             score: 100,
             canonicalKey: canonicalKey,
             actions: [
-                ItemAction(id: "web.open", title: "打开") {
+                ItemAction(id: "web.open", title: "打开", symbol: "arrow.up.forward.app") {
                     do {
                         try opener.open(url)
                         usage.recordUse(of: canonicalKey)
                     } catch {
                         feedback.show(error.localizedDescription)
                     }
+                },
+                ItemAction(id: "web.copy", title: "复制链接", symbol: "link") {
+                    clipboard.writeString(canonicalKey)
+                    feedback.show("已复制链接")
                 }
             ]
         )

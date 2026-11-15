@@ -2,6 +2,14 @@ import AppKit
 import DontsToolCore
 import SwiftUI
 
+struct LauncherPressStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed && !Motion.reduceMotion ? 0.985 : 1)
+            .animation(Motion.hoverEasing, value: configuration.isPressed)
+    }
+}
+
 /// 键盘键帽：↑↓、↵、esc 等。
 struct KeyCap: View {
     let text: String
@@ -144,6 +152,9 @@ struct GroupHeader: View {
 struct PanelFooterView: View {
     let statusText: String?
     let isWarning: Bool
+    let isActionPanelOpen: Bool
+    var onShowActions: (() -> Void)? = nil
+    var hasActions = true
 
     var body: some View {
         HStack(spacing: 6) {
@@ -163,10 +174,23 @@ struct PanelFooterView: View {
                     .truncationMode(.middle)
             }
             Spacer(minLength: 8)
-            HStack(spacing: 6) {
+            if isActionPanelOpen {
+                legend(keys: ["↑↓"], label: "选择操作")
+                Text("·").foregroundStyle(Theme.separator)
+                legend(keys: ["↵"], label: "执行")
+                Text("·").foregroundStyle(Theme.separator)
+                legend(keys: ["esc"], label: "返回")
+            } else {
                 legend(keys: ["↑↓"], label: "选择")
                 Text("·").foregroundStyle(Theme.separator)
                 legend(keys: ["↵"], label: "执行")
+                Text("·").foregroundStyle(Theme.separator)
+                Button { onShowActions?() } label: {
+                    legend(keys: ["⌘K"], label: "操作")
+                }
+                .buttonStyle(.plain).disabled(!hasActions)
+                .help("查看当前结果的所有操作（⌘K）")
+                .accessibilityLabel("查看所有操作")
                 Text("·").foregroundStyle(Theme.separator)
                 legend(keys: ["esc"], label: "关闭")
             }
@@ -186,6 +210,99 @@ struct PanelFooterView: View {
                 .font(Theme.footerFont)
                 .foregroundStyle(Theme.tertiary)
         }
+    }
+}
+
+/// ⌘K 动作面板：当前结果的全部操作，键盘与鼠标都可执行。
+struct ActionPaletteView: View {
+    let itemTitle: String
+    let actions: [ItemAction]
+    let selectedIndex: Int
+    let onExecute: (Int) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("操作")
+                    .font(Theme.sectionCaptionFont)
+                    .foregroundStyle(Theme.tertiary)
+                if !itemTitle.isEmpty {
+                    Text(itemTitle)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(Theme.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
+            }
+            .padding(.horizontal, 10)
+            .padding(.top, 8)
+            .padding(.bottom, 6)
+
+            ForEach(Array(actions.enumerated()), id: \.offset) { index, action in
+                ActionPaletteRow(
+                    action: action,
+                    isSelected: index == selectedIndex,
+                    onExecute: { onExecute(index) }
+                )
+            }
+        }
+        .padding(6)
+        .frame(width: 252, alignment: .leading)
+        .background {
+            RoundedRectangle(cornerRadius: 12)
+                .fill(.regularMaterial)
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Theme.panelBase)
+        }
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .strokeBorder(Theme.panelBorder, lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.16), radius: 16, y: 8)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("操作")
+    }
+}
+
+private struct ActionPaletteRow: View {
+    let action: ItemAction
+    let isSelected: Bool
+    let onExecute: () -> Void
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: onExecute) {
+            HStack(spacing: 10) {
+                Image(systemName: action.symbol ?? "circle")
+                    .font(.system(size: 13))
+                    .frame(width: 18)
+                    .foregroundStyle(isSelected ? Theme.onSelectionAccent : Theme.secondary)
+                Text(action.title)
+                    .font(.system(size: 13, weight: isSelected ? .medium : .regular))
+                    .foregroundStyle(isSelected ? Theme.onSelectionAccent : Theme.ink)
+                Spacer(minLength: 8)
+                if isSelected {
+                    Text("↵")
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundStyle(Theme.onSelectionAccent.opacity(0.8))
+                }
+            }
+            .padding(.horizontal, 10)
+            .frame(height: 34)
+            .background(rowBackground, in: RoundedRectangle(cornerRadius: 8))
+            .contentShape(RoundedRectangle(cornerRadius: 8))
+        }
+        .buttonStyle(LauncherPressStyle())
+        .onHover { isHovered = $0 }
+        .animation(Motion.hoverEasing, value: isHovered)
+        .animation(Motion.paletteEasing, value: isSelected)
+        .accessibilityLabel(action.title)
+    }
+
+    private var rowBackground: Color {
+        if isSelected { return Theme.accent }
+        if isHovered { return Theme.rowHover }
+        return .clear
     }
 }
 

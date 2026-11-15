@@ -1,0 +1,38 @@
+{
+  "projectId": "8779626504181051745",
+  "designSystem": "assets/1366425092952266023",
+  "screen": "projects/8779626504181051745/screens/261d0c76fc7a4781a5cabe63454b5bee",
+  "exportedAt": "2026-11-15",
+  "exportMethod": "mcp__stitch__download_file",
+  "html": {
+    "downloadUrl": "https://stitch.googleapis.com/v1/projects/8779626504181051745/files/e8dff266cf584f3fb549b6b40ecc4cf1:download",
+    "mimeType": "text/html",
+    "name": "projects/8779626504181051745/files/e8dff266cf584f3fb549b6b40ecc4cf1"
+  },
+  "screenshot": {
+    "downloadUrl": "https://stitch.googleapis.com/v1/projects/8779626504181051745/files/fe7a4dac15e848b9b6b5c651cc5e46ee:download",
+    "name": "projects/8779626504181051745/files/fe7a4dac15e848b9b6b5c651cc5e46ee"
+  },
+  "screenshotMetadata": {
+    "mimeType": "png"
+  },
+  "originalCanvas": {
+    "width": "2560",
+    "height": "2048"
+  },
+  "enhancedPrompt": "Create one focused native macOS launcher reference for DontsTool's environment-aware website shortcut results. This is a compact keyboard-first NSPanel utility, not a web dashboard. Reuse the project's established component language through the selected design system.\n\n**PLATFORM:** Desktop macOS native floating utility panel.\n\n**PAGE STRUCTURE:**\n1. **Canvas and panel:** A single 700 × 480 pixel panel centered on a quiet desktop canvas. Keep the panel at this compact size, with no sidebar, dashboard, large app shell, marketing headings, illustrated background or fake metrics.\n2. **Search header:** Exactly 72px high; one search icon and active query text \"ops 订单\", with a small keyboard shortcut keycap at the trailing edge. The query is the hero of this utility, no separate titlebar needed.\n3. **Primary content area:** A short group label \"网站 · 2 个结果\", then exactly two dense, 54px high listbox result rows with a shared website icon. Both rows have title \"订单后台\". Put a compact \"TEST\" badge directly after the first title and a compact \"PROD\" badge directly after the second title. Under each title show its entire fictional destination URL: first https://orders.test.company.example and second https://orders.company.example. These full URLs must be fully visible and untruncated so the user can distinguish environments before opening. The first row is selected; second is unselected. Align trailing \"↵ 打开\" affordance with selected row. Environment identity belongs to each result, not a global environment switch.\n4. **Remaining content:** Calm whitespace after the two results; a single short unobtrusive hint near the lower content edge: \"输入 ops test 仅显示 TEST 环境\". Do not add a separate settings card.\n5. **Footer:** Exactly 38px high, show compact keyboard hints \"↑↓ 选择\", \"↵ 打开\", \"esc 关闭\", with a tiny settings action at the right.\n\n**INTERACTION AND CONTENT RULES:**\nEnvironment omitted in query shows both environment results; typing \"ops test\" filters to the TEST row. All examples are fictional .example URLs. Keep all visible labels Chinese except TEST/PROD environment identifiers. No global environment tabs, no duplicated environment dropdown, no configuration inspector, no user profile. Prioritize compact result density and clear keyboard selection.",
+  "outputComponents": [
+    {
+      "text": "已完成 DontsTool 原生 macOS 浮动启动台的「环境感知网址快捷入口结果」规范视图设计：\n\n### 核心设计与规范落地\n1. **纯粹的 700 × 480 原生浮动 NSPanel**：\n   - 居中置于暗色石墨桌面画布，严格遵循 **DontsTool · 石墨工作台** 视觉系统。\n   - 移除标题栏、红绿灯与全局侧边栏，聚焦于纯粹的键盘优先快捷命令工具形态。\n\n2. **72px 搜索区域（Search Header）**：\n   - 左侧保留原生搜索图标，聚焦呈现即时搜索词 `ops 订单`（带有输入光标），右侧配备紧凑的 `esc` 原生键帽。\n\n3. **双环境行内标识与未截断网址（54px 结果列表）**：\n   - 分组标签为 `网站 · 2 个结果`。\n   - **第一行（选中态）**：名称为「订单后台」，紧随紧凑的 **`TEST`** 环境胶囊徽标；第二行为完整、无省略的直达地址 `https://orders.test.company.example`；右侧对齐「`↵ 打开`」动作触点与高亮边缘引导。\n   - **第二行（常规态）**：名称同为「订单后台」，直接标明 **`PROD`** 生产环境徽标；清晰呈现直达地址 `https://orders.company.example`，避免在误操作高危的运维场景下混淆环境。\n\n4. **克制的环境过滤指引与 38px 状态底栏**：\n   - 列表下方保留留白，并在靠近底部位置呈现轻量提示：「`输入 ops test 仅显示 TEST 环境`」，符合通过键盘语法快速收窄范围的心智。\n   - 38px 底栏左侧排列纯正 macOS 快捷操作指引（`↑↓ 选择`、`↵ 打开`、`esc 关闭`），右侧提供配置入口「`⚙ 配置快捷入口 ⌘,`」。"
+    },
+    {
+      "suggestion": "查看输入 'ops test' 仅过滤出 TEST 单项结果的精准状态"
+    },
+    {
+      "suggestion": "添加按下 ⌘K 展开的上下文动作抽屉 (复制网址/在隐身窗口打开)"
+    },
+    {
+      "suggestion": "生成浅色暖灰版本的环境感知启动台对比"
+    }
+  ]
+}

@@ -41,6 +41,14 @@ public final class UsageStore {
         scheduleFlush()
     }
 
+    public func recordActivation(of key: String, at date: Date? = nil) {
+        let timestamp = date ?? now()
+        var record = records[key] ?? Record(count: 0, lastUsed: timestamp)
+        record.lastUsed = max(record.lastUsed, timestamp)
+        records[key] = record
+        scheduleFlush()
+    }
+
     public func record(for key: String) -> Record? {
         records[key]
     }

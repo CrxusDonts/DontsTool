@@ -66,7 +66,18 @@ targets:
       - path: Sources/DontsTool/UI/Knowledge/KnowledgeWindowView.swift
       - path: Sources/DontsTool/UI/Tools/ToolTheme.swift
       - path: Sources/DontsTool/UI/DesignSystem/Theme.swift
+      - path: Sources/DontsTool/UI/DesignSystem/Motion.swift
+      - path: Sources/DontsTool/UI/DesignSystem/Metrics.swift
+      - path: Sources/DontsTool/UI/Components
+      - path: Sources/DontsTool/UI/Launcher/LauncherPanelView.swift
+      - path: Sources/DontsTool/Shell/SearchField.swift
+      - path: Sources/DontsTool/Shell/PanelTransitionDriver.swift
+      - path: Sources/DontsTool/Shell/ToolTextEditor.swift
+      - path: Sources/DontsTool/UI/Settings/WebsiteShortcutsSettingsView.swift
+      - path: Sources/DontsTool/UI/Settings/SettingsComponents.swift
       - path: Sources/DontsTool/Shell/Selection
+      - path: Sources/DontsTool/Shell/Gemini
+      - path: Sources/DontsTool/Shell/Translation
       - path: Sources/DontsTool/UI/Tools/SelectionTranslationView.swift
     dependencies:
       - target: DontsToolCore

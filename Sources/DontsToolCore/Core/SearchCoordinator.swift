@@ -63,7 +63,7 @@ public final class SearchCoordinator {
         case .keyword(let providerID, _, _):
             selected = enabled.filter { $0.id == providerID }
         case .global:
-            selected = enabled
+            selected = enabled.filter(\.supportsGlobalSearch)
         }
 
         let fastProviders = selected.filter { $0.phase == .fast }

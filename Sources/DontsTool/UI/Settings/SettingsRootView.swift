@@ -44,6 +44,7 @@ struct SettingsRootView: View {
     @ObservedObject var navigation: SettingsNavigationState
     let onRescan: () -> Void
     let onHotKeyRecordingChanged: (Bool) -> Void
+    let onManageTranslationLanguages: () -> Void
 
     private var tab: Tab { navigation.tab }
     @State private var apiKey: String = ""
@@ -187,6 +188,8 @@ struct SettingsRootView: View {
                 SettingsDivider()
                 guideRow("执行次操作", keys: ["⌘", "↵"])
                 SettingsDivider()
+                guideRow("查看全部操作", keys: ["⌘", "K"])
+                SettingsDivider()
                 guideRow("关闭面板", keys: ["esc"])
             }
             privacyNote
@@ -208,7 +211,7 @@ struct SettingsRootView: View {
                 .frame(width: 140)
             }
             SettingsDivider()
-            SettingsRow(title: "文件搜索", subtitle: "使用 Spotlight 索引按文件名搜索") {
+            SettingsRow(title: "按需文件搜索", subtitle: "仅输入 file 加文件名时查询 Spotlight，普通搜索不查文件") {
                 Toggle("", isOn: Binding(
                     get: { settings.fileSearchEnabled },
                     set: { settings.setFileSearchEnabled($0) }
@@ -220,7 +223,8 @@ struct SettingsRootView: View {
     }
 
     private var toolsTab: some View {
-        SettingsGroup(caption: "内置工具") {
+        VStack(alignment: .leading, spacing: 16) {
+          SettingsGroup(caption: "内置工具") {
             ForEach(Array(providerEntries.enumerated()), id: \.offset) { offset, entry in
                 if offset > 0 { SettingsDivider() }
                 SettingsRow(title: entry.name, subtitle: entry.hint) {
@@ -232,6 +236,17 @@ struct SettingsRootView: View {
                     .labelsHidden()
                 }
             }
+          }
+          SettingsGroup(caption: "Gemini 自动提问") {
+            SettingsRow(title: selectionTranslation.accessibilityGranted ? "辅助功能已授权" : "自动输入需要辅助功能授权",
+                        subtitle: "只在执行 gm 问题时操作 Gemini；仅打开应用无需此权限") {
+                if !selectionTranslation.accessibilityGranted {
+                    SettingsButton(title: "授权辅助功能") { selectionTranslation.requestAccessibility() }
+                }
+            }
+            Text("如果 Gemini 已有未发送草稿，会停止自动提问并保留草稿。问题仅在回车执行后交给 Gemini，不进入剪贴板或日志。")
+                .font(.system(size: 12)).foregroundStyle(Theme.secondary).padding(12)
+          }
         }
     }
 
@@ -274,7 +289,9 @@ struct SettingsRootView: View {
                 SettingsDivider()
                 VStack(alignment: .leading, spacing: 8) {
                     Text(selectionTranslation.status).font(.system(size: 12))
-                    Text("通过辅助功能读取其他应用选中的文字，触发后才发送到你配置的翻译 API。不会自动复制，也不读取剪贴板。")
+                    Text("最近操作：\(selectionTranslation.lastGestureDiagnostic)")
+                        .font(.caption).foregroundStyle(Theme.secondary).textSelection(.enabled)
+                    Text("通过辅助功能读取选中文字。默认在本机使用系统翻译；配置完整的自定义 API 后才交给该服务。不会自动复制，也不读取剪贴板。")
                         .font(.caption).foregroundStyle(Theme.secondary)
                     Text("短按在松开时显示原有右键菜单；移动会取消长按。不支持取词的应用仍可手动复制到翻译窗口。")
                         .font(.caption).foregroundStyle(Theme.secondary)
@@ -287,7 +304,7 @@ struct SettingsRootView: View {
                 }.padding(12)
             }
             SettingsGroup(caption: "翻译目标") {
-                SettingsRow(title: "目标语言", subtitle: "tr 关键词翻译的目标语言") {
+                SettingsRow(title: "目标语言", subtitle: "翻译窗口与划词卡片的目标语言") {
                     Picker("", selection: Binding(
                         get: { settings.translationTarget },
                         set: { settings.setTranslationTarget($0) }
@@ -300,10 +317,17 @@ struct SettingsRootView: View {
                     .frame(width: 160)
                 }
             }
-            SettingsGroup(caption: "翻译 API（OpenAI Responses 兼容）") {
-                SettingsRow(title: "接口地址", subtitle: "例如 https://api.deepseek.com/v1") {
+            SettingsGroup(caption: "系统翻译") {
+                SettingsRow(title: "无需 API 密钥", subtitle: "首次使用先准备语言包，之后可在本机翻译") {
+                    SettingsButton(title: "准备语言包", action: onManageTranslationLanguages)
+                }
+                Text("准备英语与目标语言；目标为英语时准备中英互译。完整配置下方 API 后将优先使用该 API，服务出错时不会自动切换。")
+                    .font(.system(size: 12)).foregroundStyle(Theme.secondary).padding(12)
+            }
+            SettingsGroup(caption: "自定义翻译 API（可选，Responses 兼容）") {
+                SettingsRow(title: "接口地址", subtitle: "使用你自己的 Responses 兼容服务") {
                     SettingsTextField(
-                        placeholder: "https://api.deepseek.com/v1",
+                        placeholder: "https://你的服务/v1",
                         text: Binding(
                             get: { settings.translationAPIBaseURL },
                             set: { settings.setTranslationAPIBaseURL($0) }
@@ -311,9 +335,9 @@ struct SettingsRootView: View {
                     )
                 }
                 SettingsDivider()
-                SettingsRow(title: "模型", subtitle: "例如 deepseek-chat") {
+                SettingsRow(title: "模型", subtitle: "服务支持的模型名称") {
                     SettingsTextField(
-                        placeholder: "deepseek-chat",
+                        placeholder: "模型名称",
                         text: Binding(
                             get: { settings.translationAPIModel },
                             set: { settings.setTranslationAPIModel($0) }
@@ -338,7 +362,9 @@ struct SettingsRootView: View {
             SettingsGroup(caption: "应用索引") {
                 SettingsRow(
                     title: "已索引 \(appIndex.apps.count) 个应用",
-                    subtitle: appIndex.lastError ?? "应用列表保存在本机，安装新应用后可手动更新"
+                    subtitle: appIndex.lastError ?? (appIndex.isMonitoring
+                        ? "安装、更新或移除应用后自动更新，也可手动重新扫描"
+                        : "自动更新暂不可用，请手动重新扫描")
                 ) {
                     HStack(spacing: 8) {
                         KeyCap(text: "⌘ R")
@@ -347,7 +373,7 @@ struct SettingsRootView: View {
                 }
             }
             SettingsGroup(caption: "文件搜索") {
-                SettingsRow(title: "启用文件搜索", subtitle: "使用 Spotlight 索引按文件名搜索") {
+                SettingsRow(title: "启用按需文件搜索", subtitle: "输入 file 加文件名开始搜索；关闭后不再查询 Spotlight") {
                     Toggle("", isOn: Binding(
                         get: { settings.fileSearchEnabled },
                         set: { settings.setFileSearchEnabled($0) }
@@ -404,11 +430,15 @@ struct SettingsRootView: View {
     private var providerEntries: [(id: String, name: String, hint: String)] {
         [
             (ProviderID.app.rawValue, "应用启动", "搜索并打开本机应用"),
-            (ProviderID.file.rawValue, "文件搜索", "按文件名搜索 Spotlight 索引"),
+            (ProviderID.file.rawValue, "文件搜索", "输入 file 加文件名，按需查询 Spotlight"),
             (ProviderID.text.rawValue, "文本工具", "json、base64、url、时间戳、哈希、UUID"),
             (ProviderID.web.rawValue, "网页搜索", "关键词或默认引擎回退"),
             (ProviderID.translation.rawValue, "翻译", "tr 关键词调用配置的翻译 API"),
-            (ProviderID.knowledge.rawValue, "知识库", "搜索、编辑和收集 DontsKb 内容")
+            (ProviderID.knowledge.rawValue, "知识库", "搜索、编辑和收集 DontsKb 内容"),
+            (ProviderID.calculator.rawValue, "计算器", "算式与单位换算，回车复制结果"),
+            (ProviderID.quickOpen.rawValue, "快速打开", "直接打开网址或已存在的绝对路径"),
+            (ProviderID.gemini.rawValue, "Gemini 提问", "gm 加问题，新建对话并发送；自动输入需要辅助功能授权"),
+            (ProviderID.ideaProjects.rawValue, "IDEA 项目", "idea 列出最近项目，idea 加名称筛选并打开")
         ]
     }
 

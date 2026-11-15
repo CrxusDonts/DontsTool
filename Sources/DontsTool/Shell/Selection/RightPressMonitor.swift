@@ -1,26 +1,59 @@
 import AppKit
 import ApplicationServices
 import DontsToolCore
+import os
 
-/// An active mouse-only tap is needed to prevent the source app's context menu.
-/// The callback never waits for AX or network calls. Failed selection reads fail open.
+/// The tap only routes mouse events. Accessibility and translation begin after a live two-second hold.
 @MainActor
 final class RightPressMonitor {
+    @MainActor
+    struct Environment {
+        var now: @MainActor () -> TimeInterval
+        var buttonIsDown: @MainActor () -> Bool
+        var frontmostPID: @MainActor () -> pid_t?
+        var foregroundWindow: @MainActor (CGEvent, pid_t) -> CGWindowID?
+        var readSelection: @MainActor (pid_t, CGPoint) async -> SelectionReading
+        var waitForHold: @MainActor () async throws -> Void
+        var waitForReadTimeout: @MainActor () async throws -> Void
+        var restore: @MainActor (CGEvent, CGEventTapProxy?, pid_t, pid_t?, Bool) -> Bool
+
+        static var system: Environment {
+            Environment(now: { ProcessInfo.processInfo.systemUptime },
+                buttonIsDown: { CGEventSource.buttonState(.combinedSessionState, button: .right) },
+                frontmostPID: { NSWorkspace.shared.frontmostApplication?.processIdentifier },
+                foregroundWindow: RightPressMonitor.foregroundWindow,
+                readSelection: { pid, point in await SelectedTextReader.shared.read(pid: pid, at: point) },
+                waitForHold: { try await Task.sleep(for: .seconds(RightPressGesture.holdDuration)) },
+                waitForReadTimeout: { try await Task.sleep(for: .seconds(3)) },
+                restore: { event, proxy, source, frontmost, sameWindow in
+                    RightPressEventReplay.restore(event, proxy: proxy, sourcePID: source,
+                        frontmostPID: frontmost, sameWindow: sameWindow)
+                })
+        }
+    }
+
+    private let environment: Environment
     private var tap: CFMachPort?
     private var source: CFRunLoopSource?
     private var gesture = RightPressGesture()
     private var downEvent: CGEvent?
     private var sourcePID: pid_t = 0
     private var sourceWindow: CGWindowID?
-    private var selection: String?
     private var requestID: UUID?
     private var selectionTask: Task<Void, Never>?
     private var holdTask: Task<Void, Never>?
     private var timeoutTask: Task<Void, Never>?
+    private var activationObservation: NSObjectProtocol?
+    private let logger = Logger(subsystem: "com.donts.DontsTool", category: "selection-translation")
+    var onDiagnostic: ((String) -> Void)?
     var onTranslate: ((String, CGPoint) -> Void)?
+    var onReading: ((CGPoint) -> Void)?
+    var onSelectionFailure: ((String, CGPoint) -> Void)?
     var onFailure: (() -> Void)?
     var ignoresPoint: ((CGPoint) -> Bool)?
     var isRunning: Bool { tap != nil }
+
+    init(environment: Environment = .system) { self.environment = environment }
 
     func start() -> Bool {
         guard tap == nil else { return true }
@@ -32,7 +65,6 @@ final class RightPressMonitor {
         guard let tap = CGEvent.tapCreate(tap: .cgSessionEventTap, place: .headInsertEventTap,
             options: .defaultTap, eventsOfInterest: mask, callback: { proxy, type, event, context in
                 guard let context else { return Unmanaged.passUnretained(event) }
-                // This source is explicitly installed on the main run loop below.
                 let forward = MainActor.assumeIsolated {
                     let monitor = Unmanaged<RightPressMonitor>.fromOpaque(context).takeUnretainedValue()
                     return monitor.handle(type, event: event, proxy: proxy)
@@ -45,7 +77,22 @@ final class RightPressMonitor {
         self.tap = tap; self.source = source
         CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
         CGEvent.tapEnable(tap: tap, enable: true)
+        activationObservation = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    guard let self, self.requestID != nil,
+                          self.environment.frontmostPID() != self.sourcePID else { return }
+                    self.report("手势已取消：前台应用发生变化")
+                    self.gesture.abandon(); self.clearPending()
+                }
+            }
         return true
+    }
+
+    /// Closing the card invalidates its AX result. Keep gesture routing intact until
+    /// the physical release so a suppressed down never produces an unpaired up.
+    func cancelPendingReading() {
+        cancelAsyncWork()
     }
 
     func stop() {
@@ -54,10 +101,12 @@ final class RightPressMonitor {
         gesture = RightPressGesture()
         if let source { CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes) }
         if let tap { CFMachPortInvalidate(tap) }
+        if let activationObservation { NSWorkspace.shared.notificationCenter.removeObserver(activationObservation) }
+        activationObservation = nil
         source = nil; tap = nil
     }
 
-    private func handle(_ type: CGEventType, event: CGEvent, proxy: CGEventTapProxy) -> Bool {
+    func handle(_ type: CGEventType, event: CGEvent, proxy: CGEventTapProxy?) -> Bool {
         if RightPressEventReplay.isReplay(event) { return true }
         if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
             restoreDown(); clearPending(); gesture = RightPressGesture()
@@ -68,62 +117,59 @@ final class RightPressMonitor {
         switch type {
         case .rightMouseDown:
             guard downEvent == nil,
-                  let pid = NSWorkspace.shared.frontmostApplication?.processIdentifier,
-                  pid != ProcessInfo.processInfo.processIdentifier,
-                  !event.flags.contains(.maskControl), !event.flags.contains(.maskCommand),
-                  !event.flags.contains(.maskAlternate), !event.flags.contains(.maskShift),
-                  ignoresPoint?(event.location) != true,
-                  let window = foregroundWindow(at: event, pid: pid),
-                  let copy = event.copy() else { return true }
+                  let pid = environment.frontmostPID(), pid != ProcessInfo.processInfo.processIdentifier else { return true }
+            guard event.flags.intersection([.maskControl, .maskCommand, .maskAlternate, .maskShift]).isEmpty,
+                  ignoresPoint?(event.location) != true else {
+                report("右键已放行：修饰键或翻译卡片区域"); return true
+            }
+            guard let window = environment.foregroundWindow(event, pid), let copy = event.copy() else {
+                report("右键已放行：无法确认前台普通窗口"); return true
+            }
+            cancelAsyncWork()
+            report("收到右键按下，等待持续按压满 2 秒")
             sourcePID = pid; sourceWindow = window; downEvent = copy
             _ = gesture.down(at: now, point: event.location)
             let id = UUID(); requestID = id
-            let point = event.location
-            selectionTask = Task { [weak self] in
-                let text = await SelectedTextReader.shared.read(pid: pid, at: point)
-                guard let self, self.requestID == id else { return }
-                guard NSWorkspace.shared.frontmostApplication?.processIdentifier == pid else {
+            holdTask = Task { [weak self] in
+                guard let self else { return }
+                do { try await self.environment.waitForHold() } catch { return }
+                guard !Task.isCancelled, self.requestID == id else { return }
+                guard self.sourceIsCurrent(copy) else {
+                    self.report("手势已取消：前台应用或窗口发生变化")
                     self.gesture.abandon(); self.clearPending(); return
                 }
-                self.selection = text
-                self.apply(self.gesture.selectionResolved(available: text != nil,
-                    at: ProcessInfo.processInfo.systemUptime,
-                    buttonIsDown: CGEventSource.buttonState(.combinedSessionState, button: .right)))
-            }
-            timeoutTask = Task { [weak self] in
-                try? await Task.sleep(for: .milliseconds(250))
-                guard !Task.isCancelled, let self, self.requestID == id, self.selection == nil else { return }
-                self.apply(self.gesture.selectionResolved(available: false, at: ProcessInfo.processInfo.systemUptime))
-            }
-            holdTask = Task { [weak self] in
-                try? await Task.sleep(for: .seconds(RightPressGesture.holdDuration))
-                guard !Task.isCancelled, let self, self.requestID == id else { return }
-                self.apply(self.gesture.advance(at: ProcessInfo.processInfo.systemUptime,
-                    buttonIsDown: CGEventSource.buttonState(.combinedSessionState, button: .right)))
+                let isDown = self.environment.buttonIsDown()
+                self.report(isDown ? "计时到达，右键仍在按下" : "计时到达，系统报告右键已松开")
+                guard self.gesture.advance(at: self.environment.now(), buttonIsDown: isDown) == .translate else { return }
+                self.beginReading(id: id, event: copy, pid: pid)
             }
             return false
         case .rightMouseUp:
-            if downEvent != nil, NSWorkspace.shared.frontmostApplication?.processIdentifier != sourcePID {
-                gesture.abandon()
-            }
+            if downEvent != nil, !sourceIsCurrent(downEvent!) { gesture.abandon() }
             let action = gesture.up(at: now)
-            // Put the original down back at this tap, immediately before returning
-            // the real up. Direct PID posting bypasses browser mouse routing.
-            let forward = (action == .replayClick || action == .forward) && restoreDown(using: proxy)
+            if action == .hold {
+                // A committed hold may finish reading after release. Both native mouse events stay suppressed.
+                downEvent = nil
+                return false
+            }
+            let forward = restoreDown(using: proxy)
             clearPending()
             return forward
         case .rightMouseDragged, .mouseMoved:
             let action = gesture.move(to: event.location)
             if action == .replayDown || (action == .forward && downEvent != nil) {
+                if action == .replayDown { report("手势已取消：鼠标移动超过容差") }
                 let forward = restoreDown(using: proxy)
                 clearPending()
                 if !forward { gesture.abandon() }
                 return forward
             }
-            return action == .forward
+            // Suppress a right drag only while it is still a translation candidate.
+            return type == .mouseMoved || action == .forward
         case .leftMouseDown, .scrollWheel, .flagsChanged:
             let action = gesture.cancel()
             if downEvent != nil, action != .hold {
+                report("手势已取消：滚动、修饰键或其他点击")
                 let restored = restoreDown(using: proxy)
                 clearPending()
                 if !restored { gesture.abandon() }
@@ -133,47 +179,72 @@ final class RightPressMonitor {
         }
     }
 
-    private func apply(_ action: RightPressGesture.Action) {
-        switch action {
-        case .replayDown:
-            // AX may finish outside the tap callback. Keep the original down until
-            // the next native callback so it can be restored using a valid proxy.
-            cancelAsyncWork()
-        case .translate:
-            guard let selection, let downEvent,
-                  NSWorkspace.shared.frontmostApplication?.processIdentifier == sourcePID else { return }
-            onTranslate?(selection, downEvent.location)
-            // Keep the gesture in its triggered phase until the physical mouse-up.
-            self.downEvent = nil
-            cancelAsyncWork()
-        default: break
+    private func beginReading(id: UUID, event: CGEvent, pid: pid_t) {
+        downEvent = nil
+        report("持续按压满 2 秒，开始读取选区")
+        onReading?(event.location)
+        selectionTask = Task { [weak self] in
+            guard let self else { return }
+            let reading = await self.environment.readSelection(pid, event.location)
+            guard !Task.isCancelled, self.requestID == id else { return }
+            guard self.sourceIsCurrent(event) else {
+                self.report("取词已取消：前台应用或窗口发生变化")
+                self.clearPending(); return
+            }
+            self.report(reading.diagnostic)
+            if let text = reading.text {
+                self.report("已触发翻译卡片")
+                self.onTranslate?(text, event.location)
+            } else {
+                self.onSelectionFailure?(reading.diagnostic, event.location)
+            }
+            self.cancelAsyncWork()
         }
+        timeoutTask = Task { [weak self] in
+            guard let self else { return }
+            do { try await self.environment.waitForReadTimeout() } catch { return }
+            guard !Task.isCancelled, self.requestID == id else { return }
+            let diagnostic = "读取选中文字超时，请点击编辑原文后翻译"
+            self.report(diagnostic)
+            if self.sourceIsCurrent(event) { self.onSelectionFailure?(diagnostic, event.location) }
+            self.cancelAsyncWork()
+        }
+    }
+
+    private func sourceIsCurrent(_ event: CGEvent) -> Bool {
+        environment.frontmostPID() == sourcePID && sourceWindow != nil
+            && environment.foregroundWindow(event, sourcePID) == sourceWindow
+    }
+
+    private func report(_ message: String) {
+        logger.info("\(message, privacy: .public)")
+        onDiagnostic?(message)
     }
 
     @discardableResult
     private func restoreDown(using proxy: CGEventTapProxy? = nil) -> Bool {
         guard let downEvent else { return true }
         self.downEvent = nil
-        return RightPressEventReplay.restore(downEvent, proxy: proxy, sourcePID: sourcePID,
-            frontmostPID: NSWorkspace.shared.frontmostApplication?.processIdentifier,
-            sameWindow: sourceWindow != nil && foregroundWindow(at: downEvent, pid: sourcePID) == sourceWindow)
+        let sameWindow = sourceWindow != nil && environment.foregroundWindow(downEvent, sourcePID) == sourceWindow
+        guard environment.frontmostPID() == sourcePID, sameWindow else { return false }
+        return environment.restore(downEvent, proxy, sourcePID, environment.frontmostPID(), sameWindow)
     }
 
-    private func foregroundWindow(at event: CGEvent, pid: pid_t) -> CGWindowID? {
-        let target = event.getIntegerValueField(.eventTargetUnixProcessID)
-        if target > 0, target != Int64(pid) { return nil }
-        // A right click may target a background app without first activating it.
-        // Never replay that click into the app which merely had keyboard focus.
-        let point = NSPoint(x: event.location.x,
-            y: (NSScreen.screens.first?.frame.maxY ?? 0) - event.location.y)
-        let number = NSWindow.windowNumber(at: point, belowWindowWithWindowNumber: 0)
-        guard number > 0,
-              let windows = CGWindowListCopyWindowInfo(.optionIncludingWindow, CGWindowID(number)) as? [[String: Any]],
-              let window = windows.first,
-              let owner = window[kCGWindowOwnerPID as String] as? Int,
-              let layer = window[kCGWindowLayer as String] as? Int,
-              owner == Int(pid), layer == 0 else { return nil }
-        return CGWindowID(number)
+    private static func foregroundWindow(at event: CGEvent, pid: pid_t) -> CGWindowID? {
+        guard let windows = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID)
+                as? [[String: Any]] else { return nil }
+        // WindowServer order and Quartz bounds identify the actual pointer target. A new
+        // nonactivating translation card must not hide its own source window during AX completion.
+        for window in windows {
+            guard let owner = window[kCGWindowOwnerPID as String] as? Int,
+                  owner != ProcessInfo.processInfo.processIdentifier,
+                  let bounds = window[kCGWindowBounds as String] as? NSDictionary,
+                  let rect = CGRect(dictionaryRepresentation: bounds), rect.contains(event.location),
+                  let layer = window[kCGWindowLayer as String] as? Int else { continue }
+            guard owner == Int(pid), layer == 0 else { return nil }
+            return (window[kCGWindowNumber as String] as? NSNumber)?.uint32Value
+        }
+        return nil
     }
 
     private func clearPending() {
@@ -183,7 +254,7 @@ final class RightPressMonitor {
     }
 
     private func cancelAsyncWork() {
-        requestID = nil; selection = nil
+        requestID = nil
         selectionTask?.cancel(); selectionTask = nil
         holdTask?.cancel(); holdTask = nil
         timeoutTask?.cancel(); timeoutTask = nil

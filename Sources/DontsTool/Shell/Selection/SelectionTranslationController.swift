@@ -7,13 +7,16 @@ import SwiftUI
 @MainActor
 final class SelectionTranslationController: ObservableObject {
     @Published private(set) var status = "未开启"
+    @Published private(set) var lastGestureDiagnostic = "尚未收到右键操作"
     @Published var pinned = false
     @Published private(set) var copied = false
+    @Published private(set) var selectionFailure: String?
+    @Published private(set) var selectionReadInProgress = false
     let session: ToolSession
     var onOpenSettings: (() -> Void)?
     var onEditSource: ((String) -> Void)?
     private let settings: SettingsStore
-    private let monitor = RightPressMonitor()
+    private let monitor: RightPressMonitor
     private var panel: NSPanel?
     private var settingObservation: AnyCancellable?
     private var activationObservation: AnyCancellable?
@@ -23,12 +26,16 @@ final class SelectionTranslationController: ObservableObject {
     private var copyTask: Task<Void, Never>?
     var accessibilityGranted: Bool { AXIsProcessTrusted() }
 
-    init(settings: SettingsStore, translator: TranslationServicing) {
+    init(settings: SettingsStore, translator: TranslationServicing, monitor: RightPressMonitor = RightPressMonitor()) {
         self.settings = settings
+        self.monitor = monitor
         session = ToolSession(kind: .translation, translator: translator)
+        monitor.onReading = { [weak self] point in self?.showReading(at: point) }
+        monitor.onSelectionFailure = { [weak self] message, point in self?.showSelectionFailure(message, at: point) }
         monitor.onTranslate = { [weak self] text, point in self?.show(text: text, at: point) }
         monitor.ignoresPoint = { [weak self] point in self?.contains(point) == true }
         monitor.onFailure = { [weak self] in self?.status = "鼠标监听已暂停，请关闭后重新开启" }
+        monitor.onDiagnostic = { [weak self] in self?.lastGestureDiagnostic = $0 }
         settingObservation = settings.$selectionTranslationEnabled.dropFirst().sink { [weak self] _ in
             Task { @MainActor in self?.refresh() }
         }
@@ -64,6 +71,25 @@ final class SelectionTranslationController: ObservableObject {
     }
 
     func show(text: String, at point: CGPoint) {
+        selectionFailure = nil
+        selectionReadInProgress = false
+        prepareCard(text: text, at: point)
+        session.run()
+    }
+
+    func showReading(at point: CGPoint) {
+        selectionFailure = nil
+        selectionReadInProgress = true
+        prepareCard(text: "", at: point)
+    }
+
+    func showSelectionFailure(_ message: String, at point: CGPoint) {
+        selectionReadInProgress = false
+        selectionFailure = message
+        prepareCard(text: "", at: point)
+    }
+
+    private func prepareCard(text: String, at point: CGPoint) {
         session.cancel()
         session.input = text
         session.target = settings.translationTarget
@@ -100,10 +126,11 @@ final class SelectionTranslationController: ObservableObject {
             }
         }
         installDismissalMonitors()
-        session.run()
     }
 
     func dismiss() {
+        monitor.cancelPendingReading()
+        selectionReadInProgress = false
         panel?.orderOut(nil)
         session.cancel()
         for token in [outsideMonitor, localMonitor, escapeMonitor].compactMap({ $0 }) { NSEvent.removeMonitor(token) }

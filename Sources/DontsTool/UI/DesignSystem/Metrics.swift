@@ -3,19 +3,19 @@ import CoreGraphics
 /// 尺寸令牌：design/DESIGN.md 第 4 节与稿件结构。
 enum Metrics {
     // 启动器面板
-    static let panelSize = CGSize(width: 640, height: 420)
-    static let panelCornerRadius: CGFloat = 14
-    static let headerHeight: CGFloat = 60
-    static let footerHeight: CGFloat = 32
-    static let panelHorizontalInset: CGFloat = 16
-    static let listHorizontalInset: CGFloat = 8
-    static let listVerticalInset: CGFloat = 8
-    static let listSpacing: CGFloat = 2
+    static let panelSize = CGSize(width: 700, height: 480)
+    static let panelCornerRadius: CGFloat = 18
+    static let headerHeight: CGFloat = 72
+    static let footerHeight: CGFloat = 38
+    static let panelHorizontalInset: CGFloat = 22
+    static let listHorizontalInset: CGFloat = 10
+    static let listVerticalInset: CGFloat = 10
+    static let listSpacing: CGFloat = 3
 
     // 结果行
-    static let rowHeight: CGFloat = 50
-    static let rowCornerRadius: CGFloat = 8
-    static let rowHorizontalInset: CGFloat = 10
+    static let rowHeight: CGFloat = 54
+    static let rowCornerRadius: CGFloat = 10
+    static let rowHorizontalInset: CGFloat = 13
     static let rowIconSpacing: CGFloat = 12
     static let iconSize: CGFloat = 32
     static let iconCornerRadius: CGFloat = 8

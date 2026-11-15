@@ -7,6 +7,10 @@ public enum ProviderID: String, CaseIterable, Identifiable, Sendable {
     case web
     case translation
     case knowledge
+    case calculator
+    case quickOpen = "quickOpen"
+    case gemini
+    case ideaProjects
 
     public var id: String { rawValue }
 }
@@ -91,18 +95,31 @@ public struct ItemAction {
     public let id: String
     public let title: String
     public let presentation: ActionPresentation
+    public let symbol: String?
     public let run: @MainActor () async throws -> Void
 
     public init(
         id: String,
         title: String,
         presentation: ActionPresentation = .dismissThenRun,
+        symbol: String? = nil,
         run: @escaping @MainActor () async throws -> Void
     ) {
         self.id = id
         self.title = title
         self.presentation = presentation
+        self.symbol = symbol
         self.run = run
+    }
+}
+
+public struct SearchItemBadge: Equatable, Sendable {
+    public let text: String
+    public let tint: IconTint
+
+    public init(text: String, tint: IconTint) {
+        self.text = text
+        self.tint = tint
     }
 }
 
@@ -118,6 +135,7 @@ public struct SearchItem: Identifiable {
     public let actions: [ItemAction]
     /// 行尾展示的关键词标签（json、tr 等），仅提示类结果使用。
     public let keyword: String?
+    public let badge: SearchItemBadge?
 
     public init(
         id: String? = nil,
@@ -129,7 +147,8 @@ public struct SearchItem: Identifiable {
         score: Double,
         canonicalKey: String,
         actions: [ItemAction],
-        keyword: String? = nil
+        keyword: String? = nil,
+        badge: SearchItemBadge? = nil
     ) {
         self.id = id ?? "\(providerID):\(canonicalKey)"
         self.providerID = providerID
@@ -141,6 +160,7 @@ public struct SearchItem: Identifiable {
         self.canonicalKey = canonicalKey
         self.actions = actions
         self.keyword = keyword
+        self.badge = badge
     }
 
     public var primaryAction: ItemAction? { actions.first }
@@ -160,6 +180,7 @@ public protocol ToolProvider: AnyObject {
     var priority: Int { get }
     var isEnabled: Bool { get set }
     var phase: SearchPhase { get }
+    var supportsGlobalSearch: Bool { get }
     var statusNotice: String? { get }
 
     func search(_ context: SearchContext) async -> [SearchItem]
@@ -167,5 +188,6 @@ public protocol ToolProvider: AnyObject {
 
 extension ToolProvider {
     public var phase: SearchPhase { .fast }
+    public var supportsGlobalSearch: Bool { true }
     public var statusNotice: String? { nil }
 }

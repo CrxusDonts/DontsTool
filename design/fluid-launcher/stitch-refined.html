@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>DontsTool Command Launcher</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "primary": "#6CD4BD",
+            "primary-dim": "#62cab4",
+            "surface-dark": "#0d0f12",
+            "panel-bg": "#161b22",
+            "panel-border": "#2d333b",
+            "row-hover": "#1c2128",
+            "row-active": "#21262d",
+            "text-secondary": "#8b949e",
+            "text-muted": "#6e7681"
+          },
+          fontFamily: {
+            headline: ["-apple-system", "BlinkMacSystemFont", "SF Pro Text", "PingFang SC", "Inter", "sans-serif"],
+            body: ["-apple-system", "BlinkMacSystemFont", "SF Pro Text", "PingFang SC", "Inter", "sans-serif"],
+            mono: ["SF Mono", "Menlo", "Monaco", "Consolas", "monospace"]
+          }
+        },
+      },
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      font-size: 18px;
+      line-height: 1;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    .custom-scroll::-webkit-scrollbar {
+      width: 4px;
+    }
+    .custom-scroll::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: rgba(110, 118, 129, 0.25);
+      border-radius: 4px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb:hover {
+      background: rgba(110, 118, 129, 0.4);
+    }
+  </style>
+</head>
+<body class="bg-[#0d0f12] text-stone-200 font-body min-h-[900px] h-screen w-full flex items-center justify-center p-0 m-0 overflow-hidden select-none">
+<!-- Desktop Ambient Subtle Glow -->
+<div class="fixed inset-0 pointer-events-none z-0">
+<div class="absolute -top-[10%] left-1/2 -translate-x-1/2 w-[700px] h-[500px] rounded-full bg-[#6CD4BD]/[0.035] blur-[160px]"></div>
+</div>
+<!-- Single Centered Native Floating Panel (700 x 480 px exact) -->
+<div class="w-[700px] h-[480px] bg-[#161b22]/95 backdrop-blur-xl rounded-[16px] border border-[#2d333b]/80 shadow-[0_24px_64px_rgba(0,0,0,0.6),0_0_1px_rgba(255,255,255,0.1)] flex flex-col overflow-hidden relative z-10 transition-all duration-150">
+<!-- Top Search Header -->
+<div class="h-[60px] px-5 flex items-center border-b border-[#2d333b]/70 bg-[#161b22]/60 shrink-0">
+<span class="material-symbols-outlined text-[22px] text-[#6CD4BD] mr-3" data-icon="search">search</span>
+<input autofocus="" class="w-full bg-transparent border-0 p-0 text-[16px] font-headline text-stone-200 placeholder:text-stone-500 focus:ring-0 focus:outline-none caret-[#6CD4BD]" placeholder="搜索应用、工具或输入命令..." type="text"/>
+<div class="shrink-0 ml-3 flex items-center">
+<kbd class="px-1.5 py-0.5 rounded bg-[#21262d] border border-[#30363d] text-[11px] font-mono text-stone-400">Esc</kbd>
+</div>
+</div>
+<!-- Main Results Scroll Area -->
+<div class="flex-1 overflow-y-auto custom-scroll px-3 py-2 space-y-3">
+<!-- Section 1: 最近使用 -->
+<div>
+<div class="px-2 py-1.5 flex items-center justify-between text-[11px] font-headline text-[#8b949e]">
+<span class="font-medium tracking-wide">最近使用</span>
+<!-- Sort Dropdown Trigger -->
+<div class="relative group cursor-pointer flex items-center space-x-1 px-1.5 py-0.5 rounded hover:bg-[#21262d] text-stone-400 hover:text-stone-200 transition-colors">
+<span>最近使用</span>
+<span class="material-symbols-outlined text-[13px]">expand_more</span>
+</div>
+</div>
+<div class="space-y-0.5 mt-0.5">
+<!-- Item 1: Selected Row (Visual Studio Code) -->
+<div class="group relative flex items-center justify-between px-3 py-2 rounded-lg bg-[#21262d] border border-[#30363d]/60 cursor-pointer">
+<!-- Selected Leading Accent Line -->
+<div class="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r bg-[#6CD4BD] shadow-[0_0_6px_rgba(108,212,189,0.5)]"></div>
+<div class="flex items-center space-x-3 pl-1">
+<div class="w-8 h-8 rounded-md bg-[#0d1117] border border-[#30363d] flex items-center justify-center text-[#58a6ff] shrink-0">
+<span class="material-symbols-outlined text-[18px]">code</span>
+</div>
+<div class="flex flex-col">
+<span class="text-[13px] font-medium text-stone-100 leading-tight">Visual Studio Code</span>
+<span class="text-[11px] text-[#8b949e] font-mono leading-tight mt-0.5">/Applications/Visual Studio Code.app</span>
+</div>
+</div>
+<!-- Single Pill Action Label -->
+<div class="flex items-center">
+<span class="px-2 py-0.5 rounded bg-[#6CD4BD]/15 border border-[#6CD4BD]/30 text-[#6CD4BD] text-[11px] font-medium flex items-center space-x-1">
+<span>打开</span>
+<span class="font-mono text-[10px]">↵</span>
+</span>
+</div>
+</div>
+<!-- Item 2: 终端 -->
+<div class="group flex items-center justify-between px-3 py-2 rounded-lg hover:bg-[#1c2128] transition-colors duration-100 cursor-pointer">
+<div class="flex items-center space-x-3 pl-1">
+<div class="w-8 h-8 rounded-md bg-[#0d1117] border border-[#30363d] flex items-center justify-center text-[#7ee787] shrink-0">
+<span class="material-symbols-outlined text-[18px]">terminal</span>
+</div>
+<div class="flex flex-col">
+<span class="text-[13px] font-medium text-stone-200 leading-tight">终端</span>
+<span class="text-[11px] text-[#6e7681] font-mono leading-tight mt-0.5">/System/Applications/Utilities/Terminal.app</span>
+</div>
+</div>
+</div>
+<!-- Item 3: 微信 -->
+<div class="group flex items-center justify-between px-3 py-2 rounded-lg hover:bg-[#1c2128] transition-colors duration-100 cursor-pointer">
+<div class="flex items-center space-x-3 pl-1">
+<div class="w-8 h-8 rounded-md bg-[#0d1117] border border-[#30363d] flex items-center justify-center text-[#56d364] shrink-0">
+<span class="material-symbols-outlined text-[18px]">chat</span>
+</div>
+<div class="flex flex-col">
+<span class="text-[13px] font-medium text-stone-200 leading-tight">微信</span>
+<span class="text-[11px] text-[#6e7681] font-mono leading-tight mt-0.5">/Applications/WeChat.app</span>
+</div>
+</div>
+</div>
+<!-- Item 4: Figma -->
+<div class="group flex items-center justify-between px-3 py-2 rounded-lg hover:bg-[#1c2128] transition-colors duration-100 cursor-pointer">
+<div class="flex items-center space-x-3 pl-1">
+<div class="w-8 h-8 rounded-md bg-[#0d1117] border border-[#30363d] flex items-center justify-center text-[#f778ba] shrink-0">
+<span class="material-symbols-outlined text-[18px]">design_services</span>
+</div>
+<div class="flex flex-col">
+<span class="text-[13px] font-medium text-stone-200 leading-tight">Figma</span>
+<span class="text-[11px] text-[#6e7681] font-mono leading-tight mt-0.5">/Applications/Figma.app</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Section 2: 常用工具 -->
+<div>
+<div class="px-2 py-1.5 flex items-center justify-between text-[11px] font-headline text-[#8b949e]">
+<span class="font-medium tracking-wide">常用工具</span>
+</div>
+<div class="space-y-0.5 mt-0.5">
+<!-- Item 1: JSON 工作台 -->
+<div class="group flex items-center justify-between px-3 py-2 rounded-lg hover:bg-[#1c2128] transition-colors duration-100 cursor-pointer">
+<div class="flex items-center space-x-3 pl-1">
+<div class="w-8 h-8 rounded-md bg-[#0d1117] border border-[#30363d] flex items-center justify-center text-[#6CD4BD] shrink-0">
+<span class="material-symbols-outlined text-[18px]">data_object</span>
+</div>
+<div class="flex flex-col">
+<span class="text-[13px] font-medium text-stone-200 leading-tight">JSON 工作台</span>
+<span class="text-[11px] text-[#6e7681] leading-tight mt-0.5">DontsTool · 多文档独立对比与格式化</span>
+</div>
+</div>
+</div>
+<!-- Item 2: Base64 编解码 -->
+<div class="group flex items-center justify-between px-3 py-2 rounded-lg hover:bg-[#1c2128] transition-colors duration-100 cursor-pointer">
+<div class="flex items-center space-x-3 pl-1">
+<div class="w-8 h-8 rounded-md bg-[#0d1117] border border-[#30363d] flex items-center justify-center text-[#d29922] shrink-0">
+<span class="material-symbols-outlined text-[18px]">transform</span>
+</div>
+<div class="flex flex-col">
+<span class="text-[13px] font-medium text-stone-200 leading-tight">Base64 编解码</span>
+<span class="text-[11px] text-[#6e7681] leading-tight mt-0.5">DontsTool · 文本与文件快速转换</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Docked Footer Bar (~40px) -->
+<div class="h-10 px-4 border-t border-[#2d333b]/60 flex items-center justify-between text-[12px] text-stone-400 bg-[#13161c]/80 shrink-0">
+<!-- Left side shortcut helpers -->
+<div class="flex items-center space-x-3 text-[11px]">
+<span class="flex items-center space-x-1">
+<kbd class="px-1.5 py-0.5 rounded bg-[#21262d] border border-[#30363d] font-mono text-[10px] text-stone-300">↑↓</kbd>
+<span class="text-[#8b949e]">选择</span>
+</span>
+<span class="flex items-center space-x-1">
+<kbd class="px-1.5 py-0.5 rounded bg-[#21262d] border border-[#30363d] font-mono text-[10px] text-stone-300">↵</kbd>
+<span class="text-[#8b949e]">打开</span>
+</span>
+<span class="flex items-center space-x-1">
+<kbd class="px-1.5 py-0.5 rounded bg-[#21262d] border border-[#30363d] font-mono text-[10px] text-stone-300">Esc</kbd>
+<span class="text-[#8b949e]">退出</span>
+</span>
+</div>
+<!-- Right side native action pill button -->
+<div>
+<button class="px-2.5 py-1 rounded-md bg-[#21262d] hover:bg-[#282e37] border border-[#30363d] text-stone-300 hover:text-stone-100 flex items-center space-x-1.5 text-[11px] font-medium transition-colors">
+<span>操作</span>
+<kbd class="font-mono text-[10px] text-[#8b949e]">⌘K</kbd>
+</button>
+</div>
+</div>
+</div>
+</body></html>

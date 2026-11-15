@@ -1,14 +1,29 @@
 import Foundation
 
 public enum FuzzyMatcher {
+    struct PreparedCandidate {
+        let normalized: String
+        let words: [String]
+
+        init(_ value: String) {
+            normalized = FuzzyMatcher.normalize(value)
+            words = normalized.components(separatedBy: CharacterSet.alphanumerics.inverted)
+                .filter { !$0.isEmpty }
+        }
+    }
+
     public static func score(query: String, candidate: String) -> Double? {
         let q = normalize(query.trimmingCharacters(in: .whitespacesAndNewlines))
-        let c = normalize(candidate)
+        return score(normalizedQuery: q, candidate: PreparedCandidate(candidate))
+    }
+
+    static func score(normalizedQuery q: String, candidate: PreparedCandidate) -> Double? {
+        let c = candidate.normalized
         guard !q.isEmpty, !c.isEmpty else { return nil }
 
         if q == c { return 1000 }
         if c.hasPrefix(q) { return 900 }
-        if hasWordPrefix(q, in: c) { return 800 }
+        if candidate.words.contains(where: { $0.hasPrefix(q) }) { return 800 }
         if let range = c.range(of: q) {
             let position = c.distance(from: c.startIndex, to: range.lowerBound)
             return max(700 - Double(position), 650)
@@ -19,21 +34,13 @@ public enum FuzzyMatcher {
         return nil
     }
 
-    private static func normalize(_ value: String) -> String {
+    static func normalize(_ value: String) -> String {
         value
             .folding(
                 options: [.diacriticInsensitive, .widthInsensitive],
                 locale: Locale(identifier: "en_US_POSIX")
             )
             .lowercased()
-    }
-
-    private static func hasWordPrefix(_ query: String, in candidate: String) -> Bool {
-        let separators = CharacterSet.alphanumerics.inverted
-        return candidate
-            .components(separatedBy: separators)
-            .filter { !$0.isEmpty }
-            .contains { $0.hasPrefix(query) }
     }
 
     private static func subsequenceDensity(_ query: String, in candidate: String) -> Double? {

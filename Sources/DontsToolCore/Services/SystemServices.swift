@@ -27,6 +27,14 @@ public final class SystemAppLauncher: AppLaunching {
     public func revealInFinder(_ url: URL) {
         NSWorkspace.shared.activateFileViewerSelecting([url])
     }
+
+    public func quitApplication(at url: URL) -> Bool {
+        let target = url.standardizedFileURL
+        guard let application = NSWorkspace.shared.runningApplications.first(where: {
+            $0.bundleURL?.standardizedFileURL == target
+        }) else { return false }
+        return application.terminate()
+    }
 }
 
 @MainActor

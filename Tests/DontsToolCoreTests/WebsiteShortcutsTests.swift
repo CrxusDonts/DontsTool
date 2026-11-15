@@ -30,7 +30,7 @@ struct WebsiteShortcutsTests {
     }
 
     @Test(arguments: [
-        "{\"version\":2,\"groups\":[]}",
+        "{\"version\":4,\"groups\":[]}",
         "{\"version\":1,\"groups\":[],\"gropus\":[]}",
         "{\"version\":1,\"groups\":[{\"keyword\":\"json\",\"name\":\"x\",\"items\":[]}]}",
         "{\"version\":1,\"groups\":[{\"keyword\":\"two words\",\"name\":\"x\",\"items\":[]}]}",
@@ -170,5 +170,221 @@ struct WebsiteShortcutsTests {
         coordinator.submit("gh")
         await coordinator.waitForPendingSearch()
         #expect(last?.items.count == 20)
+    }
+}
+
+
+@Suite("Website shortcut environments")
+@MainActor
+struct WebsiteShortcutEnvironmentTests {
+    private let environmentJSON = """
+    {"version":2,"groups":[{"keyword":"ops","name":"业务系统","items":[
+      {"key":"order","name":"订单系统","aliases":["订单"],"environments":[
+        {"key":"test","name":"测试","url":"http://test.internal:8080/orders?next=%2Fdetail#top","aliases":["qa"]},
+        {"key":"prod","name":"生产","url":"https://production.internal/orders","aliases":["live"]}
+      ]},
+      {"key":"billing","name":"账单系统","aliases":["账单"],"environments":[
+        {"key":"test","url":"http://test.internal/billing"}
+      ]}
+    ]}]}
+    """
+
+    private func setup() throws -> (WebsiteShortcutStore, WebsiteShortcutProvider, MockURLOpener) {
+        let store = WebsiteShortcutStore(defaults: UserDefaults(suiteName: "dontstool.environments.tests.\(UUID())")!)
+        try store.importJSON(environmentJSON)
+        let opener = MockURLOpener()
+        return (store, WebsiteShortcutProvider(store: store, opener: opener, feedback: MockFeedback(), prefill: MockPrefiller()), opener)
+    }
+
+    private func search(_ query: String, using provider: WebsiteShortcutProvider) async -> [SearchItem] {
+        await provider.search(QueryParser.parse(query, routes: ToolRegistry(providers: [provider]).enabledKeywordRoutes()))
+    }
+
+    @Test func versionTwoEnvironmentsRoundTripWithoutLosingFullURLs() throws {
+        let config = try WebsiteShortcutConfiguration.decode(environmentJSON)
+        #expect(config.itemCount == 2)
+        #expect(try WebsiteShortcutConfiguration.decode(config.json()) == config)
+    }
+
+    @Test func systemSearchListsEachEnvironmentWithoutOpening() async throws {
+        let (_, provider, opener) = try setup()
+        let items = await search("ops 订单", using: provider)
+        #expect(items.count == 2)
+        #expect(Set(items.map(\.canonicalKey)).count == 2)
+        #expect(opener.opened.isEmpty)
+        let test = try #require(items.first { $0.subtitle?.contains("test.internal") == true })
+        try await test.primaryAction?.run()
+        #expect(opener.opened.map(\.absoluteString) == ["http://test.internal:8080/orders?next=%2Fdetail#top"])
+    }
+
+    @Test(arguments: ["ops 订单 test", "ops test 订单", "ops 订单 QA", "ops 订单 测试", "ops ＴＥＳＴ 订单"])
+    func environmentTokensFilterByKeyAliasAndName(_ query: String) async throws {
+        let (_, provider, _) = try setup()
+        let items = await search(query, using: provider)
+        #expect(items.count == 1)
+        #expect(items.first?.subtitle?.contains("test.internal:8080/orders") == true)
+    }
+
+    @Test func unavailableEnvironmentDoesNotFallBackToAnotherAddress() async throws {
+        let (_, provider, _) = try setup()
+        #expect(await search("ops 账单 prod", using: provider).isEmpty)
+        let production = await search("ops prod", using: provider)
+        #expect(production.count == 1)
+        #expect(production.first?.subtitle?.contains("production.internal/orders") == true)
+    }
+
+    @Test func exactSystemAliasWinsBeforeEnvironmentSuffixParsing() async throws {
+        let (store, provider, _) = try setup()
+        var configuration = store.configuration
+        configuration.groups[0].items.append(.init(key: "order-test", name: "专用测试工具", url: "https://tools.internal/", aliases: ["订单 test"]))
+        try store.save(configuration)
+        let results = await search("ops 订单 test", using: provider)
+        #expect(results.first?.title == "专用测试工具")
+        #expect(results.first?.subtitle?.contains("tools.internal") == true)
+    }
+
+    @Test func disabledProviderCannotExecuteAStaleResult() async throws {
+        let (_, provider, opener) = try setup()
+        let item = try #require(await search("ops 订单 prod", using: provider).first)
+        provider.isEnabled = false
+        try await item.primaryAction?.run()
+        #expect(opener.opened.isEmpty)
+    }
+
+    @Test func cancelledActionCannotOpenAnEnvironment() async throws {
+        let (_, provider, opener) = try setup()
+        let item = try #require(await search("ops 订单 prod", using: provider).first)
+        let task = Task { @MainActor in
+            withUnsafeCurrentTask { $0?.cancel() }
+            try await item.primaryAction?.run()
+        }
+        try await task.value
+        #expect(opener.opened.isEmpty)
+    }
+
+    @Test(arguments: [
+        "{\"key\":\"test\",\"url\":\"https://internal\",\"alises\":[]}",
+        "{\"key\":\"test\",\"url\":\"https://internal\",\"aliases\":null}",
+        "{\"key\":\"test\",\"name\":null,\"url\":\"https://internal\"}",
+        "{\"key\":\"test\",\"url\":\"https://user:pass@internal\"}",
+        "{\"key\":\"test\",\"url\":\"file:///tmp/a\"}",
+        "{\"key\":\"test\",\"url\":\"https://internal\",\"aliases\":[\"ＴＥＳＴ\"]}"
+    ])
+    func malformedEnvironmentEntriesAreRejected(_ environment: String) {
+        let json = "{\"version\":2,\"groups\":[{\"keyword\":\"ops\",\"name\":\"系统\",\"items\":[{\"key\":\"order\",\"name\":\"订单\",\"environments\":[\(environment)]}]}]}"
+        #expect(throws: (any Error).self) { try WebsiteShortcutConfiguration.decode(json) }
+    }
+
+    @Test func environmentPrefixFiltersProductionInsteadOfDroppingTheQualifier() async throws {
+        let (_, provider, _) = try setup()
+        let suffix = await search("ops 订单 pro", using: provider)
+        let prefix = await search("ops pro 订单", using: provider)
+        #expect(suffix.count == 1)
+        #expect(suffix.first?.badge?.text == "PROD")
+        #expect(prefix.map(\.canonicalKey) == suffix.map(\.canonicalKey))
+        #expect(await search("ops 账单 pro", using: provider).isEmpty)
+    }
+
+    @Test func exactEnvironmentKeyWinsOverAnotherEnvironmentsDisplayName() async throws {
+        let (store, provider, _) = try setup()
+        var config = store.configuration
+        config.groups[0].items[0].environments[0].name = "prod"
+        try store.save(config)
+        let result = await search("ops 订单 prod", using: provider)
+        #expect(result.count == 1)
+        #expect(result.first?.badge?.text == "PROD")
+        #expect(result.first?.subtitle?.contains("production.internal") == true)
+    }
+
+    @Test func environmentKeysAreNormalizedAndRestrictedToCommandTokens() throws {
+        let config = try WebsiteShortcutConfiguration.decode(environmentJSON.replacingOccurrences(of: "\"key\":\"test\"", with: "\"key\":\" TEST \""))
+        #expect(config.groups[0].items[0].environments[0].key == "test")
+        for invalidKey in ["1test", "测试", "bad:key", String(repeating: "a", count: 33)] {
+            let invalid = environmentJSON.replacingOccurrences(of: "\"key\":\"test\"", with: "\"key\":\"\(invalidKey)\"")
+            #expect(throws: (any Error).self) { try WebsiteShortcutConfiguration.decode(invalid) }
+        }
+    }
+
+    @Test func resolvedAddressCountAndDefaultEnvironmentNameSurviveRoundTrip() throws {
+        let config = try WebsiteShortcutConfiguration.decode(environmentJSON)
+        #expect(config.addressCount == 3)
+        #expect(config.groups[0].items[1].environments[0].name == "TEST")
+        #expect(WebsiteShortcutConfiguration.empty.version == 3)
+        #expect(try WebsiteShortcutConfiguration.decode(config.json()).addressCount == 3)
+    }
+
+    @Test func resultsExposeIndependentEnvironmentBadgesAndStableIdentities() async throws {
+        let (store, provider, _) = try setup()
+        let items = await search("ops 订单", using: provider)
+        #expect(items.map { $0.badge?.text } == ["TEST", "PROD"])
+        #expect(items.map { $0.badge?.tint } == [.blue, .red])
+        var config = store.configuration
+        config.groups[0].items[0].environments.reverse()
+        try store.save(config)
+        let reordered = await search("ops 订单", using: provider)
+        #expect(Set(reordered.map(\.canonicalKey)) == Set(items.map(\.canonicalKey)))
+        #expect(await search("ops 订单 staging", using: provider).isEmpty)
+    }
+
+    @Test func actionKeepsTheExplicitAddressEvenAfterConfigurationChanges() async throws {
+        let (store, provider, opener) = try setup()
+        let result = try #require(await search("ops 订单 prod", using: provider).first)
+        var config = store.configuration
+        config.groups[0].items[0].environments[1].url = "https://replacement.internal/"
+        try store.save(config)
+        try await result.primaryAction?.run()
+        #expect(opener.opened.map(\.absoluteString) == ["https://production.internal/orders"])
+    }
+
+    @Test(arguments: [
+        "\"url\":\"https://internal\",\"environments\":[{\"key\":\"test\",\"url\":\"https://test.internal\"}]",
+        "\"environments\":[]",
+        "\"environments\":null",
+        "\"url\":null,\"environments\":[{\"key\":\"test\",\"url\":\"https://test.internal\"}]",
+        "\"environments\":[{\"key\":\"test\",\"url\":\"https://test.internal\"},{\"key\":\"TEST\",\"url\":\"https://other.internal\"}]",
+        "\"environments\":[{\"key\":\"test\",\"url\":\"https://test.internal\",\"aliases\":[\"qa\"]},{\"key\":\"prod\",\"url\":\"https://other.internal\",\"aliases\":[\"ＱＡ\"]}]"
+    ])
+    func addressModesAndEnvironmentIdentitiesCannotBeAmbiguous(_ fields: String) {
+        let json = "{\"version\":2,\"groups\":[{\"keyword\":\"ops\",\"name\":\"系统\",\"items\":[{\"key\":\"order\",\"name\":\"订单\",\(fields)}]}]}"
+        #expect(throws: (any Error).self) { try WebsiteShortcutConfiguration.decode(json) }
+    }
+
+    @Test func eachSystemRejectsMoreThanThirtyTwoEnvironments() {
+        let environments = (0..<33).map { WebsiteShortcutEnvironment(key: "e\($0)", url: "https://internal") }
+        let config = WebsiteShortcutConfiguration(groups: [.init(keyword: "ops", name: "系统", items: [.init(key: "order", name: "订单", environments: environments)])])
+        #expect(throws: (any Error).self) { try config.validated() }
+    }
+
+    @Test func addressLimitCountsEveryEnvironmentRatherThanOnlySystems() throws {
+        let environments = (0..<32).map { WebsiteShortcutEnvironment(key: "e\($0)", url: "https://internal") }
+        var items = (0..<156).map { WebsiteShortcut(key: "p\($0)", name: "项目", environments: environments) }
+        items.append(.init(key: "last", name: "末项", environments: Array(environments.prefix(8))))
+        var config = WebsiteShortcutConfiguration(groups: [.init(keyword: "ops", name: "系统", items: items)])
+        #expect(try config.validated().addressCount == 5000)
+        config.groups[0].items[156].environments.append(environments[8])
+        #expect(throws: (any Error).self) { try config.validated() }
+    }
+
+    @Test func environmentMatchPriorityIsResolvedWithinTheMatchedSystem() async throws {
+        let (store, provider, _) = try setup()
+        var config = store.configuration
+        config.groups[0].items[0].environments[1].key = "production"
+        config.groups[0].items[1].environments[0].key = "prod"
+        try store.save(config)
+        let result = await search("ops 订单 prod", using: provider)
+        #expect(result.count == 1)
+        #expect(result.first?.badge?.text == "PRODUCTION")
+        #expect(result.first?.subtitle?.contains("production.internal/orders") == true)
+        #expect(await search("ops 账单 production", using: provider).isEmpty)
+    }
+
+    @Test func environmentAliasesCannotCollideAfterWhitespaceNormalization() {
+        let json = environmentJSON.replacingOccurrences(of: "\"qa\"", with: "\"qa env\"")
+            .replacingOccurrences(of: "\"live\"", with: "\"qa  env\"")
+        #expect(throws: (any Error).self) { try WebsiteShortcutConfiguration.decode(json) }
+    }
+
+    @Test func versionOneRequiresExplicitUpgradeBeforeEnvironmentImport() {
+        #expect(throws: (any Error).self) { try WebsiteShortcutConfiguration.decode(environmentJSON.replacingOccurrences(of: "\"version\":2", with: "\"version\":1")) }
     }
 }

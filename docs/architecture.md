@@ -1,6 +1,6 @@
 # DontsTool 架构总览
 
-> 状态：V1 实现阶段（M1 起步）。最后更新：2026-10-18。
+> 状态：当前实现（V1 + 启动器扩展）。最后更新：2026-10-20。
 > 详细行为与验收标准见 [V1 详细设计](superpowers/specs/2026-10-18-dontstool-design.md)。
 
 ## 1. 项目定位
@@ -52,7 +52,7 @@ V1 非目标：跨平台、第三方插件市场、启动器自身账号与云�
 
 ```mermaid
 flowchart TD
-    HK[HotKeyManager] --> Panel[LauncherPanelController]
+    HK[HotKeyManager / ModifierDoubleTapMonitor] --> Panel[LauncherPanelController]
     Panel --> Field[SearchField]
     Field --> Coord[SearchCoordinator]
     Coord --> Registry[ToolRegistry]
@@ -61,21 +61,28 @@ flowchart TD
     Registry --> TextP[TextToolsProvider]
     Registry --> WebP[WebSearchProvider]
     Registry --> TransP[TranslationProvider]
+    Registry --> CalcP[CalculatorProvider]
+    Registry --> QuickP[QuickOpenProvider]
+    Registry --> SiteP[WebsiteShortcutProvider]
     AppP --> Index[AppIndex]
     FileP --> Spotlight[mdfind / Spotlight]
-    TransP --> Translation[Apple Translation]
-    Coord --> List[ResultListViewController]
-    List -->|Enter| Action[ItemAction]
+    TransP --> RemoteAPI[Responses API]
+    CalcP --> Calc[CalculatorEngine]
+    QuickP --> QParser[QuickOpenParser]
+    Coord --> List[LauncherPanelModel / LauncherPanelView]
+    List -->|Enter / ⌘K| Action[ItemAction]
     Action --> System[NSWorkspace / NSPasteboard / Browser]
 ```
 
 | 模块 | 职责 | 关键类型 |
 | --- | --- | --- |
-| AppShell | 应用生命周期、菜单栏、浮动面板、热键、焦点管理 | `AppDelegate`、`HotKeyManager`、`LauncherPanelController`、`ResultListViewController` |
-| Core | 查询解析、路由、聚合、排序、注册、设置与使用统计 | `SearchCoordinator`、`QueryParser`、`ToolRegistry`、`FuzzyMatcher`、`UsageStore`、`SettingsStore` |
+| AppShell | 应用生命周期、菜单栏、浮动面板、热键、焦点管理、独立工具/知识库窗口 | `AppDelegate`、`HotKeyManager`、`ModifierDoubleTapMonitor`、`LauncherPanelController`、`MenuBarController` |
+| Core | 查询解析、路由、聚合、排序、注册、设置与使用统计、即时计算与路径识别 | `SearchCoordinator`、`QueryParser`、`ToolRegistry`、`FuzzyMatcher`、`UsageStore`、`SettingsStore`、`CalculatorEngine`、`QuickOpenParser` |
 | Index | 应用索引与文件搜索 | `AppIndex`、`FileSearchService` |
-| Providers | 各类结果提供者，统一实现 `ToolProvider` | `AppProvider`、`FileProvider`、`TextToolsProvider`、`WebSearchProvider`、`TranslationProvider` |
-| Settings | 设置界面 | `SettingsWindowController`、`SettingsView` |
+| Providers | 各类结果提供者，统一实现 `ToolProvider` | `AppProvider`、`FileProvider`、`TextToolsProvider`、`WebSearchProvider`、`TranslationProvider`、`CalculatorProvider`、`QuickOpenProvider`、`WebsiteShortcutProvider`、`KnowledgeProvider` |
+| Tools | 独立工具窗口与文本处理 | `ToolDefinition`、`ToolSession`、`ToolWindowManager`、`JSONDocument` |
+| Services | 外部 API、钥匙串、登录项、系统动作 | `RemoteTranslationService`、`SecretStore`、`LoginItemManager`、`SystemAppLauncher` |
+| Settings | 设置界面、网址配置、热键录制 | `SettingsWindowController`、`SettingsRootView` |
 
 ## 5. 关键流程
 
@@ -88,20 +95,27 @@ flowchart TD
 5. 再次按热键、按 `Esc`、面板失焦、或执行完动作后隐藏。
 6. 隐藏后如抢走了前台焦点，则激活之前记录的应用。
 
+窗口进入与退出由 `PanelTransitionDriver` 管理位置和透明度，转场期间使用窗口所属显示器的 `CADisplayLink` 驱动，完成或取消即释放。支持中途反向与取消，避免旧的关闭回调隐藏重新打开的面板。SwiftUI 用行锚点定位一块连续滑动的选中背景，并管理操作浮层；动效跟随系统「减少动态效果」，背景跟随「减少透明度」。
+
 ### 5.2 搜索
 
 1. 搜索框文本变化，`QueryParser` 判断是全局模式还是关键词模式。
-2. **快速阶段**：应用、文本工具提示、网页搜索在每次输入时立即参与，结果立即渲染。
-3. **慢速阶段**：文件搜索延迟 120ms 触发，超时 300ms，结果到达后合并进列表。
+2. **快速阶段**：应用、文本工具提示、网页搜索、算式/单位换算、网址/路径识别在每次输入时立即参与，结果立即渲染。
+3. **慢速阶段**：仅 `file 关键词` 路由到文件搜索，延迟 120ms 触发，超时 300ms。`ToolProvider.supportsGlobalSearch` 默认 true，文件 Provider 为 false；普通查询完全跳过文件 Provider 和慢速等待。`file` 无参数不创建查询进程，完整路径由 QuickOpen 处理。
 4. 新的输入到来时取消上一轮慢速请求；过期结果直接丢弃。
-5. 结果按分组和分数排序、去重后展示。
+5. 结果按分组和分数排序、去重后展示。算式和快速打开的分数高于普通工具提示；存在本地结果时不再展示网页回退。
+
+应用的 `AppSearchDocument` 缓存中文拼音、首字母和文件名别名，索引变化时更新，避免逐次输入做音译。扫描器每次直接读取原始 plist 和本地化 strings／loctable，避免同路径安装或更新后读到缓存名称。空查询展示四个应用，按最近使用、启动器打开频率或名称排序；`NSWorkspace` 应用激活通知仅更新时间，不重复累计打开次数。排序偏好和使用记录保存在本机。
+
+空输入框的显式粘贴进入独立的内容操作流程：`ContentDescriptor` 识别类型，`ContentActionProvider` 生成工具入口，`LauncherPanelModel` 取消全局查询并保留原文。筛选只作用于动作，源文本不传给全局 Provider；移除内容或关闭面板时清理。打开工具仅预填原文，转换和网络请求由用户在工具窗口内执行。
 
 ### 5.3 执行
 
-1. 用户按 `Enter` 或点击结果项，执行该项的主操作。
-2. 记录一次使用（用于排序加权）。
-3. 关闭面板。
-4. 具体动作由 Provider 提供：启动应用、打开文件、复制到剪贴板、打开浏览器。
+1. 用户按 `Enter` 或点击结果项，执行该项的主操作。文件行在选中或悬停时显示独立文件夹按钮，按该行索引执行第二动作，在访达中选中文件；主按钮与文件夹按钮并列，避免点击定位时同时打开文件。
+2. 按 `⌘K` 打开当前结果的动作面板，`↑`、`↓` 选择，`Enter` 执行全部操作中的任意一项；`⌘Enter` 仍执行次操作。
+3. 打开类动作记录一次使用（用于排序加权）；仅复制动作在用户明确执行时写入剪贴板。
+4. 关闭面板。
+5. 具体动作由 Provider 提供：启动应用、打开文件、退出应用、在 Finder 中显示、复制路径/链接、打开浏览器。
 
 ## 6. 扩展模型
 
@@ -144,7 +158,8 @@ V1 没有运行时插件加载、插件市场或进程隔离。增加工具需�
 
 手段：
 
-- 应用索引常驻内存，启动时后台扫描；图标懒加载并缓存。
+- 应用索引常驻内存，启动时后台扫描；通过 FSEvents 监听应用目录及包内变更，合并 350ms 内的事件后在后台重扫，完成后刷新启动器结果。扫描中到达的刷新请求会补扫；退出时释放监听，不做空闲轮询。尚未创建的用户应用目录通过祖先目录事件捕获，非目标路径不触发刷新。
+- 应用元数据直接读取当前 `Contents/Info.plist`，避免 `Bundle.infoDictionary` 的进程缓存导致分阶段安装或原路径更新后仍保留旧内容。图标懒加载并缓存。
 - 快速/慢速两阶段搜索，慢速请求可取消。
 - 限制每类结果数量，避免大列表布局开销。
 - 热路径上不做磁盘 I/O；使用统计延迟批量写入。
@@ -157,12 +172,12 @@ V1 没有运行时插件加载、插件市场或进程隔离。增加工具需�
 - **翻译**：用户主动执行翻译时，把文本发送到其配置的 OpenAI Responses 兼容接口；API 密钥存登录钥匙串，不写 UserDefaults，不做额外上报。
 - **开机启动**：通过 `SMAppService` 注册登录项。
 - **网络**：应用在用户主动执行网页搜索（交给默认浏览器）、翻译或连接知识库时联网。空启动器查询不会创建知识库 WebView；连接后的知识库页面沿用认证与同步生命周期，退出时停止。
-- **剪贴板**：不监听；启动器搜索和打开工具均不读写剪贴板。仅在工具窗口中显式粘贴或复制时读写。
+- **剪贴板**：不监听；启动器搜索不读剪贴板。仅在工具窗口中显式粘贴或复制、或在动作面板中显式执行复制动作时写入。
 - **键盘**：仅在启用双击修饰键时订阅全局和本地修饰键变化；第二次短按松开后触发。只查询普通按键的计数和最近事件时间，不接收或记录按键内容；无轮询。
 - **进程调用**：仅以固定可执行文件 `/usr/bin/mdfind` 加参数数组的方式调用，不经过 shell。
 - **签名**：本地 ad-hoc 签名，非沙盒；不引入第三方二进制。双击监听不依赖输入监控授权。
 
-## 9. 目录结构（规划）
+## 9. 目录结构
 
 ```text
 DontsTool/
@@ -209,6 +224,8 @@ DontsTool/
 │       │   ├── PathDisplay.swift
 │       │   ├── Performance.swift
 │       │   ├── Logging.swift
+│       │   ├── CalculatorEngine.swift
+│       │   ├── QuickOpenParser.swift
 │       │   └── AppInfo.swift
 │       ├── Index/
 │       │   ├── AppScanner.swift
@@ -220,7 +237,11 @@ DontsTool/
 │       │   ├── TextToolsProvider.swift
 │       │   ├── TextTransformers.swift
 │       │   ├── WebSearchProvider.swift
-│       │   └── TranslationProvider.swift
+│       │   ├── TranslationProvider.swift
+│       │   ├── CalculatorProvider.swift
+│       │   ├── QuickOpenProvider.swift
+│       │   ├── WebsiteShortcutProvider.swift
+│       │   └── KnowledgeProvider.swift
 │       └── Services/
 │           ├── SystemServices.swift
 │           ├── RemoteTranslationService.swift
@@ -286,4 +307,26 @@ DontsKb `/tool` 使用精简外壳承载原有 DocumentPage 和 CaptureWorkbench
 
 `WebsiteShortcutConfiguration` 提供版本化 JSON、整份校验与规范化；`WebsiteShortcutStore` 持久保存独立 UserDefaults 数据。`WebsiteShortcutProvider` 通过现有 ToolProvider 协议动态注册自定义关键词，只做本机匹配，显式动作委托系统浏览器。自定义 gh 高于内置 GitHub 搜索，其他工具关键词在保存前拒绝冲突；未命中不回退公共搜索。独立 shortcut 结果分组不会被网页搜索的一条结果上限截断。
 
+网址快捷入口直接读取本机 `WebsiteShortcutStore`。配置 version 3 在固定网址或多个具名环境地址之上增加子页面，version 1/2 仍可读取；页面使用统一的根路径/完整网址解析器和可选环境覆盖。`WebsiteShortcutProvider` 在本地依次解析系统、子页面与环境筛选，把每个实际地址展开成独立结果和稳定标识，结果模型的可选 `badge` 承载环境文字与色彩。手动编辑和 JSON 导入共用配置校验与原子保存，输入过程不访问站点，打开动作才交给默认浏览器。
+
 设置的手动编辑和 JSON 模态编辑器共享同一 Store；导入先预览，保存替换整份，失败不提交。配置发布后组合层刷新启动器。查询变更重置键盘选中行，同查询更新保留选择。详见 [使用说明](website-shortcuts.md)。
+
+
+## 启动器即时工具与动作
+
+`CalculatorProvider` 是全局快速阶段的 search-only 提供者：`CalculatorEngine` 递归下降解析算式，带来源类别检查的 `UnitDefinition` 处理单位换算，结果回车写入剪贴板；不创建窗口、不联网。`QuickOpenProvider` 用 `QuickOpenParser` 识别 http(s)、`www.`、`~/`、绝对路径和 `file://`，已存在文件才显示结果。两者都可单独在设置中关闭，并通过 `dontstool.builtInProviderDefaultsV2Completed` 一次性进入老用户默认集合。
+
+`LauncherPanelModel` 保存动作面板的展开与选中项；`PanelFooterView` 在面板打开时切换键位提示。`SearchField` 将 `⌘K` 转成动作面板开关，方向键、回车和 Esc 根据面板状态路由。应用、文件和网页结果扩展了退出应用、复制路径/链接等 `ItemAction`；动作面板只执行用户显式选择，不监听剪贴板，也不在后台触发系统操作。
+
+
+## 应用动作与翻译服务
+
+`GeminiProvider` 与 `IDEProjectProvider` 仅关键词路由，不参与普通全局查询。新增内置入口通过一次性默认启用迁移接入，保留原有禁用项；执行时再次检查当前开关。
+
+Gemini 的 Core `GeminiConversationService` 验证草稿、新对话、精确问题、前台状态和单次提交；Shell adapter 限定应用完整路径、PID与绑定窗口，后台 AX 遍历跳过历史列表，按已识别控件写入与提交。Esc监听仅在本次交接期间安装并清理；阶段等待和单次遍历分别有墙钟上限。用户输入只在明确执行时传递，不写URL、剪贴板或日志。
+
+IDEA Discovery actor 按当前安装版本解析最近项目 XML，缓存文件指纹，过滤不存在或远程目录；官方应用参数启动通过 NSWorkspace 完成。执行前和异步路径校验后重新检查禁用/取消状态。
+
+`PreferredTranslationService` 对完整远端配置优先，否则选择 `SystemTranslationService`；不会在远端失败或取消后换服务。系统后端先检查已安装语言包，并为每个请求建立自己的 TranslationSession，取消互不影响。下载仅经用户打开的语言包窗口、点击按钮后由 SwiftUI translationTask 提供的session执行prepareTranslation。26.4以上统一使用lowLatency策略。
+
+右键翻译先连续两秒再开始AX，读取/失败复用单张翻译卡片。显式关闭会使monitor请求失效，保留吞掉已触发mouse-up的状态，防止迟到取词结果重新弹窗或联网。

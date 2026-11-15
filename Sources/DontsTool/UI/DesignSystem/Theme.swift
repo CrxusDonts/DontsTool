@@ -31,32 +31,34 @@ enum Theme {
 
     // MARK: 表面
 
-    static let panelBase = dynamic(rgba(0xFFFFFF, 0xD9), rgba(0x242528, 0xF0))
-    static let headerBase = dynamic(rgba(0xFFFFFF, 0x80), rgba(0x2E3034, 0x66))
-    static let footerBase = dynamic(rgba(0xFFFFFF, 0x99), rgba(0x2E3034, 0x80))
+    static let panelSolid = dynamic(hexColor(0xEEECE6), hexColor(0x252C2F))
+    static let panelBase = dynamic(rgba(0xEEECE6, 0xED), rgba(0x252C2F, 0xEE))
+    static let headerBase = dynamic(rgba(0xF7F5EF, 0x80), rgba(0x30393B, 0x70))
+    static let footerBase = dynamic(rgba(0xE4E4DC, 0x80), rgba(0x1D2527, 0x88))
     static let rowHover = dynamic(rgba(0x24272D, 0x06), rgba(0xFFFFFF, 0x0A))
-    static let selection = dynamic(hexColor(0xE8F0FE), rgba(0x458BFF, 0x24))
-    static let selectionBorder = dynamic(hexColor(0xC8DAFB), rgba(0x458BFF, 0x40))
+    static let selection = dynamic(hexColor(0xDCEAE3), rgba(0x6CD4BD, 0x20))
+    static let selectionBorder = dynamic(hexColor(0xB2CEC2), rgba(0x6CD4BD, 0x48))
     static let separator = dynamic(rgba(0x000000, 0x0D), rgba(0xFFFFFF, 0x1A))
     static let panelBorder = dynamic(rgba(0x000000, 0x14), rgba(0xFFFFFF, 0x1A))
 
     // MARK: 文本
 
-    static let ink = dynamic(hexColor(0x24272D), hexColor(0xF3F4F6))
-    static let secondary = dynamic(hexColor(0x68717D), hexColor(0xA6A9B0))
-    static let tertiary = dynamic(hexColor(0x86868B), hexColor(0x777C86))
+    static let ink = dynamic(hexColor(0x252E2B), hexColor(0xE8EFEB))
+    static let secondary = dynamic(hexColor(0x5B6962), hexColor(0xACBDB5))
+    static let tertiary = dynamic(hexColor(0x626F69), hexColor(0x95A79F))
     static let onAccent = dynamic(hexColor(0xFFFFFF), hexColor(0xFFFFFF))
 
     /// AppKit 控件（搜索框等）使用的同名动态色。
-    static let inkNS = NSColor(name: nil) { $0.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? hexColor(0xF3F4F6) : hexColor(0x24272D) }
-    static let secondaryNS = NSColor(name: nil) { $0.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? hexColor(0xA6A9B0) : hexColor(0x68717D) }
-    static let tertiaryNS = NSColor(name: nil) { $0.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? hexColor(0x777C86) : hexColor(0x86868B) }
+    static let inkNS = NSColor(name: nil) { $0.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? hexColor(0xE8EFEB) : hexColor(0x252E2B) }
+    static let secondaryNS = NSColor(name: nil) { $0.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? hexColor(0xACBDB5) : hexColor(0x5B6962) }
+    static let tertiaryNS = NSColor(name: nil) { $0.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? hexColor(0x95A79F) : hexColor(0x626F69) }
 
     // MARK: 语义
 
-    static let accent = dynamic(hexColor(0x3478F6), hexColor(0x458BFF))
-    static let accentFill = dynamic(rgba(0x3478F6, 0x14), rgba(0x458BFF, 0x24))
-    static let accentBorder = dynamic(rgba(0x3478F6, 0x26), rgba(0x458BFF, 0x40))
+    static let accent = dynamic(hexColor(0x18786F), hexColor(0x6CD4BD))
+    static let accentFill = dynamic(rgba(0x18786F, 0x14), rgba(0x6CD4BD, 0x22))
+    static let accentBorder = dynamic(rgba(0x18786F, 0x32), rgba(0x6CD4BD, 0x48))
+    static let onSelectionAccent = dynamic(hexColor(0xFFFFFF), hexColor(0x173C33))
     static let success = dynamic(hexColor(0x27845F), hexColor(0x79C7A5))
     static let warning = dynamic(hexColor(0xB45309), hexColor(0xE7B46E))
 

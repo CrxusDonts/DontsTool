@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 3,
   "groups": [
     {
       "keyword": "gh",
@@ -9,7 +9,9 @@
           "key": "a",
           "name": "项目 A",
           "url": "https://git.company.example/team/project-a",
-          "aliases": ["订单服务"]
+          "aliases": [
+            "订单服务"
+          ]
         },
         {
           "key": "b",
@@ -19,13 +21,71 @@
       ]
     },
     {
-      "keyword": "env",
-      "name": "测试环境",
+      "keyword": "ops",
+      "name": "公司系统",
       "items": [
         {
-          "key": "dev",
-          "name": "开发联调环境",
-          "url": "http://dev.internal.example:8080/dashboard"
+          "key": "orders",
+          "name": "订单后台",
+          "aliases": [
+            "订单"
+          ],
+          "environments": [
+            {
+              "key": "test",
+              "name": "测试",
+              "url": "https://orders.test.company.example",
+              "aliases": [
+                "测试环境"
+              ]
+            },
+            {
+              "key": "prod",
+              "name": "生产",
+              "url": "https://orders.company.example",
+              "aliases": [
+                "生产环境"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "avatar",
+          "name": "Avatar",
+          "aliases": [
+            "头像系统"
+          ],
+          "environments": [
+            {
+              "key": "test",
+              "name": "测试",
+              "url": "https://avatar.test.company.example"
+            },
+            {
+              "key": "prod",
+              "name": "生产",
+              "url": "https://avatar.company.example"
+            }
+          ],
+          "pages": [
+            {
+              "key": "management",
+              "name": "管理页",
+              "path": "/admin/management",
+              "aliases": [
+                "管理",
+                "managment"
+              ]
+            },
+            {
+              "key": "metrics",
+              "name": "监控",
+              "path": "/metrics",
+              "urls": {
+                "prod": "https://metrics.company.example/avatar"
+              }
+            }
+          ]
         }
       ]
     }

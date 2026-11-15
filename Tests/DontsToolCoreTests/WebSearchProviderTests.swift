@@ -99,4 +99,25 @@ struct WebSearchProviderTests {
         let items = await provider.search(SearchContext(rawQuery: "swift", mode: .global))
         #expect(items.isEmpty)
     }
+
+    @Test func copyLinkActionWritesGeneratedURL() async throws {
+        let suite = "dontstool.tests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        let settings = SettingsStore(defaults: defaults, systemLanguageCode: "en")
+        let clipboard = MockClipboard()
+        let provider = WebSearchProvider(
+            settings: settings,
+            usage: UsageStore(defaults: defaults),
+            opener: MockURLOpener(),
+            feedback: MockFeedback(),
+            prefill: MockPrefiller(),
+            clipboard: clipboard
+        )
+
+        let items = await provider.search(SearchContext(rawQuery: "swift concurrency", mode: .global))
+        #expect(items[0].actions.map(\.id) == ["web.open", "web.copy"])
+        try await items[0].actions.last?.run()
+        #expect(clipboard.written.first?.contains("q=swift%20concurrency") == true)
+    }
 }

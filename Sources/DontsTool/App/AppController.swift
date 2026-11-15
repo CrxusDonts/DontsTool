@@ -9,6 +9,9 @@ final class AppController {
     private let websites = WebsiteShortcutStore()
     private var websitesCancellable: AnyCancellable?
     private let appIndex = AppIndex()
+    private var appIndexCancellable: AnyCancellable?
+    private var applicationActivityCancellable: AnyCancellable?
+    private var applicationSortCancellable: AnyCancellable?
     private let hotKeyManager = HotKeyManager()
     private let doubleTapMonitor = ModifierDoubleTapMonitor()
     private let toast = ToastPresenter()
@@ -17,6 +20,7 @@ final class AppController {
     private var coordinator: SearchCoordinator?
     private var toolWindows: ToolWindowManager?
     private var selectionTranslation: SelectionTranslationController?
+    private var translationLanguages: TranslationLanguageWindow?
     private var knowledgeWindows: KnowledgeWindowManager?
     private var settingsWindow: SettingsWindowController?
     private var onboardingWindow: OnboardingWindowController?
@@ -30,14 +34,19 @@ final class AppController {
         let settingsOpener = PanelSettingsOpener()
         let secrets = KeychainSecretStore()
         let login = LoginItemManager()
+        let clipboard = SystemClipboard()
         let appProvider = AppProvider(
             index: appIndex,
             settings: settings,
             usage: usage,
             launcher: SystemAppLauncher(),
-            feedback: toast
+            feedback: toast,
+            clipboard: clipboard
         )
-        let translator = RemoteTranslationService(settings: settings, secrets: secrets)
+        let remoteTranslator = RemoteTranslationService(settings: settings, secrets: secrets)
+        let translator = PreferredTranslationService(remote: remoteTranslator, system: SystemTranslationService())
+        let translationLanguages = TranslationLanguageWindow()
+        self.translationLanguages = translationLanguages
         let toolWindows = ToolWindowManager(settings: settings, translator: translator)
         self.toolWindows = toolWindows
         let selectionTranslation = SelectionTranslationController(settings: settings, translator: translator)
@@ -51,25 +60,44 @@ final class AppController {
             usage: usage,
             opener: SystemURLOpener(),
             feedback: toast,
-            prefill: prefiller
+            prefill: prefiller,
+            clipboard: clipboard
         )
         let fileProvider = FileProvider(
             settings: settings,
             usage: usage,
             launcher: SystemAppLauncher(),
-            feedback: toast
+            feedback: toast,
+            clipboard: clipboard
         )
         let translationProvider = TranslationProvider(settings: settings, toolOpener: toolWindows)
+        let calculatorProvider = CalculatorProvider(settings: settings, clipboard: clipboard, feedback: toast)
+        let quickOpenProvider = QuickOpenProvider(
+            settings: settings,
+            usage: usage,
+            launcher: SystemAppLauncher(),
+            opener: SystemURLOpener(),
+            clipboard: clipboard,
+            feedback: toast
+        )
         let websiteProvider = WebsiteShortcutProvider(store: websites, opener: SystemURLOpener(), feedback: toast, prefill: prefiller)
+        let geminiService = GeminiConversationService(controller: SystemGeminiAppController())
+        let geminiProvider = GeminiProvider(index: appIndex, settings: settings, service: geminiService, feedback: toast)
+        let ideaProvider = IDEProjectProvider(index: appIndex, settings: settings, usage: usage, feedback: toast)
         let registry = ToolRegistry(providers: [
-            appProvider, fileProvider, textProvider, webProvider, translationProvider, knowledgeProvider, websiteProvider
+            appProvider, fileProvider, textProvider, webProvider, translationProvider,
+            knowledgeProvider, websiteProvider, calculatorProvider, quickOpenProvider, geminiProvider, ideaProvider
         ])
         let coordinator = SearchCoordinator(registry: registry)
+        let contentProvider = ContentActionProvider(settings: settings, toolOpener: toolWindows,
+            urlOpener: SystemURLOpener(), feedback: toast)
         let panel = LauncherPanelController(
             registry: registry,
             coordinator: coordinator,
             toast: toast,
-            hotKeyDisplay: HotKeyFormatter.displayString(for: settings.hotKey)
+            hotKeyDisplay: HotKeyFormatter.displayString(for: settings.hotKey),
+            settings: settings,
+            contentProvider: contentProvider
         )
         prefiller.panel = panel
         progress.panel = panel
@@ -87,6 +115,9 @@ final class AppController {
             onRescan: { [weak self] in self?.rescanApps() },
             onHotKeyRecordingChanged: { [weak self] isRecording in
                 self?.setHotKeyRecording(isRecording)
+            },
+            onManageTranslationLanguages: { [weak translationLanguages, settings] in
+                translationLanguages?.show(target: settings.translationTarget)
             }
         )
         panel.onOpenSettings = { [weak settingsWindow] in
@@ -106,6 +137,22 @@ final class AppController {
             DispatchQueue.main.async { panel?.refreshSearch() }
         }
         toolWindows.onDocumentsChanged = { [weak panel] in panel?.refreshSearch() }
+        appIndexCancellable = appIndex.$apps.dropFirst().sink { [weak panel] _ in
+            DispatchQueue.main.async { panel?.refreshSearch() }
+        }
+        applicationSortCancellable = settings.$applicationSortOrder.dropFirst().sink { [weak panel] _ in
+            DispatchQueue.main.async { panel?.refreshSearch() }
+        }
+        applicationActivityCancellable = NSWorkspace.shared.notificationCenter
+            .publisher(for: NSWorkspace.didActivateApplicationNotification)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] notification in
+                guard let application = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
+                      application.bundleIdentifier != Bundle.main.bundleIdentifier,
+                      let url = application.bundleURL, url.pathExtension.lowercased() == "app" else { return }
+                let path = url.standardizedFileURL.path
+                MainActor.assumeIsolated { self?.usage.recordActivation(of: path) }
+            }
 
         let menuBar = MenuBarController()
         menuBar.onOpenLauncher = { [weak panel] in panel?.toggle() }
@@ -171,7 +218,12 @@ final class AppController {
     func prepareToTerminate() async -> Bool { await knowledgeWindows?.prepareToTerminate() ?? true }
 
     func shutdown() {
+        appIndex.stopMonitoring()
+        appIndexCancellable?.cancel()
+        applicationActivityCancellable?.cancel()
+        applicationSortCancellable?.cancel()
         selectionTranslation?.shutdown()
+        translationLanguages?.close()
         doubleTapMonitor.stop()
         usage.flush()
         toolWindows?.shutdown()

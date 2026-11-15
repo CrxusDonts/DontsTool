@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>DontsTool Command Launcher</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "surface-container-low": "#0e1418",
+            "surface-tint": "#71d8c1",
+            "primary-container": "#005144",
+            "error-container": "#7f2927",
+            "surface-container-lowest": "#000000",
+            "outline": "#6a7780",
+            "on-secondary-container": "#bdc0be",
+            "tertiary": "#edffe0",
+            "on-error-container": "#ff9993",
+            "primary-dim": "#62cab4",
+            "secondary-fixed-dim": "#d2d5d3",
+            "on-error": "#490106",
+            "inverse-on-surface": "#525559",
+            "on-surface": "#dae7f2",
+            "surface-container": "#131b20",
+            "outline-variant": "#3d4a52",
+            "tertiary-container": "#dcf2ce",
+            "on-primary-container": "#7be3cb",
+            "surface-bright": "#1f2e37",
+            "inverse-primary": "#006c5b",
+            "error": "#ee7d77",
+            "on-primary-fixed": "#00483d",
+            "secondary-container": "#393c3b",
+            "on-secondary-fixed": "#3c403f",
+            "on-tertiary-fixed": "#3c4f35",
+            "error-dim": "#bb5551",
+            "surface-container-high": "#172127",
+            "on-primary-fixed-variant": "#006858",
+            "surface-container-highest": "#1b272f",
+            "primary-fixed": "#8df5dd",
+            "tertiary-fixed-dim": "#d6ecc9",
+            "on-secondary": "#1d2120",
+            "on-surface-variant": "#a0adb7",
+            "tertiary-fixed": "#e4fad7",
+            "on-secondary-fixed-variant": "#595c5a",
+            "on-tertiary-container": "#495c41",
+            "on-background": "#dae7f2",
+            "on-tertiary": "#516449",
+            "on-tertiary-fixed-variant": "#586b4f",
+            "surface-dim": "#0b0f11",
+            "secondary-fixed": "#e0e3e1",
+            "tertiary-dim": "#d9efcc",
+            "primary-fixed-dim": "#7fe7cf",
+            "surface-variant": "#1b272f",
+            "inverse-surface": "#f7fafd",
+            "secondary-dim": "#9b9f9c",
+            "secondary": "#9b9f9c",
+            "on-primary": "#00493e",
+            "primary": "#71d8c1",
+            "surface": "#0b0f11",
+            "background": "#0b0f11"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "2xl": "1rem",
+            "full": "9999px"
+          },
+          "fontFamily": {
+            "headline": ["-apple-system", "BlinkMacSystemFont", "SF Pro Text", "PingFang SC", "Inter", "sans-serif"],
+            "body": ["-apple-system", "BlinkMacSystemFont", "SF Pro Text", "PingFang SC", "Inter", "sans-serif"],
+            "mono": ["SF Mono", "Menlo", "Monaco", "Consolas", "monospace"]
+          }
+        },
+      },
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      font-size: 18px;
+      line-height: 1;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    .custom-scroll::-webkit-scrollbar {
+      width: 4px;
+    }
+    .custom-scroll::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: rgba(106, 119, 128, 0.25);
+      border-radius: 4px;
+    }
+    .caret-blink {
+      animation: blink 1s step-end infinite;
+    }
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+  </style>
+</head>
+<body class="bg-background text-on-surface font-body min-h-screen w-full relative overflow-x-hidden selection:bg-primary-container selection:text-on-primary-container">
+<!-- Desktop Wallpaper Ambient Backdrop -->
+<div class="fixed inset-0 pointer-events-none z-0">
+<div class="absolute inset-0 bg-[#0e1113]"></div>
+<div class="absolute -top-[25%] -left-[10%] w-[65vw] h-[65vw] rounded-full bg-[#182329] opacity-40 blur-[140px]"></div>
+<div class="absolute top-[40%] -right-[15%] w-[60vw] h-[60vw] rounded-full bg-[#122123] opacity-35 blur-[160px]"></div>
+<div class="absolute inset-0 bg-[radial-gradient(circle_at_50%_35%,rgba(30,42,48,0.25)_0%,rgba(11,15,17,0.85)_100%)]"></div>
+<!-- Fine desktop grain mesh -->
+<div class="absolute inset-0 opacity-[0.025] mix-blend-overlay bg-repeat bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:16px_16px]"></div>
+</div>
+<!-- Simulated Native macOS Minimal Top Menubar -->
+<header class="relative z-10 w-full h-7 px-4 bg-surface-container-low/75 backdrop-blur-md border-b border-outline-variant/30 flex items-center justify-between text-[13px] font-headline select-none">
+<div class="flex items-center space-x-4 text-on-surface">
+<span class="material-symbols-outlined text-[15px] opacity-90 cursor-default">laptop_mac</span>
+<span class="font-semibold text-primary">DontsTool</span>
+<span class="text-on-surface-variant/60 cursor-default hover:text-on-surface transition-colors">文件</span>
+<span class="text-on-surface-variant/60 cursor-default hover:text-on-surface transition-colors">编辑</span>
+<span class="text-on-surface-variant/60 cursor-default hover:text-on-surface transition-colors">视图</span>
+<span class="text-on-surface-variant/60 cursor-default hover:text-on-surface transition-colors">窗口</span>
+<span class="text-on-surface-variant/60 cursor-default hover:text-on-surface transition-colors">帮助</span>
+</div>
+<div class="flex items-center space-x-3 text-[12px] text-on-surface-variant">
+<div class="flex items-center space-x-1.5 px-2 py-0.5 rounded bg-surface-container-high/60 border border-outline-variant/40 text-[11px] font-mono text-primary">
+<span class="material-symbols-outlined text-[13px]">bolt</span>
+<span>⌥⌥ 唤起</span>
+</div>
+<span class="material-symbols-outlined text-[15px] cursor-default">wifi</span>
+<span class="material-symbols-outlined text-[15px] cursor-default">battery_full</span>
+<span class="font-mono text-[11px] tracking-tight">周四 14:32</span>
+</div>
+</header>
+<!-- Main Canvas Workspace -->
+<main class="relative z-10 max-w-[1480px] mx-auto px-6 py-10 flex flex-col items-center justify-center min-h-[calc(100vh-28px)]">
+<!-- Subtle Context Switch Annotation -->
+<div class="w-full flex items-center justify-between mb-6 px-4">
+<div class="flex items-center space-x-2">
+<span class="inline-block w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+<span class="text-[12px] font-medium tracking-wide text-on-surface-variant uppercase font-mono">Workspace Overlay · Native Command Hub</span>
+</div>
+<div class="flex items-center space-x-3 text-[12px] text-on-surface-variant">
+<span class="px-2 py-0.5 rounded bg-surface-container/80 border border-outline-variant/40">状态: 键盘全控模式</span>
+<span class="text-outline">|</span>
+<span>DontsTool v2.4</span>
+</div>
+</div>
+<!-- Dual Floating Windows Grid (Primary Search Launcher + Contextual Action Launcher) -->
+<div class="w-full flex flex-col xl:flex-row items-center xl:items-start justify-center gap-10">
+<!-- ======================================================== -->
+<!-- 1. PRIMARY FLOATING LAUNCHER WINDOW (700 x 480 px exact) -->
+<!-- ======================================================== -->
+<div class="flex flex-col items-center">
+<!-- Floating Label Hint -->
+<div class="mb-2 self-start flex items-center space-x-2 text-[11px] font-mono text-on-surface-variant/80 pl-1">
+<span class="material-symbols-outlined text-[14px] text-primary">search</span>
+<span>主搜索模式 (Active Search State · 700×480)</span>
+</div>
+<div class="w-[700px] h-[480px] bg-surface-container/90 backdrop-blur-2xl rounded-2xl border border-outline-variant/50 shadow-[0_24px_64px_-12px_rgba(0,0,0,0.65),0_0_0_1px_rgba(255,255,255,0.06)] flex flex-col overflow-hidden select-none transition-all duration-150">
+<!-- Top Search Header -->
+<div class="h-[68px] px-5 flex items-center border-b border-outline-variant/40 bg-surface-container-high/40">
+<span class="material-symbols-outlined text-[24px] text-primary mr-3.5" data-icon="search">search</span>
+<div class="flex-1 flex items-center relative">
+<span class="text-[20px] font-headline font-normal tracking-tight text-on-surface">json</span>
+<span class="w-[2px] h-6 bg-primary ml-0.5 inline-block caret-blink"></span>
+<span class="text-[20px] font-headline text-outline/50 ml-1 pointer-events-none">工作台、对比工具...</span>
+</div>
+<!-- Right Tool Area & Shortcut -->
+<div class="flex items-center space-x-2.5">
+<span class="px-2 py-1 rounded bg-surface-container border border-outline-variant/60 text-[11px] font-mono text-on-surface-variant font-medium">
+                ⌥⌥
+              </span>
+<button class="w-7 h-7 rounded-lg flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/60 transition-colors">
+<span class="material-symbols-outlined text-[18px]">tune</span>
+</button>
+<button class="w-7 h-7 rounded-lg flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/60 transition-colors" title="偏好设置 ⌘,">
+<span class="material-symbols-outlined text-[18px]">settings</span>
+</button>
+</div>
+</div>
+<!-- Section Label -->
+<div class="px-5 pt-3 pb-1 flex items-center justify-between text-[11px] font-headline font-medium text-on-surface-variant/70 tracking-wider">
+<span>匹配应用与工具 (5 项)</span>
+<span class="font-mono text-[10px]">FILTER: APP &amp; UTILS</span>
+</div>
+<!-- Results Section (Scrollable Area) -->
+<div class="flex-1 overflow-y-auto custom-scroll px-3 py-1 space-y-1">
+<!-- Item 1: Selected Row (JSON 工作台) -->
+<div class="group relative flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-primary-container/30 border border-primary/30 transition-all duration-120">
+<!-- Selected Leading Indicator Bar -->
+<div class="absolute left-1 top-2.5 bottom-2.5 w-[3.5px] rounded-full bg-primary shadow-[0_0_8px_rgba(113,216,193,0.4)]"></div>
+<div class="flex items-center space-x-3.5 pl-2">
+<!-- App Icon Container -->
+<div class="w-9 h-9 rounded-lg bg-surface-container-highest border border-outline-variant/70 flex items-center justify-center text-primary shadow-inner">
+<span class="material-symbols-outlined text-[20px]" data-icon="data_object">data_object</span>
+</div>
+<div class="flex flex-col">
+<div class="flex items-center space-x-2">
+<span class="text-[13px] font-headline font-semibold text-on-surface tracking-tight">JSON 工作台</span>
+<span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-primary/15 text-primary border border-primary/20">DontsTool 工具</span>
+</div>
+<span class="text-[11px] font-headline text-on-surface-variant">多文档独立对比、格式化与语法校验</span>
+</div>
+</div>
+<!-- Action Indicators -->
+<div class="flex items-center space-x-2">
+<span class="text-[11px] font-headline text-primary font-medium bg-surface-container-high/90 px-2.5 py-1 rounded-md border border-primary/30 flex items-center space-x-1 shadow-sm">
+<span>打开</span>
+<span class="font-mono text-[10px] text-primary">↵</span>
+</span>
+<span class="text-[11px] font-headline text-on-surface-variant/70 bg-surface-container px-2 py-1 rounded-md border border-outline-variant/40 flex items-center space-x-1">
+<span>操作</span>
+<span class="font-mono text-[10px]">⌘K</span>
+</span>
+</div>
+</div>
+<!-- Item 2: Visual Studio Code -->
+<div class="group flex items-center justify-between px-3.5 py-2 rounded-xl hover:bg-surface-variant/40 transition-colors duration-100">
+<div class="flex items-center space-x-3.5 pl-2">
+<div class="w-9 h-9 rounded-lg bg-[#0e161c] border border-outline-variant/50 flex items-center justify-center text-[#71b9d8]">
+<span class="material-symbols-outlined text-[20px]" data-icon="code">code</span>
+</div>
+<div class="flex flex-col">
+<div class="flex items-center space-x-2">
+<span class="text-[13px] font-headline font-medium text-on-surface">Visual Studio Code</span>
+</div>
+<span class="text-[11px] font-headline text-on-surface-variant/80 font-mono">/Applications/Visual Studio Code.app</span>
+</div>
+</div>
+<span class="text-[11px] font-headline text-on-surface-variant/60 px-2 py-0.5 rounded bg-surface-container-low border border-outline-variant/30">应用</span>
+</div>
+<!-- Item 3: 终端 Terminal -->
+<div class="group flex items-center justify-between px-3.5 py-2 rounded-xl hover:bg-surface-variant/40 transition-colors duration-100">
+<div class="flex items-center space-x-3.5 pl-2">
+<div class="w-9 h-9 rounded-lg bg-surface-container-low border border-outline-variant/50 flex items-center justify-center text-[#e4fad7]">
+<span class="material-symbols-outlined text-[20px]" data-icon="terminal">terminal</span>
+</div>
+<div class="flex flex-col">
+<div class="flex items-center space-x-2">
+<span class="text-[13px] font-headline font-medium text-on-surface">终端</span>
+<span class="text-[11px] text-outline font-mono">Terminal</span>
+</div>
+<span class="text-[11px] font-headline text-on-surface-variant/80 font-mono">/System/Applications/Utilities/Terminal.app</span>
+</div>
+</div>
+<span class="text-[11px] font-headline text-on-surface-variant/60 px-2 py-0.5 rounded bg-surface-container-low border border-outline-variant/30">快捷工具</span>
+</div>
+<!-- Item 4: 网址快捷入口 -->
+<div class="group flex items-center justify-between px-3.5 py-2 rounded-xl hover:bg-surface-variant/40 transition-colors duration-100">
+<div class="flex items-center space-x-3.5 pl-2">
+<div class="w-9 h-9 rounded-lg bg-surface-container-low border border-outline-variant/50 flex items-center justify-center text-[#e4b28b]">
+<span class="material-symbols-outlined text-[20px]" data-icon="link">link</span>
+</div>
+<div class="flex flex-col">
+<span class="text-[13px] font-headline font-medium text-on-surface">网址快捷入口</span>
+<span class="text-[11px] font-headline text-on-surface-variant/80">快速跳转内部系统、Git 仓库与技术文档</span>
+</div>
+</div>
+<span class="text-[11px] font-headline text-on-surface-variant/60 px-2 py-0.5 rounded bg-surface-container-low border border-outline-variant/30">DontsTool</span>
+</div>
+<!-- Item 5: 知识库 -->
+<div class="group flex items-center justify-between px-3.5 py-2 rounded-xl hover:bg-surface-variant/40 transition-colors duration-100">
+<div class="flex items-center space-x-3.5 pl-2">
+<div class="w-9 h-9 rounded-lg bg-surface-container-low border border-outline-variant/50 flex items-center justify-center text-[#b6a4df]">
+<span class="material-symbols-outlined text-[20px]" data-icon="menu_book">menu_book</span>
+</div>
+<div class="flex flex-col">
+<span class="text-[13px] font-headline font-medium text-on-surface">知识库</span>
+<span class="text-[11px] font-headline text-on-surface-variant/80">DontsKb 个人离线与协同工程知识库</span>
+</div>
+</div>
+<span class="text-[11px] font-headline text-on-surface-variant/60 px-2 py-0.5 rounded bg-surface-container-low border border-outline-variant/30">DontsTool</span>
+</div>
+</div>
+<!-- Quiet Native Footer Bar -->
+<div class="h-10 px-4 bg-surface-container-low/95 border-t border-outline-variant/40 flex items-center justify-between text-[11px] font-headline text-on-surface-variant select-none">
+<div class="flex items-center space-x-2">
+<span class="material-symbols-outlined text-[14px] text-primary" data-icon="play_arrow">play_arrow</span>
+<span class="text-on-surface font-medium">执行:</span>
+<span class="text-on-surface-variant">打开 JSON 工作台 (独立窗口 1040×700)</span>
+</div>
+<div class="flex items-center space-x-3 font-mono text-[11px]">
+<span class="flex items-center space-x-1">
+<kbd class="px-1.5 py-0.5 bg-surface-container rounded border border-outline-variant/50 text-on-surface">↑↓</kbd>
+<span class="text-outline">选择</span>
+</span>
+<span class="flex items-center space-x-1">
+<kbd class="px-1.5 py-0.5 bg-surface-container rounded border border-outline-variant/50 text-on-surface">↵</kbd>
+<span class="text-outline">执行</span>
+</span>
+<span class="flex items-center space-x-1">
+<kbd class="px-1.5 py-0.5 bg-surface-container rounded border border-outline-variant/50 text-on-surface">⌘K</kbd>
+<span class="text-outline">动作面板</span>
+</span>
+<span class="flex items-center space-x-1">
+<kbd class="px-1.5 py-0.5 bg-surface-container rounded border border-outline-variant/50 text-on-surface">Esc</kbd>
+<span class="text-outline">退出</span>
+</span>
+</div>
+</div>
+</div>
+</div>
+<!-- ======================================================== -->
+<!-- 2. CONTEXTUAL CONTENT ACTION PANEL (uTools-Inspired Flow) -->
+<!-- ======================================================== -->
+<div class="flex flex-col items-center">
+<!-- Floating Label Hint -->
+<div class="mb-2 self-start flex items-center space-x-2 text-[11px] font-mono text-on-surface-variant/80 pl-1">
+<span class="material-symbols-outlined text-[14px] text-primary">content_paste_go</span>
+<span>剪贴板感知模式 (Contextual Clipboard Flow · 640×480)</span>
+</div>
+<div class="w-[640px] h-[480px] bg-surface-container/90 backdrop-blur-2xl rounded-2xl border border-outline-variant/50 shadow-[0_24px_64px_-12px_rgba(0,0,0,0.65),0_0_0_1px_rgba(255,255,255,0.06)] flex flex-col overflow-hidden select-none transition-all duration-150">
+<!-- Top Attached Content Chip Banner -->
+<div class="px-4 py-3 bg-surface-container-high/60 border-b border-outline-variant/40 flex items-center justify-between">
+<div class="flex items-center space-x-2.5 overflow-hidden pr-2">
+<span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded bg-primary/15 text-primary text-[11px] font-mono font-medium border border-primary/30 shrink-0">
+<span class="material-symbols-outlined text-[13px]">assignment_turned_in</span>
+<span>JSON · 剪贴板内容</span>
+</span>
+<!-- Truncated Content Snippet -->
+<span class="text-[11px] font-mono text-on-surface-variant truncate bg-surface-container-low px-2 py-0.5 rounded border border-outline-variant/30">
+                {"name": "DontsTool", "version": "1.0.0", "status": "active", "diff": true...}
+              </span>
+</div>
+<!-- Clear Action -->
+<button class="shrink-0 flex items-center space-x-1 px-2 py-0.5 rounded text-[11px] font-headline text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/60 transition-colors">
+<span class="material-symbols-outlined text-[14px]">close</span>
+<span>清除 (Esc)</span>
+</button>
+</div>
+<!-- Secondary Filter Input Bar -->
+<div class="h-12 px-5 flex items-center border-b border-outline-variant/30 bg-surface-container">
+<span class="material-symbols-outlined text-[20px] text-outline mr-3" data-icon="filter_list">filter_list</span>
+<input class="w-full bg-transparent border-0 p-0 text-[14px] font-headline text-on-surface placeholder:text-outline/60 focus:ring-0 cursor-default" placeholder="筛选针对该内容的操作 (3 项匹配)..." readonly="" type="text" value=""/>
+<span class="text-[11px] font-mono text-outline/70">3 / 3</span>
+</div>
+<!-- Contextual Recommended Actions -->
+<div class="flex-1 overflow-y-auto custom-scroll px-3 py-2 space-y-1.5">
+<!-- Context Action 1 (Selected) -->
+<div class="group relative flex items-center justify-between px-3.5 py-3 rounded-xl bg-primary-container/30 border border-primary/30 transition-all duration-120">
+<div class="absolute left-1 top-2.5 bottom-2.5 w-[3.5px] rounded-full bg-primary shadow-[0_0_8px_rgba(113,216,193,0.4)]"></div>
+<div class="flex items-center space-x-3.5 pl-2">
+<div class="w-9 h-9 rounded-lg bg-primary-container/60 border border-primary/40 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[20px]" data-icon="open_in_new">open_in_new</span>
+</div>
+<div class="flex flex-col">
+<div class="flex items-center space-x-2">
+<span class="text-[13px] font-headline font-semibold text-on-surface tracking-tight">载入至 JSON 工作台</span>
+<span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-primary/20 text-primary border border-primary/30">推荐</span>
+</div>
+<span class="text-[11px] font-headline text-on-surface-variant">在独立窗口中快速打开、自动格式化并执行语法校验</span>
+</div>
+</div>
+<div class="flex items-center space-x-1.5">
+<span class="text-[11px] font-headline text-primary font-medium bg-surface-container-high/90 px-2.5 py-1 rounded-md border border-primary/30 flex items-center space-x-1">
+<span>载入</span>
+<span class="font-mono text-[10px] text-primary">↵</span>
+</span>
+</div>
+</div>
+<!-- Context Action 2 -->
+<div class="group flex items-center justify-between px-3.5 py-3 rounded-xl hover:bg-surface-variant/40 border border-transparent hover:border-outline-variant/30 transition-colors duration-100">
+<div class="flex items-center space-x-3.5 pl-2">
+<div class="w-9 h-9 rounded-lg bg-surface-container-low border border-outline-variant/50 flex items-center justify-center text-[#71b9d8]">
+<span class="material-symbols-outlined text-[20px]" data-icon="difference">difference</span>
+</div>
+<div class="flex flex-col">
+<div class="flex items-center space-x-2">
+<span class="text-[13px] font-headline font-medium text-on-surface">JSON 结构对比</span>
+</div>
+<span class="text-[11px] font-headline text-on-surface-variant/80">载入至对比面板 (基准文档)，准备选择右侧目标比对</span>
+</div>
+</div>
+<div class="flex items-center space-x-1 font-mono text-[11px] text-on-surface-variant">
+<kbd class="px-1.5 py-0.5 bg-surface-container-low rounded border border-outline-variant/50">⌘2</kbd>
+</div>
+</div>
+<!-- Context Action 3 -->
+<div class="group flex items-center justify-between px-3.5 py-3 rounded-xl hover:bg-surface-variant/40 border border-transparent hover:border-outline-variant/30 transition-colors duration-100">
+<div class="flex items-center space-x-3.5 pl-2">
+<div class="w-9 h-9 rounded-lg bg-surface-container-low border border-outline-variant/50 flex items-center justify-center text-[#b6a4df]">
+<span class="material-symbols-outlined text-[20px]" data-icon="schema">schema</span>
+</div>
+<div class="flex flex-col">
+<div class="flex items-center space-x-2">
+<span class="text-[13px] font-headline font-medium text-on-surface">提取字段与 Schema</span>
+</div>
+<span class="text-[11px] font-headline text-on-surface-variant/80">智能推导生成 TypeScript Interface 或 JSON Schema 规范</span>
+</div>
+</div>
+<div class="flex items-center space-x-1 font-mono text-[11px] text-on-surface-variant">
+<kbd class="px-1.5 py-0.5 bg-surface-container-low rounded border border-outline-variant/50">⌘3</kbd>
+</div>
+</div>
+<!-- Inline Mini JSON Inspector preview well -->
+<div class="mt-3 p-3 rounded-xl bg-surface-container-lowest/80 border border-outline-variant/40 font-mono text-[11px] text-on-surface-variant space-y-1">
+<div class="flex items-center justify-between pb-1.5 border-b border-outline-variant/20 text-[10px] text-outline">
+<span>快速语法嗅探: valid JSON (264 bytes)</span>
+<span class="text-primary">就绪</span>
+</div>
+<div class="pt-1 text-[#e4b28b] leading-5 truncate">
+<span class="text-[#71b9d8]">"name"</span>: <span class="text-[#e4b28b]">"DontsTool"</span>, <span class="text-[#71b9d8]">"version"</span>: <span class="text-[#b6a4df]">1.0</span>, <span class="text-[#71b9d8]">"ready"</span>: <span class="text-primary">true</span>
+</div>
+</div>
+</div>
+<!-- Secondary Window Footer -->
+<div class="h-10 px-4 bg-surface-container-low/95 border-t border-outline-variant/40 flex items-center justify-between text-[11px] font-headline text-on-surface-variant select-none">
+<span class="text-on-surface-variant font-mono">剪贴板监听: 自动匹配</span>
+<div class="flex items-center space-x-3 font-mono text-[11px]">
+<span class="flex items-center space-x-1">
+<kbd class="px-1.5 py-0.5 bg-surface-container rounded border border-outline-variant/50 text-on-surface">Esc</kbd>
+<span class="text-outline">清除内容</span>
+</span>
+<span class="flex items-center space-x-1">
+<kbd class="px-1.5 py-0.5 bg-surface-container rounded border border-outline-variant/50 text-on-surface">↵</kbd>
+<span class="text-outline">立即执行</span>
+</span>
+<span class="flex items-center space-x-1">
+<kbd class="px-1.5 py-0.5 bg-surface-container rounded border border-outline-variant/50 text-on-surface">⌥↵</kbd>
+<span class="text-outline">新建窗口执行</span>
+</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Bottom Desktop Information / Shortcut Guide -->
+<div class="mt-8 flex items-center space-x-6 text-[12px] font-mono text-outline select-none">
+<div class="flex items-center space-x-2">
+<span class="w-1.5 h-1.5 rounded-full bg-outline"></span>
+<span>双击 Option 任意界面呼出</span>
+</div>
+<div class="flex items-center space-x-2">
+<span class="w-1.5 h-1.5 rounded-full bg-outline"></span>
+<span>支持直接粘贴 JSON / URL / 纯文本 自动触发动作链</span>
+</div>
+<div class="flex items-center space-x-2">
+<span class="w-1.5 h-1.5 rounded-full bg-outline"></span>
+<span>无残留无打扰 · 失去焦点自动隐退</span>
+</div>
+</div>
+</main>
+<!-- Interactive Keyboard Simulation Script -->
+<script>
+    document.addEventListener('keydown', (e) => {
+      // Visual feedback on escape key
+      if (e.key === 'Escape') {
+        const primary = document.querySelector('.bg-surface-container\\/90');
+        if (primary) {
+          primary.classList.add('opacity-40', 'scale-[0.98]');
+          setTimeout(() => {
+            primary.classList.remove('opacity-40', 'scale-[0.98]');
+          }, 180);
+        }
+      }
+    });
+  </script>
+</body></html>

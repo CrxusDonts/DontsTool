@@ -1,0 +1,22 @@
+{
+  "projectId": "8779626504181051745",
+  "screenId": "ea4e5c2f61bf44e9b6c331a348857435",
+  "html": "projects/8779626504181051745/files/b607fc37e4424d4ab54e6a6dd8fddf91",
+  "screenshot": "projects/8779626504181051745/files/9874ac0c4f42463790a8899b78e048fd",
+  "sourceScreenId": "261d0c76fc7a4781a5cabe63454b5bee",
+  "prompt": "Refine this EXISTING compact macOS launcher screen for the next supported command: group → system → subpage → environment. Keep its existing 700×480 floating panel, 72px search header, 54px result rows, 38px keyboard footer, existing design system and visual hierarchy. No sidebar, dashboard, new window or added configuration panel. Replace query with 'ops avatar management'. Show exactly TWO result rows both titled 'Avatar · 管理页', first badge TEST and second badge PROD. Show full URLs below titles: 'https://avatar.test.company.example/admin/management' and 'https://avatar.company.example/admin/management'. First selected, second unselected; right selected row action '↵ 打开'. Environment badges clearly distinct and legible. A quiet one-line hint near bottom '输入 ops avatar management prod 直达生产管理页'. Keep copy Chinese except commands and environment identifiers. Query with system alone lists 首页 and configured subpages; query with system/subpage lists environment choices; pressing Enter explicitly opens the selected URL. This screen shows subpage candidates, not actual company data, all URLs fictional .example. Use restrained focus and selection transitions with reduced-motion behavior, no ornamental animation.",
+  "outputComponents": [
+    {
+      "text": "已将 DontsTool 原生紧凑启动台精细化更新为四级指令链路（分组 → 系统 → 子页面 → 环境候选）的状态：\n\n### 核心设计与交互落地\n1. **严格维持紧凑 HUD 视窗规范**：\n   - 保持 700×480 原生浮动面板尺寸，居中承载于 1280×900 视口中。\n   - 保留标准的 72px 搜索头、54px 结果列表行高以及 38px 底部快捷键状态栏。\n   - 维持深色石墨工作台视觉系统（`#121619` / `#181d20`、薄边框与柔和投影），无多余侧边栏或外围装饰干扰。\n\n2. **搜索输入与多级命令解析**：\n   - 搜索框内呈现当前正在键入的四级命令：`ops avatar management`，末尾保留原生闪烁光标与右侧 `esc` 徽标。\n\n3. **双环境候选结果行（精确两行）**：\n   - **第一行（选中态）**：\n     - 标题：**Avatar · 管理页**\n     - 环境徽标：清晰鲜明的 **`TEST`** 标签（暖琥珀色背景与边框）\n     - 完整映射网址：`https://avatar.test.company.example/admin/management`\n     - 交互反馈：采用内嵌深石墨高亮背景、左侧青翠（`#6CD4BD`）专属竖条导引，右侧展示醒目的紧凑动作按钮 **`↵ 打开`**。\n   - **第二行（未选中态）**：\n     - 标题：**Avatar · 管理页**\n     - 环境徽标：高辨识度的 **`PROD`** 标签（薄荷青色背景与边框）\n     - 完整映射网址：`https://avatar.company.example/admin/management`\n     - 纯净平铺于列表中，支持键盘上下方向键自由切换。\n\n4. **底部克制单行快捷指引与操作状态**：\n   - 在结果区域下方呈现轻量单行提示：`输入 ops avatar management prod 直达生产管理页`，引导用户直达高频生产环境。\n   - 底部 38px 状态栏准确保留 `↑ ↓ 选择`、`↵ 打开`、`esc 关闭` 与右侧 `⚙ 配置快捷入口 ⌘,`。\n   - 所有交互动效遵循 `prefers-reduced-motion` 规范，杜绝一切冗余装饰性过渡。"
+    },
+    {
+      "suggestion": "查看输入 'ops avatar management prod' 后的唯一定位态"
+    },
+    {
+      "suggestion": "配置该网址快捷入口的偏好设置修改视图"
+    },
+    {
+      "suggestion": "切换至浅色/暖灰工作台风格对比效果"
+    }
+  ]
+}

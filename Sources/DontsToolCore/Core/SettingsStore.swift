@@ -3,6 +3,22 @@ import Foundation
 
 @MainActor
 public final class SettingsStore: ObservableObject {
+    public enum ApplicationSortOrder: String, CaseIterable, Identifiable, Codable, Sendable {
+        case recent
+        case frequency
+        case name
+
+        public var id: String { rawValue }
+
+        public var displayName: String {
+            switch self {
+            case .recent: "最近使用"
+            case .frequency: "使用频率"
+            case .name: "名称"
+            }
+        }
+    }
+
     public struct HotKeyConfiguration: Equatable, Codable, Sendable {
         public enum Kind: String, Codable, Sendable {
             case combination
@@ -103,6 +119,7 @@ public final class SettingsStore: ObservableObject {
         static let hotKeyCode = "dontstool.hotkey.keyCode"
         static let hotKeyModifiers = "dontstool.hotkey.modifiers"
         static let defaultSearchEngine = "dontstool.defaultSearchEngine"
+        static let applicationSortOrder = "dontstool.applicationSortOrder"
         static let enabledProviders = "dontstool.enabledProviders"
         static let fileSearchEnabled = "dontstool.fileSearchEnabled"
         static let translationTarget = "dontstool.translationTarget"
@@ -110,6 +127,8 @@ public final class SettingsStore: ObservableObject {
         static let translationAPIModel = "dontstool.translationAPIModel"
         static let selectionTranslationEnabled = "dontstool.selectionTranslationEnabled"
         static let knowledgeProviderMigrationCompleted = "dontstool.knowledgeProviderMigrationCompleted"
+        static let builtInProviderDefaultsV2Completed = "dontstool.builtInProviderDefaultsV2Completed"
+        static let applicationWorkflowsMigrationCompleted = "dontstool.applicationWorkflowsMigrationCompleted"
         static let knowledgeBaseURL = "dontstool.knowledgeBaseURL"
         static let hasCompletedOnboarding = "dontstool.hasCompletedOnboarding"
     }
@@ -118,6 +137,7 @@ public final class SettingsStore: ObservableObject {
 
     @Published public private(set) var hotKey: HotKeyConfiguration
     @Published public private(set) var defaultSearchEngine: SearchEngine
+    @Published public private(set) var applicationSortOrder: ApplicationSortOrder
     @Published public private(set) var enabledProviderIDs: Set<String>
     @Published public private(set) var fileSearchEnabled: Bool
     @Published public private(set) var translationTarget: String
@@ -150,6 +170,9 @@ public final class SettingsStore: ObservableObject {
         defaultSearchEngine = SearchEngine(
             rawValue: defaults.string(forKey: Key.defaultSearchEngine) ?? ""
         ) ?? .google
+        applicationSortOrder = ApplicationSortOrder(
+            rawValue: defaults.string(forKey: Key.applicationSortOrder) ?? ""
+        ) ?? .recent
 
         let storedProviders = defaults.array(forKey: Key.enabledProviders) as? [String]
         var enabledProviders = storedProviders.map(Set.init) ?? Set(ProviderID.allCases.map(\.rawValue))
@@ -159,6 +182,23 @@ public final class SettingsStore: ObservableObject {
                 defaults.set(Array(enabledProviders).sorted(), forKey: Key.enabledProviders)
             }
             defaults.set(true, forKey: Key.knowledgeProviderMigrationCompleted)
+        }
+        if !defaults.bool(forKey: Key.builtInProviderDefaultsV2Completed) {
+            enabledProviders.formUnion([
+                ProviderID.calculator.rawValue,
+                ProviderID.quickOpen.rawValue
+            ])
+            if storedProviders != nil {
+                defaults.set(Array(enabledProviders).sorted(), forKey: Key.enabledProviders)
+            }
+            defaults.set(true, forKey: Key.builtInProviderDefaultsV2Completed)
+        }
+        if !defaults.bool(forKey: Key.applicationWorkflowsMigrationCompleted) {
+            enabledProviders.formUnion([ProviderID.gemini.rawValue, ProviderID.ideaProjects.rawValue])
+            if storedProviders != nil {
+                defaults.set(Array(enabledProviders).sorted(), forKey: Key.enabledProviders)
+            }
+            defaults.set(true, forKey: Key.applicationWorkflowsMigrationCompleted)
         }
         enabledProviderIDs = enabledProviders
 
@@ -188,6 +228,11 @@ public final class SettingsStore: ObservableObject {
     public func setDefaultSearchEngine(_ engine: SearchEngine) {
         defaultSearchEngine = engine
         defaults.set(engine.rawValue, forKey: Key.defaultSearchEngine)
+    }
+
+    public func setApplicationSortOrder(_ order: ApplicationSortOrder) {
+        applicationSortOrder = order
+        defaults.set(order.rawValue, forKey: Key.applicationSortOrder)
     }
 
     public func isProviderEnabled(_ id: String) -> Bool {

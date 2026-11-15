@@ -64,6 +64,80 @@ struct SelectionTranslationTests {
         try capture(controller, name: "native-unconfigured", appearance: .darkAqua)
     }
 
+    @Test func selectionFailureShowsEditableCardWithoutSendingTranslation() async throws {
+        let (settings, defaults, name) = makeSettings()
+        defer { defaults.removePersistentDomain(forName: name) }
+        _ = NSApplication.shared
+        let translator = DelayedSelectionTranslator()
+        let controller = SelectionTranslationController(settings: settings, translator: translator)
+        defer { controller.shutdown() }
+        controller.showSelectionFailure("应用未提供选中文字", at: CGPoint(x: 300, y: 200))
+        #expect(controller.selectionFailure == "应用未提供选中文字")
+        #expect(controller.session.input.isEmpty)
+        #expect(!controller.session.isRunning)
+        #expect(!controller.session.canCopy)
+        #expect(translator.requests.isEmpty)
+        var edited: String?
+        controller.onEditSource = { edited = $0 }
+        controller.editSource()
+        #expect(edited == "")
+    }
+
+    @Test func readingCardCannotSendAnEarlierSourceToTranslator() async throws {
+        let (settings, defaults, name) = makeSettings()
+        defer { defaults.removePersistentDomain(forName: name) }
+        _ = NSApplication.shared
+        let translator = DelayedSelectionTranslator()
+        let controller = SelectionTranslationController(settings: settings, translator: translator)
+        defer { controller.shutdown() }
+        controller.session.input = "old selection"
+        controller.showReading(at: CGPoint(x: 300, y: 200))
+        #expect(controller.selectionReadInProgress)
+        #expect(controller.session.input.isEmpty)
+        #expect(translator.requests.isEmpty)
+    }
+
+    @Test func closingOrEditingReadCardCannotReopenItOrSendLateSelection() async throws {
+        for editInsteadOfClose in [false, true] {
+            let (settings, defaults, name) = makeSettings()
+            defer { defaults.removePersistentDomain(forName: name) }
+            _ = NSApplication.shared
+            let translator = DelayedSelectionTranslator()
+            var readContinuation: CheckedContinuation<Void, Never>?
+            var readReturned = false
+            var edited = false
+            let monitor = RightPressMonitor(environment: .init(now: { 2 }, buttonIsDown: { true },
+                frontmostPID: { 42 }, foregroundWindow: { _, _ in 7 },
+                readSelection: { _, _ in
+                    await withCheckedContinuation { readContinuation = $0 }
+                    readReturned = true
+                    return SelectionReading(text: "late closed selection", diagnostic: "已读取选区")
+                }, waitForHold: {}, waitForReadTimeout: { try await Task.sleep(for: .seconds(3)) },
+                restore: { _, _, _, _, _ in Issue.record("A committed translation hold must not replay native events"); return false }))
+            let controller = SelectionTranslationController(settings: settings, translator: translator, monitor: monitor)
+            defer { controller.shutdown() }
+            controller.onEditSource = { _ in edited = true }
+            let down = try #require(CGEvent(mouseEventSource: nil, mouseType: .rightMouseDown,
+                mouseCursorPosition: CGPoint(x: 300, y: 200), mouseButton: .right))
+            down.timestamp = 0
+            #expect(!monitor.handle(.rightMouseDown, event: down, proxy: nil))
+            try await until { readContinuation != nil }
+            #expect(controller.selectionReadInProgress)
+            if editInsteadOfClose { controller.editSource() } else { controller.dismiss() }
+            readContinuation?.resume()
+            try await until { readReturned }
+            for _ in 0..<20 { await Task.yield() }
+            #expect(translator.requests.isEmpty)
+            #expect(!controller.session.isRunning)
+            #expect(!controller.selectionReadInProgress)
+            #expect(edited == editInsteadOfClose)
+            let up = try #require(CGEvent(mouseEventSource: nil, mouseType: .rightMouseUp,
+                mouseCursorPosition: down.location, mouseButton: .right))
+            #expect(!monitor.handle(.rightMouseUp, event: up, proxy: nil))
+            for request in translator.requests { request.resume(returning: "unexpected translation") }
+        }
+    }
+
     private func makeSettings() -> (SettingsStore, UserDefaults, String) {
         let name = "dontstool.selection.tests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: name)!

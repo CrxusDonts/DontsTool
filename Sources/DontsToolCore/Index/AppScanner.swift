@@ -28,9 +28,11 @@ public struct AppScanResult: Sendable {
 
 public struct AppScanner: Sendable {
     public let roots: [URL]
+    public let preferredLanguages: [String]
 
-    public init(roots: [URL] = AppScanner.defaultRoots) {
+    public init(roots: [URL] = AppScanner.defaultRoots, preferredLanguages: [String] = Locale.preferredLanguages) {
         self.roots = roots
+        self.preferredLanguages = preferredLanguages
     }
 
     public static var defaultRoots: [URL] {
@@ -91,8 +93,11 @@ public struct AppScanner: Sendable {
     }
 
     private func makeEntry(at url: URL) -> AppEntry? {
-        guard let bundle = Bundle(url: url),
-              let info = bundle.infoDictionary else {
+        // Bundle.infoDictionary is cached by path for the lifetime of the
+        // process, including incomplete bundles encountered during installation.
+        let plist = url.appendingPathComponent("Contents/Info.plist")
+        guard let data = try? Data(contentsOf: plist),
+              let info = (try? PropertyListSerialization.propertyList(from: data, options: [], format: nil)) as? [String: Any] else {
             return nil
         }
 
@@ -100,10 +105,9 @@ public struct AppScanner: Sendable {
             return nil
         }
 
-        let name = (info["CFBundleDisplayName"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
-            ?? (info["CFBundleName"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
-            ?? ""
-        let displayName = name.isEmpty ? url.deletingPathExtension().lastPathComponent : name
+        let displayName = localizedName(at: url)
+            ?? applicationName(in: info)
+            ?? url.deletingPathExtension().lastPathComponent
         let modifiedAt = try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate
         let standardized = url.standardizedFileURL
 
@@ -114,6 +118,57 @@ public struct AppScanner: Sendable {
             url: standardized,
             modifiedAt: modifiedAt
         )
+    }
+
+    private func localizedName(at app: URL) -> String? {
+        let resources = app.appendingPathComponent("Contents/Resources", isDirectory: true)
+        guard let children = try? FileManager.default.contentsOfDirectory(
+            at: resources,
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: [.skipsHiddenFiles]
+        ) else { return nil }
+        let localizations = children.filter {
+            $0.pathExtension == "lproj" && (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
+        }
+        let byLanguage = Dictionary(uniqueKeysWithValues: localizations.map {
+            ($0.deletingPathExtension().lastPathComponent, $0)
+        })
+        // Some system applications store their localized names in a shared binary table.
+        var table: [String: Any] = [:]
+        if let data = try? Data(contentsOf: resources.appendingPathComponent("InfoPlist.loctable")),
+           let info = (try? PropertyListSerialization.propertyList(from: data, options: [], format: nil)) as? [String: Any] {
+            table = info
+        }
+        let tableLanguages: [String] = table.compactMap { language, value in
+            guard let info = value as? [String: Any], applicationName(in: info) != nil else { return nil }
+            return language
+        }
+        let preferred = Bundle.preferredLocalizations(
+            from: Set(byLanguage.keys).union(tableLanguages).sorted(),
+            forPreferences: preferredLanguages
+        )
+        for language in preferred {
+            if let directory = byLanguage[language],
+               let data = try? Data(contentsOf: directory.appendingPathComponent("InfoPlist.strings")),
+               let info = (try? PropertyListSerialization.propertyList(from: data, options: [], format: nil)) as? [String: Any],
+               let name = applicationName(in: info) {
+                return name
+            }
+            if let info = table[language] as? [String: Any], let name = applicationName(in: info) {
+                return name
+            }
+        }
+        return nil
+    }
+
+    private func applicationName(in info: [String: Any]) -> String? {
+        for key in ["CFBundleDisplayName", "CFBundleName"] {
+            if let value = info[key] as? String {
+                let name = value.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !name.isEmpty { return name }
+            }
+        }
+        return nil
     }
 
     private func isTrue(_ value: Any?) -> Bool {

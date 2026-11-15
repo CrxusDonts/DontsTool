@@ -28,15 +28,23 @@ struct SelectionTranslationView: View {
                     Divider().overlay(ToolTheme.border).padding(.vertical, 4)
                     Text(Locale.current.localizedString(forIdentifier: session.target) ?? session.target)
                         .font(.system(size: 10, weight: .medium)).foregroundStyle(ToolTheme.secondary)
-                    if session.isRunning {
+                    if controller.selectionReadInProgress {
+                        HStack(spacing: 8) { ProgressView().controlSize(.small); Text("正在读取选中文字…") }
+                            .font(.system(size: 12)).foregroundStyle(ToolTheme.secondary)
+                    } else if let failure = controller.selectionFailure {
+                        Text(failure).font(.system(size: 12)).foregroundStyle(.red)
+                        Text("可点击“编辑原文”输入文字后翻译。")
+                            .font(.system(size: 12)).foregroundStyle(ToolTheme.secondary)
+                    } else if session.isRunning {
                         HStack(spacing: 8) { ProgressView().controlSize(.small); Text("正在翻译…") }
                             .font(.system(size: 12)).foregroundStyle(ToolTheme.secondary)
                     } else if !session.translationConfigured {
-                        Text("请先配置翻译 API 的地址、模型和密钥。")
+                        Text("翻译服务暂不可用，请检查翻译设置。")
                             .font(.system(size: 12)).foregroundStyle(ToolTheme.secondary)
                         Button("打开翻译设置") { controller.openSettings() }.controlSize(.small)
                     } else if let error = session.errorMessage {
                         Text(error).font(.system(size: 12)).foregroundStyle(.red).textSelection(.enabled)
+                        Button("翻译设置与语言包") { controller.openSettings() }.controlSize(.small)
                     } else if session.isFresh {
                         Text(session.output).font(.system(size: 16, weight: .medium)).textSelection(.enabled)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -46,7 +54,7 @@ struct SelectionTranslationView: View {
             Divider().overlay(ToolTheme.border)
             HStack(spacing: 8) {
                 Button("编辑原文") { controller.editSource() }
-                Button("重试") { session.run() }.disabled(session.isRunning || !session.translationConfigured)
+                Button("重试") { session.run() }.disabled(controller.selectionReadInProgress || session.input.isEmpty || session.isRunning || !session.translationConfigured)
                 Spacer()
                 Button(controller.copied ? "已复制" : "复制译文") { controller.copyTranslation() }
                     .disabled(!session.canCopy)

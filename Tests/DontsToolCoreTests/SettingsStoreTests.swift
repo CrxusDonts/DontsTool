@@ -75,20 +75,24 @@ struct SettingsStoreTests {
     }
 
     @Test(arguments: [[], ["app"], ["app", "web"]])
-    func upgradedProviderPreferencesEnableKnowledgeOnceWithoutChangingOldChoices(_ oldEnabled: [String]) {
+    func upgradedProviderPreferencesEnableNewBuiltInsOnceWithoutChangingOldChoices(_ oldEnabled: [String]) {
         let (defaults, name) = makeDefaults()
         defer { defaults.removePersistentDomain(forName: name) }
         defaults.set(oldEnabled, forKey: "dontstool.enabledProviders")
 
+        let newBuiltIns = ["knowledge", "calculator", "quickOpen", "gemini", "ideaProjects"]
         let migrated = SettingsStore(defaults: defaults, systemLanguageCode: "en")
-        #expect(migrated.enabledProviderIDs == Set(oldEnabled + ["knowledge"]))
-        #expect(Set(defaults.array(forKey: "dontstool.enabledProviders") as? [String] ?? []) == Set(oldEnabled + ["knowledge"]))
+        #expect(migrated.enabledProviderIDs == Set(oldEnabled + newBuiltIns))
+        #expect(Set(defaults.array(forKey: "dontstool.enabledProviders") as? [String] ?? []) == Set(oldEnabled + newBuiltIns))
 
         migrated.setProviderEnabled("knowledge", to: false)
+        migrated.setProviderEnabled("calculator", to: false)
+        migrated.setProviderEnabled("gemini", to: false)
+        migrated.setProviderEnabled("ideaProjects", to: false)
         let reloaded = SettingsStore(defaults: defaults, systemLanguageCode: "en")
-        #expect(reloaded.enabledProviderIDs == Set(oldEnabled))
+        #expect(reloaded.enabledProviderIDs == Set(oldEnabled + ["quickOpen"]))
         let reloadedAgain = SettingsStore(defaults: defaults, systemLanguageCode: "en")
-        #expect(reloadedAgain.enabledProviderIDs == Set(oldEnabled))
+        #expect(reloadedAgain.enabledProviderIDs == Set(oldEnabled + ["quickOpen"]))
     }
 
     @Test func searchEngineBuildsEncodedURL() {
@@ -96,5 +100,34 @@ struct SettingsStoreTests {
         let components = URLComponents(url: url!, resolvingAgainstBaseURL: false)
         #expect(components?.host == "www.google.com")
         #expect(components?.queryItems?.first?.value == "swift concurrency + 中文")
+    }
+
+    @Test func applicationSortDefaultsToRecentUse() {
+        let (defaults, name) = makeDefaults()
+        defer { defaults.removePersistentDomain(forName: name) }
+        let store = SettingsStore(defaults: defaults, systemLanguageCode: "en")
+        #expect(store.applicationSortOrder == .recent)
+    }
+
+    @Test(arguments: ["recent", "frequency", "name"])
+    func applicationSortOrderPersists(rawOrder: String) throws {
+        let (defaults, name) = makeDefaults()
+        defer { defaults.removePersistentDomain(forName: name) }
+        let order = try #require(SettingsStore.ApplicationSortOrder(rawValue: rawOrder))
+        let store = SettingsStore(defaults: defaults, systemLanguageCode: "en")
+
+        store.setApplicationSortOrder(order)
+
+        let reloaded = SettingsStore(defaults: defaults, systemLanguageCode: "en")
+        #expect(reloaded.applicationSortOrder == order)
+        #expect(defaults.string(forKey: "dontstool.applicationSortOrder") == rawOrder)
+    }
+
+    @Test func invalidApplicationSortOrderFallsBackToRecentUse() {
+        let (defaults, name) = makeDefaults()
+        defer { defaults.removePersistentDomain(forName: name) }
+        defaults.set("unavailable", forKey: "dontstool.applicationSortOrder")
+        let store = SettingsStore(defaults: defaults, systemLanguageCode: "en")
+        #expect(store.applicationSortOrder == .recent)
     }
 }

@@ -2,7 +2,7 @@ import Foundation
 
 @MainActor
 public protocol TranslationServicing: AnyObject {
-    /// baseURL、模型与密钥都已配置时才提供系统翻译项。
+    /// 服务是否可接受请求；系统服务仍可能需要先准备语言包。
     var isConfigured: Bool { get }
     func translate(_ text: String, target: String) async throws -> String
 }

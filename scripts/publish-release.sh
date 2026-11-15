@@ -34,6 +34,9 @@ $dt_marker
 - 安装及首次打开说明：[README](https://github.com/$GH_REPO/blob/$DT_RELEASE_TAG/README.md#安装)。
 - 源码提交：$dt_commit
 NOTES
+if [[ -f "docs/releases/$DT_RELEASE_TAG.md" ]]; then
+  cat "docs/releases/$DT_RELEASE_TAG.md" >> "$dt_work/notes.md"
+fi
 # Published versions are immutable. A retry may resume only this commit's own draft.
 if gh release view "$DT_RELEASE_TAG" --repo "$GH_REPO" --json isDraft,body > "$dt_work/existing.json" 2>/dev/null; then
   python3 - "$dt_work/existing.json" "$dt_marker" <<'PY'

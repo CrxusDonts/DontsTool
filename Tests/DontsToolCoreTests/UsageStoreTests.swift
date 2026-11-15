@@ -57,4 +57,45 @@ struct UsageStoreTests {
         store.recordUse(of: "newer", at: now)
         #expect(store.topKeys(limit: 2) == ["newer", "older"])
     }
+
+    @Test func activationUpdatesRecencyWithoutCountingAnotherLaunch() {
+        let (defaults, name) = makeDefaults()
+        defer { defaults.removePersistentDomain(forName: name) }
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let store = UsageStore(defaults: defaults, now: { now })
+        store.recordUse(of: "app", at: now.addingTimeInterval(-100))
+
+        store.recordActivation(of: "app")
+        store.recordActivation(of: "app", at: now.addingTimeInterval(10))
+
+        #expect(store.record(for: "app")?.count == 1)
+        #expect(store.record(for: "app")?.lastUsed == now.addingTimeInterval(10))
+    }
+
+    @Test func firstExternalActivationPersistsRecencyWithNoLauncherUse() {
+        let (defaults, name) = makeDefaults()
+        defer { defaults.removePersistentDomain(forName: name) }
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let store = UsageStore(defaults: defaults, now: { now })
+
+        store.recordActivation(of: "external-app")
+        store.flush()
+
+        let reloaded = UsageStore(defaults: defaults, now: { now })
+        #expect(reloaded.record(for: "external-app")?.count == 0)
+        #expect(reloaded.record(for: "external-app")?.lastUsed == now)
+    }
+
+    @Test func delayedActivationDoesNotReplaceNewerUseTime() {
+        let (defaults, name) = makeDefaults()
+        defer { defaults.removePersistentDomain(forName: name) }
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let store = UsageStore(defaults: defaults, now: { now })
+        store.recordUse(of: "app", at: now)
+
+        store.recordActivation(of: "app", at: now.addingTimeInterval(-1))
+
+        #expect(store.record(for: "app")?.lastUsed == now)
+        #expect(store.record(for: "app")?.count == 1)
+    }
 }
