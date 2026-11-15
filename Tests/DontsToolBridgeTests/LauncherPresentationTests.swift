@@ -67,10 +67,12 @@ struct LauncherPresentationTests {
         var oldDismissalCompleted = false
         driver.show(panel: panel, at: origin)
         driver.hide(panel: panel) { oldDismissalCompleted = true }
+        let completedBeforeReopening = oldDismissalCompleted
+        #expect(completedBeforeReopening == Motion.reduceMotion)
         driver.show(panel: panel, at: origin)
         try await until { panel.alphaValue == 1 && panel.frame.origin == origin }
         #expect(panel.isVisible)
-        #expect(!oldDismissalCompleted)
+        #expect(oldDismissalCompleted == completedBeforeReopening)
     }
 
     @Test func rendersWebsiteEnvironmentCandidatesInBothAppearances() async throws {
