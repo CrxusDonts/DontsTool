@@ -12,6 +12,7 @@ final class SelectionTranslationController: ObservableObject {
     @Published private(set) var copied = false
     @Published private(set) var selectionFailure: String?
     @Published private(set) var selectionReadInProgress = false
+    @Published private(set) var gestureVerificationShown = false
     let session: ToolSession
     var onOpenSettings: (() -> Void)?
     var onEditSource: ((String) -> Void)?
@@ -26,7 +27,8 @@ final class SelectionTranslationController: ObservableObject {
     private var copyTask: Task<Void, Never>?
     var accessibilityGranted: Bool { AXIsProcessTrusted() }
 
-    init(settings: SettingsStore, translator: TranslationServicing, monitor: RightPressMonitor = RightPressMonitor()) {
+    init(settings: SettingsStore, translator: TranslationServicing, monitor: RightPressMonitor = RightPressMonitor(),
+         gestureVerificationOnly: Bool = false) {
         self.settings = settings
         self.monitor = monitor
         session = ToolSession(kind: .translation, translator: translator)
@@ -36,6 +38,9 @@ final class SelectionTranslationController: ObservableObject {
         monitor.ignoresPoint = { [weak self] point in self?.contains(point) == true }
         monitor.onFailure = { [weak self] in self?.status = "鼠标监听已暂停，请关闭后重新开启" }
         monitor.onDiagnostic = { [weak self] in self?.lastGestureDiagnostic = $0 }
+        if gestureVerificationOnly {
+            monitor.onHold = { [weak self] _, point in self?.showGestureVerification(at: point) }
+        }
         settingObservation = settings.$selectionTranslationEnabled.dropFirst().sink { [weak self] _ in
             Task { @MainActor in self?.refresh() }
         }
@@ -43,7 +48,7 @@ final class SelectionTranslationController: ObservableObject {
             .receive(on: DispatchQueue.main).sink { [weak self] _ in
                 MainActor.assumeIsolated {
                     self?.refresh()
-                    if self?.pinned == false { self?.dismiss() }
+                    self?.dismissForApplicationChange()
                 }
             }
         refresh()
@@ -71,6 +76,7 @@ final class SelectionTranslationController: ObservableObject {
     }
 
     func show(text: String, at point: CGPoint) {
+        gestureVerificationShown = false
         selectionFailure = nil
         selectionReadInProgress = false
         prepareCard(text: text, at: point)
@@ -78,14 +84,23 @@ final class SelectionTranslationController: ObservableObject {
     }
 
     func showReading(at point: CGPoint) {
+        gestureVerificationShown = false
         selectionFailure = nil
         selectionReadInProgress = true
         prepareCard(text: "", at: point)
     }
 
     func showSelectionFailure(_ message: String, at point: CGPoint) {
+        gestureVerificationShown = false
         selectionReadInProgress = false
         selectionFailure = message
+        prepareCard(text: "", at: point)
+    }
+
+    func showGestureVerification(at point: CGPoint) {
+        gestureVerificationShown = true
+        selectionFailure = nil
+        selectionReadInProgress = false
         prepareCard(text: "", at: point)
     }
 
@@ -135,6 +150,10 @@ final class SelectionTranslationController: ObservableObject {
         session.cancel()
         for token in [outsideMonitor, localMonitor, escapeMonitor].compactMap({ $0 }) { NSEvent.removeMonitor(token) }
         outsideMonitor = nil; localMonitor = nil; escapeMonitor = nil
+    }
+
+    func dismissForApplicationChange() {
+        if !pinned, panel?.isVisible == true { dismiss() }
     }
 
     func copyTranslation() {

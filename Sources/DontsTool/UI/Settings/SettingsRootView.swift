@@ -44,11 +44,11 @@ struct SettingsRootView: View {
     @ObservedObject var navigation: SettingsNavigationState
     let onRescan: () -> Void
     let onHotKeyRecordingChanged: (Bool) -> Void
-    let onManageTranslationLanguages: () -> Void
 
     private var tab: Tab { navigation.tab }
     @State private var apiKey: String = ""
     @State private var apiKeyStatus: String?
+    @State private var apiKeyLoaded = false
 
     var body: some View {
         HStack(spacing: 0) {
@@ -58,9 +58,6 @@ struct SettingsRootView: View {
         }
         .frame(width: Metrics.settingsSize.width, height: Metrics.settingsSize.height)
         .background(Theme.panelBase.opacity(0.5))
-        .onAppear {
-            apiKey = secrets.secret(for: SecretAccount.translationAPIKey) ?? ""
-        }
     }
 
     // MARK: 侧边栏
@@ -291,7 +288,7 @@ struct SettingsRootView: View {
                     Text(selectionTranslation.status).font(.system(size: 12))
                     Text("最近操作：\(selectionTranslation.lastGestureDiagnostic)")
                         .font(.caption).foregroundStyle(Theme.secondary).textSelection(.enabled)
-                    Text("通过辅助功能读取选中文字。默认在本机使用系统翻译；配置完整的自定义 API 后才交给该服务。不会自动复制，也不读取剪贴板。")
+                    Text("通过辅助功能读取选中文字，交给你配置的大模型翻译服务。仅在主动翻译时发送原文，不会自动复制，也不读取剪贴板。")
                         .font(.caption).foregroundStyle(Theme.secondary)
                     Text("短按在松开时显示原有右键菜单；移动会取消长按。不支持取词的应用仍可手动复制到翻译窗口。")
                         .font(.caption).foregroundStyle(Theme.secondary)
@@ -317,15 +314,8 @@ struct SettingsRootView: View {
                     .frame(width: 160)
                 }
             }
-            SettingsGroup(caption: "系统翻译") {
-                SettingsRow(title: "无需 API 密钥", subtitle: "首次使用先准备语言包，之后可在本机翻译") {
-                    SettingsButton(title: "准备语言包", action: onManageTranslationLanguages)
-                }
-                Text("准备英语与目标语言；目标为英语时准备中英互译。完整配置下方 API 后将优先使用该 API，服务出错时不会自动切换。")
-                    .font(.system(size: 12)).foregroundStyle(Theme.secondary).padding(12)
-            }
-            SettingsGroup(caption: "自定义翻译 API（可选，Responses 兼容）") {
-                SettingsRow(title: "接口地址", subtitle: "使用你自己的 Responses 兼容服务") {
+            SettingsGroup(caption: "大模型翻译（Responses 兼容）") {
+                SettingsRow(title: "接口地址", subtitle: "必填，使用你自己的 Responses 兼容服务") {
                     SettingsTextField(
                         placeholder: "https://你的服务/v1",
                         text: Binding(
@@ -335,7 +325,7 @@ struct SettingsRootView: View {
                     )
                 }
                 SettingsDivider()
-                SettingsRow(title: "模型", subtitle: "服务支持的模型名称") {
+                SettingsRow(title: "模型", subtitle: "必填，服务支持的模型名称") {
                     SettingsTextField(
                         placeholder: "模型名称",
                         text: Binding(
@@ -345,7 +335,7 @@ struct SettingsRootView: View {
                     )
                 }
                 SettingsDivider()
-                SettingsRow(title: "API 密钥", subtitle: apiKeyStatus ?? "保存在本机钥匙串，不会上传") {
+                SettingsRow(title: "API 密钥", subtitle: apiKeyStatus ?? "必填，保存在本机钥匙串，仅用于向该服务认证") {
                     HStack(spacing: 8) {
                         SettingsTextField(placeholder: "sk-…", text: $apiKey, isSecure: true) {
                             saveAPIKey()
@@ -354,6 +344,11 @@ struct SettingsRootView: View {
                     }
                 }
             }
+        }
+        .onAppear {
+            guard !apiKeyLoaded else { return }
+            apiKeyLoaded = true
+            apiKey = secrets.secret(for: SecretAccount.translationAPIKey) ?? ""
         }
     }
 

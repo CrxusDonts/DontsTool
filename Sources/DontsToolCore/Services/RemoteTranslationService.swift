@@ -36,7 +36,7 @@ public final class RemoteTranslationService: TranslationServicing {
 
     public func translate(_ text: String, target: String) async throws -> String {
         guard isConfigured else {
-            throw ActionError.translationFailed("翻译 API 未配置，请在设置中填写")
+            throw ActionError.translationFailed("大模型翻译未配置，请在「设置 → 翻译」填写接口地址、模型和 API 密钥")
         }
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
@@ -50,9 +50,18 @@ public final class RemoteTranslationService: TranslationServicing {
 
     private func makeRequest(text: String, target: String) throws -> URLRequest {
         let base = settings.translationAPIBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
-            .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        let endpoint = base.contains("://") ? "\(base)/responses" : "https://\(base)/responses"
-        guard let url = URL(string: endpoint) else {
+        let endpoint = base.contains("://") ? base : "https://\(base)"
+        guard var components = URLComponents(string: endpoint),
+              let scheme = components.scheme?.lowercased(),
+              scheme == "https" || scheme == "http",
+              let host = components.host, !host.isEmpty else {
+            throw ActionError.translationFailed("翻译 API 地址无效，请填写 HTTP 或 HTTPS 接口地址")
+        }
+        var path = components.percentEncodedPath
+        while path.hasSuffix("/") { path.removeLast() }
+        if !path.hasSuffix("/responses") { path += "/responses" }
+        components.percentEncodedPath = path
+        guard let url = components.url else {
             throw ActionError.translationFailed("翻译 API 地址无效")
         }
         guard let key = secrets.secret(for: SecretAccount.translationAPIKey), !key.isEmpty else {

@@ -46,6 +46,38 @@ struct RemoteTranslationServiceTests {
         #expect((body?["instructions"] as? String)?.contains("Chinese") == true)
     }
 
+    @Test(arguments: [
+        ("https://openrouter.ai/api/v1", "https://openrouter.ai/api/v1/responses"),
+        ("https://openrouter.ai/api/v1/", "https://openrouter.ai/api/v1/responses"),
+        ("https://openrouter.ai/api/v1/responses", "https://openrouter.ai/api/v1/responses"),
+        ("https://openrouter.ai/api/v1/responses/", "https://openrouter.ai/api/v1/responses"),
+        ("openrouter.ai/api/v1", "https://openrouter.ai/api/v1/responses"),
+        ("openrouter.ai/api/v1/responses", "https://openrouter.ai/api/v1/responses"),
+        ("http://localhost:8080/v1", "http://localhost:8080/v1/responses"),
+        ("https://translation.example/v1?api-version=2025-04-01-preview", "https://translation.example/v1/responses?api-version=2025-04-01-preview"),
+        ("https://translation.example/v1/responses/?api-version=2025-04-01-preview", "https://translation.example/v1/responses?api-version=2025-04-01-preview")
+    ])
+    func acceptsBaseURLOrCompleteEndpoint(_ configuredURL: String, _ expectedURL: String) async throws {
+        let (service, http, _, _) = makeService(baseURL: configuredURL)
+        http.responseData = Data(#"{"output_text":"你好"}"#.utf8)
+
+        #expect(try await service.translate("hello", target: "zh-Hans") == "你好")
+        #expect(http.requests.count == 1)
+        let request = try #require(http.requests.first)
+        #expect(request.url?.absoluteString == expectedURL)
+    }
+
+    @Test(arguments: ["ftp://translation.example/v1", "file:///tmp/translation", "https:///v1", "https://", "https://invalid host/v1"])
+    func rejectsInvalidEndpointWithoutSendingText(_ configuredURL: String) async {
+        let (service, http, _, _) = makeService(baseURL: configuredURL)
+        http.responseData = Data(#"{"output_text":"unexpected"}"#.utf8)
+
+        await #expect(throws: ActionError.self) {
+            _ = try await service.translate("must stay local", target: "zh-Hans")
+        }
+        #expect(http.requests.isEmpty)
+    }
+
     @Test func parsesOutputText() async throws {
         let (service, http, _, _) = makeService()
         http.responseData = Data(#"{"output_text":" 你好 "}"#.utf8)
@@ -91,10 +123,24 @@ struct RemoteTranslationServiceTests {
         }
     }
 
-    @Test func unconfiguredThrowsWithoutNetwork() async {
-        let (service, http, _, _) = makeService(key: nil)
-        await #expect(throws: (any Error).self) {
+    @Test(arguments: ["baseURL", "model", "key"])
+    func missingConfigurationExplainsSetupWithoutNetwork(_ missing: String) async {
+        let (service, http, _, _) = makeService(
+            baseURL: missing == "baseURL" ? "" : "https://translation.example/v1",
+            model: missing == "model" ? "" : "translation-model",
+            key: missing == "key" ? nil : "test-key"
+        )
+        do {
             _ = try await service.translate("hello", target: "zh-Hans")
+            Issue.record("缺少大模型配置时应提示设置，不应返回译文")
+        } catch let error as ActionError {
+            let message = error.localizedDescription
+            #expect(message.contains("设置 → 翻译"))
+            #expect(message.contains("接口地址"))
+            #expect(message.contains("模型"))
+            #expect(message.contains("API 密钥"))
+        } catch {
+            Issue.record("unexpected error \(error)")
         }
         #expect(http.requests.isEmpty)
     }

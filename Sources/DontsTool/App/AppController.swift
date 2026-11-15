@@ -20,7 +20,6 @@ final class AppController {
     private var coordinator: SearchCoordinator?
     private var toolWindows: ToolWindowManager?
     private var selectionTranslation: SelectionTranslationController?
-    private var translationLanguages: TranslationLanguageWindow?
     private var knowledgeWindows: KnowledgeWindowManager?
     private var settingsWindow: SettingsWindowController?
     private var onboardingWindow: OnboardingWindowController?
@@ -43,13 +42,11 @@ final class AppController {
             feedback: toast,
             clipboard: clipboard
         )
-        let remoteTranslator = RemoteTranslationService(settings: settings, secrets: secrets)
-        let translator = PreferredTranslationService(remote: remoteTranslator, system: SystemTranslationService())
-        let translationLanguages = TranslationLanguageWindow()
-        self.translationLanguages = translationLanguages
+        let translator = RemoteTranslationService(settings: settings, secrets: secrets)
         let toolWindows = ToolWindowManager(settings: settings, translator: translator)
         self.toolWindows = toolWindows
-        let selectionTranslation = SelectionTranslationController(settings: settings, translator: translator)
+        let selectionTranslation = SelectionTranslationController(settings: settings, translator: translator,
+            gestureVerificationOnly: CommandLine.arguments.contains("--verify-right-press"))
         self.selectionTranslation = selectionTranslation
         let knowledgeWindows = KnowledgeWindowManager(settings: settings)
         self.knowledgeWindows = knowledgeWindows
@@ -115,15 +112,12 @@ final class AppController {
             onRescan: { [weak self] in self?.rescanApps() },
             onHotKeyRecordingChanged: { [weak self] isRecording in
                 self?.setHotKeyRecording(isRecording)
-            },
-            onManageTranslationLanguages: { [weak translationLanguages, settings] in
-                translationLanguages?.show(target: settings.translationTarget)
             }
         )
         panel.onOpenSettings = { [weak settingsWindow] in
             settingsWindow?.show()
         }
-        toolWindows.onOpenSettings = { [weak settingsWindow] in settingsWindow?.show() }
+        toolWindows.onOpenSettings = { [weak settingsWindow] in settingsWindow?.showTranslation() }
         knowledgeWindows.onOpenSettings = { [weak settingsWindow] in settingsWindow?.show() }
         knowledgeWindows.onSearchChanged = { [weak panel] in panel?.refreshSearch() }
         self.settingsWindow = settingsWindow
@@ -223,7 +217,6 @@ final class AppController {
         applicationActivityCancellable?.cancel()
         applicationSortCancellable?.cancel()
         selectionTranslation?.shutdown()
-        translationLanguages?.close()
         doubleTapMonitor.stop()
         usage.flush()
         toolWindows?.shutdown()

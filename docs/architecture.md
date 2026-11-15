@@ -327,6 +327,6 @@ Gemini 的 Core `GeminiConversationService` 验证草稿、新对话、精确问
 
 IDEA Discovery actor 按当前安装版本解析最近项目 XML，缓存文件指纹，过滤不存在或远程目录；官方应用参数启动通过 NSWorkspace 完成。执行前和异步路径校验后重新检查禁用/取消状态。
 
-`PreferredTranslationService` 对完整远端配置优先，否则选择 `SystemTranslationService`；不会在远端失败或取消后换服务。系统后端先检查已安装语言包，并为每个请求建立自己的 TranslationSession，取消互不影响。下载仅经用户打开的语言包窗口、点击按钮后由 SwiftUI translationTask 提供的session执行prepareTranslation。26.4以上统一使用lowLatency策略。
+应用启动时将 `RemoteTranslationService` 直接交给独立翻译窗口和划词卡片；用户需在翻译设置中填写 Responses 兼容接口地址、模型和 API 密钥。配置不完整时提示设置且不发送请求，服务失败或取消后不切换后端。系统翻译及语言包准备代码暂留在源码中，当前应用未接入。
 
 右键翻译先连续两秒再开始AX，读取/失败复用单张翻译卡片。显式关闭会使monitor请求失效，保留吞掉已触发mouse-up的状态，防止迟到取词结果重新弹窗或联网。

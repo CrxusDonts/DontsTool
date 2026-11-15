@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="color-scheme" content="dark light">
+<title>DontsTool 右键验收</title>
+<style>
+body { max-width: 760px; margin: 60px auto; padding: 24px; font: 18px/1.7 system-ui; }
+#target { padding: 36px; border: 1px solid #8b969e; border-radius: 16px; background: #7a9b9920; }
+pre { font: 14px/1.5 ui-monospace, monospace; white-space: pre-wrap; max-height: 220px; overflow: auto; }
+</style>
+<h1>DontsTool 右键验收</h1>
+<p>短按显示浏览器菜单；长按两秒显示应用测试卡片。</p>
+<p id="target">Hello world. This is public text for testing a right-button hold.</p>
+<pre id="events">尚未收到鼠标事件</pre>
+<script>
+window.pressEvents = [];
+for (const type of ['mousedown', 'mouseup', 'contextmenu']) {
+  document.querySelector('#target').addEventListener(type, event => {
+    window.pressEvents.push({type, button: event.button, trusted: event.isTrusted,
+      milliseconds: Math.round(performance.now())});
+    document.querySelector('#events').textContent = JSON.stringify(window.pressEvents, null, 2);
+  });
+}
+</script>
+</html>

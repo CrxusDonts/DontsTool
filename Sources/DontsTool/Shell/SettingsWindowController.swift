@@ -14,8 +14,7 @@ final class SettingsWindowController: NSWindowController {
         appIndex: AppIndex,
         selectionTranslation: SelectionTranslationController,
         onRescan: @escaping () -> Void,
-        onHotKeyRecordingChanged: @escaping (Bool) -> Void,
-        onManageTranslationLanguages: @escaping () -> Void = {}
+        onHotKeyRecordingChanged: @escaping (Bool) -> Void
     ) {
         let window = NSWindow(
             contentRect: NSRect(origin: .zero, size: Metrics.settingsSize),
@@ -36,8 +35,7 @@ final class SettingsWindowController: NSWindowController {
             selectionTranslation: selectionTranslation,
             navigation: navigation,
             onRescan: onRescan,
-            onHotKeyRecordingChanged: onHotKeyRecordingChanged,
-            onManageTranslationLanguages: onManageTranslationLanguages
+            onHotKeyRecordingChanged: onHotKeyRecordingChanged
         ))
         super.init(window: window)
     }

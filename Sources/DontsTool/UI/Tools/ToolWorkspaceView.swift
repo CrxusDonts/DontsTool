@@ -223,7 +223,7 @@ struct ToolWorkspaceView: View {
             VStack(spacing: 0) {
                 if !session.translationConfigured {
                     HStack {
-                        Text("尚未配置翻译 API").font(.system(size: 12)).foregroundStyle(ToolTheme.secondary)
+                        Text("尚未配置大模型翻译").font(.system(size: 12)).foregroundStyle(ToolTheme.secondary)
                         Button("打开设置", action: onOpenSettings).controlSize(.small)
                         Spacer()
                     }.padding(12).background(ToolTheme.selection)

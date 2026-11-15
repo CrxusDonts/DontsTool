@@ -121,6 +121,7 @@ struct SettingsButton: View {
             Text(title)
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(Theme.ink)
+                .fixedSize()
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
                 .background(Theme.controlFill, in: RoundedRectangle(cornerRadius: 6))

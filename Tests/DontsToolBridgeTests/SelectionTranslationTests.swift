@@ -6,6 +6,21 @@ import Testing
 @Suite("划词翻译原生卡片", .serialized)
 @MainActor
 struct SelectionTranslationTests {
+    @Test func applicationChangeDismissesOnlyVisibleUnpinnedCard() async throws {
+        let (settings, defaults, name) = makeSettings()
+        defer { defaults.removePersistentDomain(forName: name) }
+        _ = NSApplication.shared
+        let controller = SelectionTranslationController(settings: settings, translator: ImmediateSelectionTranslator())
+        defer { controller.shutdown() }
+        controller.showReading(at: CGPoint(x: 300, y: 200))
+        controller.pinned = true
+        controller.dismissForApplicationChange()
+        #expect(controller.selectionReadInProgress)
+        controller.pinned = false
+        controller.dismissForApplicationChange()
+        #expect(!controller.selectionReadInProgress)
+    }
+
     @Test func reusingCardCannotPublishAnEarlierTranslation() async throws {
         let (settings, defaults, name) = makeSettings()
         defer { defaults.removePersistentDomain(forName: name) }
@@ -106,13 +121,14 @@ struct SelectionTranslationTests {
             var readContinuation: CheckedContinuation<Void, Never>?
             var readReturned = false
             var edited = false
-            let monitor = RightPressMonitor(environment: .init(now: { 2 }, buttonIsDown: { true },
+            var now: TimeInterval = 0
+            let monitor = RightPressMonitor(environment: .init(now: { now }, buttonIsDown: { true },
                 frontmostPID: { 42 }, foregroundWindow: { _, _ in 7 },
                 readSelection: { _, _ in
                     await withCheckedContinuation { readContinuation = $0 }
                     readReturned = true
                     return SelectionReading(text: "late closed selection", diagnostic: "已读取选区")
-                }, waitForHold: {}, waitForReadTimeout: { try await Task.sleep(for: .seconds(3)) },
+                }, waitForHold: { now = 2 }, waitForReadTimeout: { try await Task.sleep(for: .seconds(3)) },
                 restore: { _, _, _, _, _ in Issue.record("A committed translation hold must not replay native events"); return false }))
             let controller = SelectionTranslationController(settings: settings, translator: translator, monitor: monitor)
             defer { controller.shutdown() }
