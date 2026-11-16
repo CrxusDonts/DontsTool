@@ -53,11 +53,11 @@ struct SettingsRootView: View {
     var body: some View {
         HStack(spacing: 0) {
             sidebar
-            Divider().overlay(Theme.separator)
+            Theme.separator.frame(width: 0.5)
             content
         }
         .frame(width: Metrics.settingsSize.width, height: Metrics.settingsSize.height)
-        .background(Theme.panelBase.opacity(0.5))
+        .background(.ultraThinMaterial)
     }
 
     // MARK: 侧边栏
@@ -113,12 +113,16 @@ struct SettingsRootView: View {
                     .font(.system(size: 13, weight: tab == entry ? .medium : .regular))
                 Spacer()
             }
-            .foregroundStyle(tab == entry ? Theme.onAccent : Theme.secondary)
+            .foregroundStyle(tab == entry ? Theme.accent : Theme.secondary)
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
             .background(
-                tab == entry ? Theme.accent : .clear,
+                tab == entry ? Theme.accentFill : .clear,
                 in: RoundedRectangle(cornerRadius: 8)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .strokeBorder(tab == entry ? Theme.accentBorder : .clear, lineWidth: 0.5)
             )
             .padding(.horizontal, 8)
             .padding(.vertical, 1)
@@ -278,19 +282,26 @@ struct SettingsRootView: View {
     private var translationTab: some View {
         VStack(alignment: .leading, spacing: 16) {
             SettingsGroup(caption: "划词翻译") {
-                SettingsRow(title: "右键长按翻译", subtitle: "选中文字后，右键或双指按住触控板 2 秒") {
+                SettingsRow(title: "右键长按翻译", subtitle: "选中文字后，双指停留在妙控板上，或按住鼠标右键") {
                     Toggle("", isOn: Binding(get: { settings.selectionTranslationEnabled },
                         set: { settings.setSelectionTranslationEnabled($0) }))
                         .toggleStyle(.switch).labelsHidden()
+                }
+                SettingsDivider()
+                SettingsRow(title: "唤起时间", subtitle: "双指停留和鼠标右键共用，修改后立即生效") {
+                    Picker("唤起时间", selection: Binding(get: { settings.selectionHoldDelay },
+                        set: { settings.setSelectionHoldDelay($0) })) {
+                        ForEach(SelectionHoldDelay.allCases) { delay in Text(delay.label).tag(delay) }
+                    }.labelsHidden().frame(width: 160)
                 }
                 SettingsDivider()
                 VStack(alignment: .leading, spacing: 8) {
                     Text(selectionTranslation.status).font(.system(size: 12))
                     Text("最近操作：\(selectionTranslation.lastGestureDiagnostic)")
                         .font(.caption).foregroundStyle(Theme.secondary).textSelection(.enabled)
-                    Text("通过辅助功能读取选中文字，交给你配置的大模型翻译服务。仅在主动翻译时发送原文，不会自动复制，也不读取剪贴板。")
+                    Text("长按触发后，向源应用发送复制指令，读取本次复制的文字交给你配置的大模型翻译服务。不主动清空剪贴板，复制的文字会保留在剪贴板。")
                         .font(.caption).foregroundStyle(Theme.secondary)
-                    Text("短按在松开时显示原有右键菜单；移动会取消长按。不支持取词的应用仍可手动复制到翻译窗口。")
+                    Text("短按在松开时显示原有右键菜单；移动或滚动会取消长按。未返回新复制内容时不会使用已有剪贴板文字。")
                         .font(.caption).foregroundStyle(Theme.secondary)
                     HStack {
                         if !selectionTranslation.accessibilityGranted {

@@ -6,6 +6,7 @@ import SwiftUI
 
 @MainActor
 final class SelectionTranslationController: ObservableObject {
+    @Published private(set) var holdDelayLabel = "2 秒"
     @Published private(set) var status = "未开启"
     @Published private(set) var lastGestureDiagnostic = "尚未收到右键操作"
     @Published var pinned = false
@@ -41,7 +42,7 @@ final class SelectionTranslationController: ObservableObject {
         if gestureVerificationOnly {
             monitor.onHold = { [weak self] _, point in self?.showGestureVerification(at: point) }
         }
-        settingObservation = settings.$selectionTranslationEnabled.dropFirst().sink { [weak self] _ in
+        settingObservation = settings.$selectionTranslationEnabled.combineLatest(settings.$selectionHoldDelay).dropFirst().sink { [weak self] _ in
             Task { @MainActor in self?.refresh() }
         }
         activationObservation = NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didActivateApplicationNotification)
@@ -55,13 +56,15 @@ final class SelectionTranslationController: ObservableObject {
     }
 
     func refresh() {
+        holdDelayLabel = settings.selectionHoldDelay.label
+        monitor.setHoldDelay(settings.selectionHoldDelay)
         guard settings.selectionTranslationEnabled else {
             monitor.stop(); dismiss(); status = "未开启"; return
         }
         guard accessibilityGranted else {
             monitor.stop(); dismiss(); status = "需要辅助功能授权，授权后返回即可生效"; return
         }
-        status = monitor.start() ? "已开启 · 选中文字后右键长按 2 秒" : "无法启动鼠标监听，请检查系统授权后重试"
+        status = monitor.start() ? "已开启 · 双指停留或右键长按 \(holdDelayLabel)" : "无法启动鼠标监听，请检查系统授权后重试"
     }
 
     func requestAccessibility() {

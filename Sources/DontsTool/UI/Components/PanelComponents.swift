@@ -5,7 +5,7 @@ import SwiftUI
 struct LauncherPressStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .scaleEffect(configuration.isPressed && !Motion.reduceMotion ? 0.985 : 1)
+            .scaleEffect(configuration.isPressed && !Motion.reduceMotion ? 0.988 : 1)
             .animation(Motion.hoverEasing, value: configuration.isPressed)
     }
 }
@@ -35,12 +35,12 @@ struct ActionCapsule: View {
     var body: some View {
         HStack(spacing: 4) {
             Text(title)
-            Text("↵").font(.system(size: 10))
+            Text("↵").font(.system(size: 10, weight: .semibold))
         }
         .font(Theme.capsuleFont)
         .foregroundStyle(Theme.accent)
         .padding(.horizontal, 8)
-        .padding(.vertical, 4)
+        .padding(.vertical, 3)
         .background(Theme.accentFill, in: RoundedRectangle(cornerRadius: Metrics.capsuleCornerRadius))
         .overlay(
             RoundedRectangle(cornerRadius: Metrics.capsuleCornerRadius)
@@ -67,7 +67,7 @@ struct ShortcutTag: View {
     }
 }
 
-/// 32pt 图标块：应用/文件用系统图标，符号与字形用着色块。
+/// 26pt 紧凑图标块：应用/文件用系统图标，符号与字形用微玻璃着色块。
 struct IconTile: View {
     let icon: ItemIcon
 
@@ -78,14 +78,14 @@ struct IconTile: View {
                 Image(nsImage: FileIconImage.image(for: path))
                     .resizable()
                     .scaledToFit()
-                    .padding(2)
+                    .padding(1)
             case .symbol(let name, let tint):
                 Image(systemName: name)
-                    .font(.system(size: 16, weight: .regular))
+                    .font(.system(size: 13.5, weight: .medium))
                     .foregroundStyle(tint.style.foreground)
             case .glyph(let text, let tint):
                 Text(text)
-                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                    .font(.system(size: 10.5, weight: .bold, design: .monospaced))
                     .foregroundStyle(tint.style.foreground)
             }
         }
@@ -102,7 +102,7 @@ struct IconTile: View {
         case .symbol(_, let tint), .glyph(_, let tint):
             tint.style.background
         case .application, .file:
-            Theme.controlFill
+            Color.clear
         }
     }
 
@@ -111,7 +111,7 @@ struct IconTile: View {
         case .symbol(_, let tint), .glyph(_, let tint):
             tint.style.border
         default:
-            Theme.separator
+            Color.clear
         }
     }
 }
@@ -148,7 +148,7 @@ struct GroupHeader: View {
     }
 }
 
-/// 底栏：产品标识 + 实时状态 + 键位说明。
+/// 极简 32pt 玻璃底栏：品牌标识 + 实时状态 + 键位说明。
 struct PanelFooterView: View {
     let statusText: String?
     let isWarning: Bool
@@ -160,9 +160,9 @@ struct PanelFooterView: View {
         HStack(spacing: 6) {
             Circle()
                 .fill(Theme.accent)
-                .frame(width: 6, height: 6)
+                .frame(width: 5, height: 5)
             Text("DontsTool")
-                .font(Theme.footerFont)
+                .font(Theme.footerFont.weight(.medium))
                 .foregroundStyle(Theme.secondary)
             if let statusText {
                 Text("·")
@@ -175,30 +175,37 @@ struct PanelFooterView: View {
             }
             Spacer(minLength: 8)
             if isActionPanelOpen {
-                legend(keys: ["↑↓"], label: "选择操作")
-                Text("·").foregroundStyle(Theme.separator)
+                legend(keys: ["↑↓"], label: "选择")
+                dot
                 legend(keys: ["↵"], label: "执行")
-                Text("·").foregroundStyle(Theme.separator)
+                dot
                 legend(keys: ["esc"], label: "返回")
             } else {
                 legend(keys: ["↑↓"], label: "选择")
-                Text("·").foregroundStyle(Theme.separator)
+                dot
                 legend(keys: ["↵"], label: "执行")
-                Text("·").foregroundStyle(Theme.separator)
+                dot
                 Button { onShowActions?() } label: {
                     legend(keys: ["⌘K"], label: "操作")
                 }
-                .buttonStyle(.plain).disabled(!hasActions)
+                .buttonStyle(.plain)
+                .disabled(!hasActions)
                 .help("查看当前结果的所有操作（⌘K）")
                 .accessibilityLabel("查看所有操作")
-                Text("·").foregroundStyle(Theme.separator)
+                dot
                 legend(keys: ["esc"], label: "关闭")
             }
         }
         .padding(.horizontal, Metrics.panelHorizontalInset)
         .frame(height: Metrics.footerHeight)
         .background(Theme.footerBase)
-        .overlay(alignment: .top) { Theme.separator.frame(height: 1) }
+        .overlay(alignment: .top) { Theme.separator.frame(height: 0.5) }
+    }
+
+    private var dot: some View {
+        Text("·")
+            .font(Theme.footerFont)
+            .foregroundStyle(Theme.tertiary.opacity(0.6))
     }
 
     private func legend(keys: [String], label: String) -> some View {
@@ -213,7 +220,7 @@ struct PanelFooterView: View {
     }
 }
 
-/// ⌘K 动作面板：当前结果的全部操作，键盘与鼠标都可执行。
+/// ⌘K 动作面板：Liquid Glass 悬浮菜单。
 struct ActionPaletteView: View {
     let itemTitle: String
     let actions: [ItemAction]
@@ -222,21 +229,21 @@ struct ActionPaletteView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 1) {
                 Text("操作")
                     .font(Theme.sectionCaptionFont)
                     .foregroundStyle(Theme.tertiary)
                 if !itemTitle.isEmpty {
                     Text(itemTitle)
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.system(size: 11.5, weight: .medium))
                         .foregroundStyle(Theme.secondary)
                         .lineLimit(1)
                         .truncationMode(.tail)
                 }
             }
-            .padding(.horizontal, 10)
-            .padding(.top, 8)
-            .padding(.bottom, 6)
+            .padding(.horizontal, 8)
+            .padding(.top, 6)
+            .padding(.bottom, 4)
 
             ForEach(Array(actions.enumerated()), id: \.offset) { index, action in
                 ActionPaletteRow(
@@ -246,19 +253,19 @@ struct ActionPaletteView: View {
                 )
             }
         }
-        .padding(6)
-        .frame(width: 252, alignment: .leading)
+        .padding(5)
+        .frame(width: 244, alignment: .leading)
         .background {
             RoundedRectangle(cornerRadius: 12)
                 .fill(.regularMaterial)
             RoundedRectangle(cornerRadius: 12)
-                .fill(Theme.panelBase)
+                .fill(Theme.popoverBase)
         }
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(Theme.panelBorder, lineWidth: 1)
+                .strokeBorder(Theme.panelBorder, lineWidth: 0.5)
         )
-        .shadow(color: .black.opacity(0.16), radius: 16, y: 8)
+        .shadow(color: .black.opacity(0.20), radius: 18, y: 8)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("操作")
     }
@@ -272,25 +279,25 @@ private struct ActionPaletteRow: View {
 
     var body: some View {
         Button(action: onExecute) {
-            HStack(spacing: 10) {
+            HStack(spacing: 8) {
                 Image(systemName: action.symbol ?? "circle")
-                    .font(.system(size: 13))
-                    .frame(width: 18)
+                    .font(.system(size: 12.5))
+                    .frame(width: 16)
                     .foregroundStyle(isSelected ? Theme.onSelectionAccent : Theme.secondary)
                 Text(action.title)
-                    .font(.system(size: 13, weight: isSelected ? .medium : .regular))
+                    .font(.system(size: 12.5, weight: isSelected ? .medium : .regular))
                     .foregroundStyle(isSelected ? Theme.onSelectionAccent : Theme.ink)
                 Spacer(minLength: 8)
                 if isSelected {
                     Text("↵")
-                        .font(.system(size: 11, design: .monospaced))
-                        .foregroundStyle(Theme.onSelectionAccent.opacity(0.8))
+                        .font(.system(size: 10.5, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(Theme.onSelectionAccent.opacity(0.85))
                 }
             }
-            .padding(.horizontal, 10)
-            .frame(height: 34)
-            .background(rowBackground, in: RoundedRectangle(cornerRadius: 8))
-            .contentShape(RoundedRectangle(cornerRadius: 8))
+            .padding(.horizontal, 8)
+            .frame(height: 30)
+            .background(rowBackground, in: RoundedRectangle(cornerRadius: 7))
+            .contentShape(RoundedRectangle(cornerRadius: 7))
         }
         .buttonStyle(LauncherPressStyle())
         .onHover { isHovered = $0 }
@@ -306,28 +313,33 @@ private struct ActionPaletteRow: View {
     }
 }
 
-/// 复制/执行反馈 Toast：非模态，自动消失。
+/// 复制/执行反馈 Toast：悬浮毛玻璃胶囊。
 struct ToastView: View {
     let message: String
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 7) {
             Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 15))
+                .font(.system(size: 14))
                 .foregroundStyle(Theme.success)
             Text(message)
-                .font(.system(size: 12))
+                .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(Theme.ink)
                 .lineLimit(2)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .background(Theme.toastBackground, in: RoundedRectangle(cornerRadius: Metrics.toastCornerRadius))
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background {
+            RoundedRectangle(cornerRadius: Metrics.toastCornerRadius)
+                .fill(.regularMaterial)
+            RoundedRectangle(cornerRadius: Metrics.toastCornerRadius)
+                .fill(Theme.toastBackground)
+        }
         .overlay(
             RoundedRectangle(cornerRadius: Metrics.toastCornerRadius)
-                .strokeBorder(Theme.toastBorder, lineWidth: 1)
+                .strokeBorder(Theme.toastBorder, lineWidth: 0.5)
         )
-        .shadow(color: .black.opacity(0.10), radius: 12, y: 6)
+        .shadow(color: .black.opacity(0.14), radius: 12, y: 6)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(message)
         .accessibilityAddTraits(.isStaticText)

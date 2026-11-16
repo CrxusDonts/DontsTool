@@ -1,7 +1,7 @@
 import DontsToolCore
 import SwiftUI
 
-/// 单条搜索结果：图标块 + 标题/副标题 + 动作胶囊或关键词标签。
+/// 单条紧凑搜索结果：26pt 图标块 + 标题/环境徽章/副标题 + 动作胶囊或快捷键标签。
 struct ResultRowView: View {
     let item: SearchItem
     let keyword: String?
@@ -13,31 +13,38 @@ struct ResultRowView: View {
     @State private var isHovered = false
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 6) {
             Button(action: onExecute) {
                 HStack(spacing: Metrics.rowIconSpacing) {
                     IconTile(icon: item.icon)
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: 1) {
                         HStack(spacing: 6) {
                             Text(item.title)
                                 .font(Theme.rowTitleFont)
                                 .foregroundStyle(Theme.ink)
                                 .lineLimit(1)
                                 .truncationMode(.tail)
-                                .frame(minWidth: 40, alignment: .leading)
+                                .frame(minWidth: 36, alignment: .leading)
                             if let badge = item.badge {
-                                Text(badge.text)
-                                    .font(.system(size: 10, weight: .medium))
-                                    .lineLimit(1).truncationMode(.tail)
-                                    .foregroundStyle(badge.tint.style.foreground)
-                                    .padding(.horizontal, 5).padding(.vertical, 2)
-                                    .frame(maxWidth: 132)
-                                    .fixedSize(horizontal: true, vertical: true)
-                                    .background(badge.tint.style.background, in: RoundedRectangle(cornerRadius: 4))
-                                    .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(badge.tint.style.border, lineWidth: 0.5))
-                                    .layoutPriority(1)
-                                    .help(badge.text)
-                                    .accessibilityHidden(true)
+                                HStack(spacing: 4) {
+                                    Circle()
+                                        .fill(badge.tint.style.foreground)
+                                        .frame(width: 5, height: 5)
+                                    Text(badge.text)
+                                        .font(.system(size: 10, weight: .medium))
+                                        .lineLimit(1)
+                                        .truncationMode(.tail)
+                                }
+                                .foregroundStyle(badge.tint.style.foreground)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 1.5)
+                                .frame(maxWidth: 132)
+                                .fixedSize(horizontal: true, vertical: true)
+                                .background(badge.tint.style.background, in: Capsule())
+                                .overlay(Capsule().strokeBorder(badge.tint.style.border, lineWidth: 0.5))
+                                .layoutPriority(1)
+                                .help(badge.text)
+                                .accessibilityHidden(true)
                             }
                         }
                         if let subtitle = item.subtitle, !subtitle.isEmpty {
@@ -50,7 +57,7 @@ struct ResultRowView: View {
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    trailing.frame(width: 88, alignment: .trailing)
+                    trailing.frame(width: 84, alignment: .trailing)
                 }
                 .frame(height: Metrics.rowHeight)
                 .contentShape(Rectangle())
@@ -62,9 +69,9 @@ struct ResultRowView: View {
             if let action = fileSecondaryAction, let onSecondaryExecute {
                 Button(action: onSecondaryExecute) {
                     Image(systemName: action.symbol ?? "folder")
-                        .font(.system(size: 13))
+                        .font(.system(size: 12))
                         .foregroundStyle(Theme.accent)
-                        .frame(width: 28, height: 28)
+                        .frame(width: 24, height: 24)
                         .background(Theme.controlFill, in: RoundedRectangle(cornerRadius: 6))
                 }
                 .buttonStyle(LauncherPressStyle())
@@ -121,10 +128,15 @@ struct LauncherSelectionSurface: View {
     var body: some View {
         RoundedRectangle(cornerRadius: Metrics.rowCornerRadius)
             .fill(Theme.selection)
-            .overlay(RoundedRectangle(cornerRadius: Metrics.rowCornerRadius)
-                .strokeBorder(Theme.selectionBorder, lineWidth: 1))
+            .overlay(
+                RoundedRectangle(cornerRadius: Metrics.rowCornerRadius)
+                    .strokeBorder(Theme.selectionBorder, lineWidth: 0.5)
+            )
             .overlay(alignment: .leading) {
-                Capsule().fill(Theme.accent).frame(width: 3, height: 20).padding(.leading, 1)
+                Capsule()
+                    .fill(Theme.accent)
+                    .frame(width: 2.5, height: 18)
+                    .padding(.leading, 2)
             }
     }
 }

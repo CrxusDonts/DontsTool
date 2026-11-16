@@ -10,6 +10,23 @@ struct SettingsStoreTests {
         return (UserDefaults(suiteName: name)!, name)
     }
 
+    @Test(arguments: SelectionHoldDelay.allCases)
+    func holdDelayPersists(_ delay: SelectionHoldDelay) {
+        let (defaults, name) = makeDefaults()
+        defer { defaults.removePersistentDomain(forName: name) }
+        let store = SettingsStore(defaults: defaults)
+        store.setSelectionHoldDelay(delay)
+        #expect(store.selectionHoldDelay == delay)
+        #expect(SettingsStore(defaults: defaults).selectionHoldDelay == delay)
+    }
+
+    @Test func unknownHoldDelayUsesExistingTwoSecondDefault() {
+        let (defaults, name) = makeDefaults()
+        defer { defaults.removePersistentDomain(forName: name) }
+        defaults.set(-1, forKey: "dontstool.selectionHoldDelay")
+        #expect(SettingsStore(defaults: defaults).selectionHoldDelay == .seconds2)
+    }
+
     @Test func defaultsAreStable() {
         let (defaults, name) = makeDefaults()
         defer { defaults.removePersistentDomain(forName: name) }

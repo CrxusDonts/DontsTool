@@ -5,6 +5,164 @@ import Testing
 @Suite("Right press event routing", .serialized)
 @MainActor
 struct RightPressMonitorTests {
+    @Test func twoFingerContactCanReadWithoutAnyMouseDownOrHIDButtonState() async {
+        let fixture = RightPressFixture()
+        fixture.buttonDown = false
+        let monitor = fixture.monitor()
+        monitor.handleTrackpad(1, action: .began)
+        fixture.now = 2
+        monitor.handleTrackpad(1, action: .triggered)
+        await settle()
+        #expect(fixture.readingCards == 1)
+        #expect(fixture.reads == 1)
+        #expect(fixture.replayed.isEmpty)
+        monitor.stop()
+    }
+
+    @Test func rawHoldCommitsAPendingSecondaryClickEvenWhenHIDReportsReleased() async {
+        let fixture = RightPressFixture()
+        fixture.buttonDown = false
+        let monitor = fixture.monitor()
+        monitor.handleTrackpad(1, action: .began)
+        #expect(!monitor.handle(.rightMouseDown, event: fixture.event(.rightMouseDown), proxy: nil))
+        await settle()
+        fixture.now = 2
+        monitor.handleTrackpad(1, action: .triggered)
+        fixture.hold.release()
+        await settle()
+        #expect(fixture.reads == 1)
+        #expect(!monitor.handle(.rightMouseUp, event: fixture.event(.rightMouseUp), proxy: nil))
+        #expect(fixture.replayed.isEmpty)
+        monitor.stop()
+    }
+
+    @Test func cancelledTouchCannotTriggerOrStealTheNextNativeClick() async {
+        let fixture = RightPressFixture()
+        let monitor = fixture.monitor()
+        monitor.handleTrackpad(1, action: .began)
+        monitor.handleTrackpad(1, action: .cancelled)
+        fixture.now = 2
+        monitor.handleTrackpad(1, action: .triggered)
+        await settle()
+        #expect(fixture.reads == 0)
+        #expect(!monitor.handle(.rightMouseDown, event: fixture.event(.rightMouseDown), proxy: nil))
+        fixture.now = 2.1
+        #expect(monitor.handle(.rightMouseUp, event: fixture.event(.rightMouseUp), proxy: nil))
+        #expect(fixture.replayed == [.rightMouseDown])
+        monitor.stop()
+    }
+
+    @Test func shortSecondaryClickCancelsTheRemainingContactHold() async {
+        let fixture = RightPressFixture()
+        let monitor = fixture.monitor()
+        monitor.handleTrackpad(1, action: .began)
+        _ = monitor.handle(.rightMouseDown, event: fixture.event(.rightMouseDown), proxy: nil)
+        fixture.now = 0.15
+        #expect(monitor.handle(.rightMouseUp, event: fixture.event(.rightMouseUp), proxy: nil))
+        fixture.now = 2
+        monitor.handleTrackpad(1, action: .triggered)
+        await settle()
+        #expect(fixture.reads == 0)
+        #expect(fixture.replayed == [.rightMouseDown])
+        monitor.stop()
+    }
+
+    @Test func triggeredContactConsumesATapGeneratedOnLiftButNotLaterClicks() async {
+        let fixture = RightPressFixture()
+        let monitor = fixture.monitor()
+        monitor.handleTrackpad(1, action: .began)
+        fixture.now = 2
+        monitor.handleTrackpad(1, action: .triggered)
+        monitor.handleTrackpad(1, action: .ended)
+        #expect(!monitor.handle(.rightMouseDown, event: fixture.event(.rightMouseDown), proxy: nil))
+        #expect(!monitor.handle(.rightMouseUp, event: fixture.event(.rightMouseUp), proxy: nil))
+        fixture.now = 3
+        #expect(!monitor.handle(.rightMouseDown, event: fixture.event(.rightMouseDown), proxy: nil))
+        fixture.now = 3.15
+        #expect(monitor.handle(.rightMouseUp, event: fixture.event(.rightMouseUp), proxy: nil))
+        #expect(fixture.replayed == [.rightMouseDown])
+        monitor.stop()
+    }
+
+    @Test func touchHoldCannotCrossApplicationsOrDevices() async {
+        let fixture = RightPressFixture()
+        let monitor = fixture.monitor()
+        monitor.handleTrackpad(1, action: .began)
+        fixture.now = 2
+        monitor.handleTrackpad(2, action: .triggered)
+        fixture.frontmost = 99
+        monitor.handleTrackpad(1, action: .triggered)
+        await settle()
+        #expect(fixture.reads == 0)
+        monitor.stop()
+    }
+
+    @Test func smallTrackpadScrollNoiseIsToleratedButAccumulatedScrollingCancels() async throws {
+        for steps in [1, 8] {
+            let fixture = RightPressFixture()
+            let monitor = fixture.monitor()
+            monitor.handleTrackpad(1, action: .began)
+            _ = monitor.handle(.rightMouseDown, event: fixture.event(.rightMouseDown), proxy: nil)
+            await settle()
+            let scroll = try #require(CGEvent(scrollWheelEvent2Source: nil, units: .pixel,
+                wheelCount: 2, wheel1: 1, wheel2: 0, wheel3: 0))
+            for _ in 0..<steps { _ = monitor.handle(.scrollWheel, event: scroll, proxy: nil) }
+            fixture.now = 2
+            monitor.handleTrackpad(1, action: .triggered)
+            await settle()
+            #expect(fixture.reads == (steps == 1 ? 1 : 0))
+            #expect(monitor.handle(.rightMouseUp, event: fixture.event(.rightMouseUp), proxy: nil) == (steps > 1))
+            monitor.stop()
+        }
+    }
+
+    @Test func rawAndMouseHoldDeadlinesCannotReadTwice() async {
+        let fixture = RightPressFixture()
+        let monitor = fixture.monitor()
+        monitor.handleTrackpad(1, action: .began)
+        _ = monitor.handle(.rightMouseDown, event: fixture.event(.rightMouseDown), proxy: nil)
+        await settle()
+        fixture.now = 2
+        fixture.hold.release()
+        await settle()
+        monitor.handleTrackpad(1, action: .triggered)
+        await settle()
+        #expect(fixture.reads == 1)
+        #expect(fixture.readingCards == 1)
+        monitor.stop()
+    }
+
+    @Test(arguments: SelectionHoldDelay.allCases)
+    func configuredDelayReachesTheNativeTimer(_ delay: SelectionHoldDelay) async {
+        let fixture = RightPressFixture()
+        let monitor = fixture.monitor()
+        monitor.setHoldDelay(delay)
+        _ = monitor.handle(.rightMouseDown, event: fixture.event(.rightMouseDown), proxy: nil)
+        await settle()
+        #expect(fixture.requestedDelays == [delay.seconds])
+        fixture.now = delay.seconds
+        fixture.hold.release()
+        await settle()
+        #expect(fixture.reads == 1)
+        #expect(!monitor.handle(.rightMouseUp, event: fixture.event(.rightMouseUp), proxy: nil))
+        monitor.stop()
+    }
+
+    @Test func durationChangeCancelsAnInFlightPressAndRestoresItsNativePair() async {
+        let fixture = RightPressFixture()
+        let monitor = fixture.monitor()
+        _ = monitor.handle(.rightMouseDown, event: fixture.event(.rightMouseDown), proxy: nil)
+        await settle()
+        monitor.setHoldDelay(.milliseconds300)
+        fixture.now = 2
+        fixture.hold.release()
+        await settle()
+        #expect(fixture.reads == 0)
+        #expect(fixture.replayed == [.rightMouseDown])
+        #expect(monitor.handle(.rightMouseUp, event: fixture.event(.rightMouseUp), proxy: nil))
+        monitor.stop()
+    }
+
     @Test func timedOutTapRecoversAndCanAcceptAnotherHold() async {
         let fixture = RightPressFixture()
         let monitor = fixture.monitor()
@@ -458,6 +616,7 @@ private final class RightPressFixture {
     var buttonDown = true
     var frontmost: pid_t? = 42
     var window: CGWindowID? = 7
+    var requestedDelays: [TimeInterval] = []
     var recoveryAttempts = 0
     var recoverySucceeds = true
     var reads = 0
@@ -472,9 +631,10 @@ private final class RightPressFixture {
             buttonIsDown: { self.buttonDown }, frontmostPID: { self.frontmost },
             foregroundWindow: { _, _ in self.window },
             readSelection: { _, _ in self.reads += 1; await self.read.wait(); return self.reading },
-            waitForHold: { await self.hold.wait() },
+            waitForHold: { delay in self.requestedDelays.append(delay); await self.hold.wait() },
             waitForReadTimeout: { await self.timeout.wait() },
             restore: { event, _, _, _, _ in self.replayed.append(event.type); return true })
+        environment.pointerEvent = { self.event(.mouseMoved) }
         environment.resumeTap = { _ in self.recoveryAttempts += 1; return self.recoverySucceeds }
         let monitor = RightPressMonitor(environment: environment)
         monitor.onTranslate = { _, _ in self.translations += 1 }

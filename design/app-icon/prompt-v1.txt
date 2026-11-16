@@ -1,0 +1,11 @@
+Generated with the built-in image_gen tool. Used by Resources/AppIcon.icns.
+
+Use case: logo-brand.
+Asset type: a single refined macOS application icon concept for DontsTool, a native developer productivity launcher used for searching apps/files, launching commands, and text utilities. This is the app icon itself, not a promotional mockup or presentation board.
+Primary request: Design an original, memorable icon combining an abstract capital D silhouette with a command-prompt/quick-launch gesture through bold negative space. One cohesive sculptural symbol, not multiple pictograms. The shape should have the calm confidence and precise proportions of a finely designed native desktop utility.
+Scene/backdrop: a dark graphite rounded-square macOS icon tile, front facing orthographic, centered, occupies about 88% of square canvas. Transparent outside the tile.
+Subject: a thick mint-green geometric D-like continuous ribbon; a crisp small forward-pointing command chevron is subtly carved into its interior negative space, communicating quick invocation. Large silhouette, exceptionally simple, visually balanced, generous breathing room.
+Style/medium: restrained dimensional vector-like industrial design, shallow soft bevels, satin enamel finish, very subtle top-left lighting, precise edges, sophisticated and understated. Only one dominant mark, legible at 32px.
+Color palette from the app's existing UI: dark graphite #252C2F, mint #6CD4BD with a restrained pale mint highlight and deeper teal #18786F in the shallow bevel. No additional accent colors.
+Composition/framing: square 1024x1024 image, front-on, no perspective, center mark approximately 58% canvas width. No text, no wordmark, no labels, no caption, no watermark.
+Constraints: no tools/wrench/gear collage, no magnifying-glass cliché, no sparkles, no circuit lines, no outer glow, no glossy plastic, no busy gradients, no small details, no text beneath the icon. Output exactly one icon, not a contact sheet. True transparent corners outside the dark rounded-square tile.

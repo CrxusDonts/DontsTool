@@ -6,6 +6,17 @@ import Testing
 @Suite("划词翻译原生卡片", .serialized)
 @MainActor
 struct SelectionTranslationTests {
+    @Test func changingHoldDelayUpdatesTheActiveControllerWithoutRestart() async throws {
+        let (settings, defaults, name) = makeSettings()
+        defer { defaults.removePersistentDomain(forName: name) }
+        _ = NSApplication.shared
+        let controller = SelectionTranslationController(settings: settings, translator: ImmediateSelectionTranslator())
+        defer { controller.shutdown() }
+        settings.setSelectionHoldDelay(.milliseconds300)
+        try await until { controller.holdDelayLabel == "300 ms" }
+        #expect(controller.holdDelayLabel == "300 ms")
+    }
+
     @Test func applicationChangeDismissesOnlyVisibleUnpinnedCard() async throws {
         let (settings, defaults, name) = makeSettings()
         defer { defaults.removePersistentDomain(forName: name) }
@@ -128,7 +139,7 @@ struct SelectionTranslationTests {
                     await withCheckedContinuation { readContinuation = $0 }
                     readReturned = true
                     return SelectionReading(text: "late closed selection", diagnostic: "已读取选区")
-                }, waitForHold: { now = 2 }, waitForReadTimeout: { try await Task.sleep(for: .seconds(3)) },
+                }, waitForHold: { _ in now = 2 }, waitForReadTimeout: { try await Task.sleep(for: .seconds(3)) },
                 restore: { _, _, _, _, _ in Issue.record("A committed translation hold must not replay native events"); return false }))
             let controller = SelectionTranslationController(settings: settings, translator: translator, monitor: monitor)
             defer { controller.shutdown() }

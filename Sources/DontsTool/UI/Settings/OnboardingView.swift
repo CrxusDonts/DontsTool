@@ -1,7 +1,7 @@
 import DontsToolCore
 import SwiftUI
 
-/// 首次运行引导：说明热键、菜单栏与权限边界（spec 6.5）。
+/// 首次运行引导：Liquid Glass 卡片说明热键、菜单栏与权限边界。
 struct OnboardingView: View {
     let hotKeyDisplay: String
     let onOpenSettings: () -> Void
@@ -11,25 +11,25 @@ struct OnboardingView: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(spacing: 10) {
                 Text("DT")
-                    .font(.system(size: 14, weight: .bold))
+                    .font(.system(size: 13, weight: .bold))
                     .foregroundStyle(Theme.accent)
-                    .frame(width: 32, height: 32)
+                    .frame(width: 30, height: 30)
                     .background(Theme.accentFill, in: RoundedRectangle(cornerRadius: 8))
                     .overlay(
                         RoundedRectangle(cornerRadius: 8)
-                            .strokeBorder(Theme.accentBorder, lineWidth: 1)
+                            .strokeBorder(Theme.accentBorder, lineWidth: 0.5)
                     )
                 VStack(alignment: .leading, spacing: 2) {
                     Text("欢迎使用 DontsTool")
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(.system(size: 15.5, weight: .semibold))
                         .foregroundStyle(Theme.ink)
-                    Text("个人自用的原生 macOS 效率启动器")
-                        .font(.system(size: 12))
+                    Text("原生 macOS 效率启动器")
+                        .font(.system(size: 11.5))
                         .foregroundStyle(Theme.secondary)
                 }
             }
 
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 9) {
                 bullet("按 \(hotKeyDisplay) 呼出或隐藏启动器面板。")
                 bullet("菜单栏图标可打开面板、设置与重新扫描应用。")
                 bullet("文件搜索使用本机 Spotlight 索引，不会上传内容。")
@@ -45,14 +45,21 @@ struct OnboardingView: View {
                         .foregroundStyle(Theme.onAccent)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 6)
-                        .background(Theme.accent, in: RoundedRectangle(cornerRadius: 6))
+                        .background(Theme.accent, in: Capsule())
                 }
                 .buttonStyle(.plain)
             }
         }
         .padding(20)
-        .frame(width: 420)
-        .background(Theme.panelBase.opacity(0.85), in: RoundedRectangle(cornerRadius: 12))
+        .frame(width: 410)
+        .background {
+            RoundedRectangle(cornerRadius: 14).fill(.ultraThinMaterial)
+            RoundedRectangle(cornerRadius: 14).fill(Theme.panelBase)
+        }
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .strokeBorder(Theme.panelBorder, lineWidth: 0.5)
+        )
     }
 
     private func bullet(_ text: String) -> some View {
@@ -60,7 +67,7 @@ struct OnboardingView: View {
             Circle()
                 .fill(Theme.accent)
                 .frame(width: 5, height: 5)
-                .padding(.top, 6)
+                .padding(.top, 5)
             Text(text)
                 .font(.system(size: 12))
                 .foregroundStyle(Theme.secondary)

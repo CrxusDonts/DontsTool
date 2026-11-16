@@ -1,25 +1,25 @@
 import DontsToolCore
 import SwiftUI
 
-/// 设置分组：标题 + 圆角卡片行。
+/// 设置分组：标题 + Liquid Glass 圆角卡片行。
 struct SettingsGroup<Content: View>: View {
     let caption: String
     @ViewBuilder let content: Content
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
             Text(caption)
                 .font(Theme.sectionCaptionFont)
                 .foregroundStyle(Theme.tertiary)
                 .textCase(.uppercase)
-                .padding(.horizontal, 2)
+                .padding(.horizontal, 4)
             VStack(spacing: 0) {
                 content
             }
-            .background(Theme.panelBase.opacity(0.6), in: RoundedRectangle(cornerRadius: Metrics.settingsGroupCornerRadius))
+            .background(Theme.glassCardFill, in: RoundedRectangle(cornerRadius: Metrics.settingsGroupCornerRadius))
             .overlay(
                 RoundedRectangle(cornerRadius: Metrics.settingsGroupCornerRadius)
-                    .strokeBorder(Theme.separator, lineWidth: 1)
+                    .strokeBorder(Theme.glassCardBorder, lineWidth: 0.5)
             )
         }
     }
@@ -32,7 +32,7 @@ struct SettingsRow<Control: View>: View {
     @ViewBuilder let control: Control
 
     var body: some View {
-        HStack(alignment: .center, spacing: 16) {
+        HStack(alignment: .center, spacing: 14) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(Theme.settingTitleFont)
@@ -47,14 +47,14 @@ struct SettingsRow<Control: View>: View {
             control
         }
         .padding(.horizontal, 14)
-        .padding(.vertical, 10)
+        .padding(.vertical, 9)
     }
 }
 
-/// 行与行之间的细分隔线。
+/// 行与行之间的极细分隔线。
 struct SettingsDivider: View {
     var body: some View {
-        Theme.separator.frame(height: 1)
+        Theme.separator.frame(height: 0.5)
     }
 }
 
@@ -69,15 +69,20 @@ struct SettingsBadge: View {
     }
 
     var body: some View {
-        Text(text)
-            .font(.system(size: 11, weight: .medium))
-            .foregroundStyle(tone == .success ? Theme.success : Theme.secondary)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(
-                (tone == .success ? Theme.success : Theme.secondary).opacity(0.10),
-                in: RoundedRectangle(cornerRadius: 6)
-            )
+        HStack(spacing: 5) {
+            Circle()
+                .fill(tone == .success ? Theme.success : Theme.secondary)
+                .frame(width: 5, height: 5)
+            Text(text)
+        }
+        .font(.system(size: 11, weight: .medium))
+        .foregroundStyle(tone == .success ? Theme.success : Theme.secondary)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 3.5)
+        .background(
+            (tone == .success ? Theme.success : Theme.secondary).opacity(0.12),
+            in: Capsule()
+        )
     }
 }
 
@@ -101,10 +106,10 @@ struct SettingsTextField: View {
         .foregroundStyle(Theme.ink)
         .padding(.horizontal, 8)
         .padding(.vertical, 5)
-        .background(Theme.controlFill, in: RoundedRectangle(cornerRadius: 6))
+        .background(Theme.controlFill, in: RoundedRectangle(cornerRadius: 7))
         .overlay(
-            RoundedRectangle(cornerRadius: 6)
-                .strokeBorder(Theme.controlBorder, lineWidth: 1)
+            RoundedRectangle(cornerRadius: 7)
+                .strokeBorder(Theme.controlBorder, lineWidth: 0.5)
         )
         .frame(width: 260)
         .onSubmit { onSubmit?() }
@@ -124,10 +129,10 @@ struct SettingsButton: View {
                 .fixedSize()
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
-                .background(Theme.controlFill, in: RoundedRectangle(cornerRadius: 6))
+                .background(Theme.controlFill, in: RoundedRectangle(cornerRadius: 7))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 6)
-                        .strokeBorder(Theme.controlBorder, lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 7)
+                        .strokeBorder(Theme.controlBorder, lineWidth: 0.5)
                 )
         }
         .buttonStyle(.plain)

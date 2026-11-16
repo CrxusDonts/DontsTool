@@ -125,6 +125,7 @@ public final class SettingsStore: ObservableObject {
         static let translationTarget = "dontstool.translationTarget"
         static let translationAPIBaseURL = "dontstool.translationAPIBaseURL"
         static let translationAPIModel = "dontstool.translationAPIModel"
+        static let selectionHoldDelay = "dontstool.selectionHoldDelay"
         static let selectionTranslationEnabled = "dontstool.selectionTranslationEnabled"
         static let knowledgeProviderMigrationCompleted = "dontstool.knowledgeProviderMigrationCompleted"
         static let builtInProviderDefaultsV2Completed = "dontstool.builtInProviderDefaultsV2Completed"
@@ -143,6 +144,7 @@ public final class SettingsStore: ObservableObject {
     @Published public private(set) var translationTarget: String
     @Published public private(set) var translationAPIBaseURL: String
     @Published public private(set) var translationAPIModel: String
+    @Published public private(set) var selectionHoldDelay: SelectionHoldDelay
     @Published public private(set) var selectionTranslationEnabled: Bool
     @Published public private(set) var knowledgeBaseURL: String
     @Published public private(set) var hasCompletedOnboarding: Bool
@@ -213,6 +215,7 @@ public final class SettingsStore: ObservableObject {
         translationTarget = defaults.string(forKey: Key.translationTarget) ?? fallbackTarget
         translationAPIBaseURL = defaults.string(forKey: Key.translationAPIBaseURL) ?? ""
         translationAPIModel = defaults.string(forKey: Key.translationAPIModel) ?? ""
+        selectionHoldDelay = SelectionHoldDelay(rawValue: defaults.integer(forKey: Key.selectionHoldDelay)) ?? .seconds2
         selectionTranslationEnabled = defaults.bool(forKey: Key.selectionTranslationEnabled)
         knowledgeBaseURL = defaults.string(forKey: Key.knowledgeBaseURL) ?? ""
         hasCompletedOnboarding = defaults.bool(forKey: Key.hasCompletedOnboarding)
@@ -266,6 +269,11 @@ public final class SettingsStore: ObservableObject {
     public func setTranslationAPIModel(_ model: String) {
         translationAPIModel = model
         defaults.set(model, forKey: Key.translationAPIModel)
+    }
+
+    public func setSelectionHoldDelay(_ delay: SelectionHoldDelay) {
+        selectionHoldDelay = delay
+        defaults.set(delay.rawValue, forKey: Key.selectionHoldDelay)
     }
 
     public func setSelectionTranslationEnabled(_ enabled: Bool) {

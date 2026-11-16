@@ -12,7 +12,8 @@ public struct RightPressGesture: Sendable {
     private var startedAt: TimeInterval = 0
     private var origin = CGPoint.zero
 
-    public init() {}
+    private let duration: TimeInterval
+    public init(holdDuration: TimeInterval = 2) { duration = holdDuration.isFinite && holdDuration > 0 ? holdDuration : 2 }
 
     public mutating func down(at time: TimeInterval, point: CGPoint) -> Action {
         phase = .waiting; startedAt = time; origin = point
@@ -21,11 +22,17 @@ public struct RightPressGesture: Sendable {
 
     public mutating func advance(at time: TimeInterval, buttonIsDown: Bool = true) -> Action {
         guard phase == .waiting else { return phase == .triggered ? .hold : .forward }
-        if buttonIsDown, time - startedAt >= Self.holdDuration {
-            phase = .triggered
-            return .translate
+        if buttonIsDown, time - startedAt >= duration {
+            return commitHold()
         }
         return .hold
+    }
+
+    /// A separately verified two-finger hold can commit the same suppressed mouse pair.
+    public mutating func commitHold() -> Action {
+        guard phase == .waiting else { return .forward }
+        phase = .triggered
+        return .translate
     }
 
     public mutating func move(to point: CGPoint) -> Action {

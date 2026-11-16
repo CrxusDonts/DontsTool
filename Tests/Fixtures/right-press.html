@@ -11,12 +11,22 @@ pre { font: 14px/1.5 ui-monospace, monospace; white-space: pre-wrap; max-height:
 <h1>DontsTool 右键验收</h1>
 <p>短按显示浏览器菜单；长按两秒显示应用测试卡片。</p>
 <p id="target">Hello world. This is public text for testing a right-button hold.</p>
+<button id="select">选中测试单词 Hello</button>
 <pre id="events">尚未收到鼠标事件</pre>
 <script>
+document.querySelector('#select').addEventListener('click', () => {
+  const range = document.createRange();
+  range.setStart(document.querySelector('#target').firstChild, 0);
+  range.setEnd(document.querySelector('#target').firstChild, 5);
+  const selection = window.getSelection();
+  selection.removeAllRanges();
+  selection.addRange(range);
+});
 window.pressEvents = [];
 for (const type of ['mousedown', 'mouseup', 'contextmenu']) {
-  document.querySelector('#target').addEventListener(type, event => {
-    window.pressEvents.push({type, button: event.button, trusted: event.isTrusted,
+  document.addEventListener(type, event => {
+    window.pressEvents.push({type, button: event.button, trusted: event.isTrusted, target: event.target.id,
+      x: Math.round(event.clientX), y: Math.round(event.clientY),
       milliseconds: Math.round(performance.now())});
     document.querySelector('#events').textContent = JSON.stringify(window.pressEvents, null, 2);
   });

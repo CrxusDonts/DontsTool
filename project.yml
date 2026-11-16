@@ -35,6 +35,8 @@ targets:
     platform: macOS
     sources:
       - path: Sources/DontsTool
+      - path: Resources/AppIcon.icns
+        buildPhase: resources
     dependencies:
       - target: DontsToolCore
     settings:

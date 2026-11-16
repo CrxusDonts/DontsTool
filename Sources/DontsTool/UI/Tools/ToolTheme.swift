@@ -1,24 +1,26 @@
 import AppKit
 import SwiftUI
 
-/// Workspace surfaces are intentionally separate from the compact launcher palette.
+/// 独立工具窗口与划词浮卡的配色令牌：与 Liquid Glass 系统对齐。
 enum ToolTheme {
     static func adaptive(_ light: UInt32, _ dark: UInt32) -> NSColor {
         NSColor(name: nil) { $0.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? Theme.hexColor(dark) : Theme.hexColor(light) }
     }
-    static let shellNS = adaptive(0xE7E5DF, 0x282D30)
-    static let toolbarNS = adaptive(0xEAE8E2, 0x2B3034)
-    static let workspaceNS = adaptive(0xEFEEE9, 0x24282B)
-    static let editorNS = adaptive(0xF7F5F0, 0x1D2225)
-    static let gutterNS = adaptive(0xEEEBE4, 0x20272B)
-    static let inkNS = adaptive(0x252B2D, 0xE8ECEB)
-    static let secondaryNS = adaptive(0x66716E, 0x9DAAA7)
-    static let borderNS = adaptive(0xD1D1C9, 0x3B4548)
-    static let accentNS = adaptive(0x18786F, 0x6CD4BD)
-    static let stringNS = adaptive(0xA65B3E, 0xE4B28B)
-    static let numberNS = adaptive(0x765CAD, 0xB6A4DF)
-    static let keyNS = adaptive(0x18786F, 0x8BCDBB)
-    static let modifiedNS = adaptive(0xF5EACD, 0x403A2C)
+
+    static let shellNS = adaptive(0xF1F5F9, 0x161922)
+    static let toolbarNS = adaptive(0xF8FAFC, 0x1B1F2A)
+    static let workspaceNS = adaptive(0xF1F5F9, 0x12151C)
+    static let editorNS = adaptive(0xFFFFFF, 0x0F1218)
+    static let gutterNS = adaptive(0xF8FAFC, 0x13171F)
+    static let inkNS = adaptive(0x0F172A, 0xF1F5F9)
+    static let secondaryNS = adaptive(0x475569, 0x94A3B8)
+    static let borderNS = adaptive(0xE2E8F0, 0x262C3A)
+    static let accentNS = adaptive(0x0A84FF, 0x38BDF8)
+    static let stringNS = adaptive(0x059669, 0x34D399)
+    static let numberNS = adaptive(0xD97706, 0xFBBF24)
+    static let keyNS = adaptive(0x0369A1, 0x7DD3FC)
+    static let modifiedNS = adaptive(0xFEF3C7, 0x3B3018)
+
     static let shell = Color(nsColor: shellNS)
     static let toolbar = Color(nsColor: toolbarNS)
     static let workspace = Color(nsColor: workspaceNS)
@@ -27,6 +29,6 @@ enum ToolTheme {
     static let secondary = Color(nsColor: secondaryNS)
     static let border = Color(nsColor: borderNS)
     static let accent = Color(nsColor: accentNS)
-    static let onAccent = Color(nsColor: adaptive(0xFFFFFF, 0x183A33))
-    static let selection = Color(nsColor: adaptive(0xDCEAE3, 0x3A514C))
+    static let onAccent = Color(nsColor: adaptive(0xFFFFFF, 0x082032))
+    static let selection = Theme.selection
 }
