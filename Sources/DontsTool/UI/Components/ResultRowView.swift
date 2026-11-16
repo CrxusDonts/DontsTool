@@ -9,6 +9,7 @@ struct ResultRowView: View {
     var drawsSelection = true
     let onExecute: () -> Void
     var onSecondaryExecute: (() -> Void)? = nil
+    var onCopyFilePath: (() -> Void)? = nil
 
     @State private var isHovered = false
 
@@ -82,7 +83,7 @@ struct ResultRowView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
 
-                    trailing.frame(width: 100, alignment: .trailing)
+                    trailing.frame(width: item.fileAction(.copyPath) != nil ? 52 : 100, alignment: .trailing)
                 }
                 .frame(height: Metrics.rowHeight)
                 .contentShape(Rectangle())
@@ -91,20 +92,11 @@ struct ResultRowView: View {
             .accessibilityLabel(accessibilityText)
             .accessibilityAddTraits(isSelected ? .isSelected : [])
 
-            if let action = fileSecondaryAction, let onSecondaryExecute {
-                Button(action: onSecondaryExecute) {
-                    Image(systemName: action.symbol ?? "folder")
-                        .font(.system(size: 12))
-                        .foregroundStyle(Theme.secondary)
-                        .frame(width: 24, height: 24)
-                        .background(Theme.controlFill, in: RoundedRectangle(cornerRadius: 5))
-                }
-                .buttonStyle(LauncherPressStyle())
-                .help("\(action.title)（⌘Enter）")
-                .accessibilityLabel("\(action.title)：\(item.title)")
-                .opacity(isSelected || isHovered ? 1 : 0)
-                .allowsHitTesting(isSelected || isHovered)
-                .accessibilityHidden(!isSelected && !isHovered)
+            if let action = item.fileAction(.reveal), let onSecondaryExecute {
+                fileButton(action, title: "定位", shortcut: "⌘Enter", execute: onSecondaryExecute)
+            }
+            if let action = item.fileAction(.copyPath), let onCopyFilePath {
+                fileButton(action, title: "复制路径", shortcut: "⌘⇧C", execute: onCopyFilePath)
             }
         }
         .padding(.horizontal, Metrics.rowHorizontalInset)
@@ -116,9 +108,22 @@ struct ResultRowView: View {
         .accessibilityElement(children: .contain)
     }
 
-    private var fileSecondaryAction: ItemAction? {
-        guard case .file = item.icon else { return nil }
-        return item.secondaryAction
+    private func fileButton(_ action: ItemAction, title: String, shortcut: String, execute: @escaping () -> Void) -> some View {
+        Button(action: execute) {
+            Label(title, systemImage: action.symbol ?? "folder")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(Theme.secondary)
+                .fixedSize()
+                .padding(.horizontal, 6)
+                .frame(height: 24)
+                .background(Theme.controlFill, in: RoundedRectangle(cornerRadius: 5))
+        }
+        .buttonStyle(LauncherPressStyle())
+        .help("\(action.title)（\(shortcut)）")
+        .accessibilityLabel("\(action.title)：\(item.title)")
+        .opacity(isSelected || isHovered ? 1 : 0)
+        .allowsHitTesting(isSelected || isHovered)
+        .accessibilityHidden(!isSelected && !isHovered)
     }
 
     @ViewBuilder

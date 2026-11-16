@@ -184,7 +184,8 @@ final class LauncherPanelController: NSObject, NSWindowDelegate, OperationProgre
                 self?.clearQuery()
             },
             onClearContent: { [weak self] in self?.clearContent() },
-            onShowActions: { [weak self] in self?.model.toggleActionPanel() }
+            onShowActions: { [weak self] in self?.model.toggleActionPanel() },
+            onCopyFilePath: { [weak self] index in _ = self?.copyFilePath(at: index) }
         )
         let hosting = NSHostingView(rootView: view)
         hosting.frame = NSRect(origin: .zero, size: Metrics.panelSize)
@@ -243,6 +244,10 @@ final class LauncherPanelController: NSObject, NSWindowDelegate, OperationProgre
         }
         searchField.onRescan = { [weak self] in self?.onRescanApps?() }
         searchField.onShowActions = { [weak self] in self?.model.toggleActionPanel() }
+        searchField.onCopyFilePath = { [weak self] in
+            guard let self, !self.model.isActionPanelOpen else { return false }
+            return self.copyFilePath(at: self.model.selectedIndex)
+        }
     }
 
     private func keywordRoute(for query: String) -> KeywordRoute? {
@@ -271,8 +276,14 @@ final class LauncherPanelController: NSObject, NSWindowDelegate, OperationProgre
 
     private func execute(at index: Int, secondary: Bool) {
         guard let item = model.item(at: index),
-              let action = secondary ? item.secondaryAction : item.primaryAction else { return }
+              let action = secondary ? (item.fileAction(.reveal) ?? item.secondaryAction) : item.primaryAction else { return }
         execute(action)
+    }
+
+    private func copyFilePath(at index: Int) -> Bool {
+        guard let action = model.item(at: index)?.fileAction(.copyPath) else { return false }
+        execute(action)
+        return true
     }
 
     private func execute(_ action: ItemAction) {

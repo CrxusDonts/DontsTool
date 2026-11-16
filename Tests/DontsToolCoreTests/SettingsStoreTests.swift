@@ -33,7 +33,6 @@ struct SettingsStoreTests {
         let store = SettingsStore(defaults: defaults, systemLanguageCode: "zh")
 
         #expect(store.hotKey == .optionSpace)
-        #expect(store.defaultSearchEngine == .google)
         #expect(store.enabledProviderIDs == Set(ProviderID.allCases.map(\.rawValue)))
         #expect(store.fileSearchEnabled)
         #expect(store.translationTarget == "zh-Hans")
@@ -48,7 +47,6 @@ struct SettingsStoreTests {
         let store = SettingsStore(defaults: defaults, systemLanguageCode: "en")
 
         store.setHotKey(.init(keyCode: 1, modifiers: 2048))
-        store.setDefaultSearchEngine(.bing)
         store.setProviderEnabled(ProviderID.web.rawValue, to: false)
         store.setFileSearchEnabled(false)
         store.setTranslationTarget("ja")
@@ -58,7 +56,6 @@ struct SettingsStoreTests {
 
         let reloaded = SettingsStore(defaults: defaults, systemLanguageCode: "en")
         #expect(reloaded.hotKey == .init(keyCode: 1, modifiers: 2048))
-        #expect(reloaded.defaultSearchEngine == .bing)
         #expect(!reloaded.isProviderEnabled(ProviderID.web.rawValue))
         #expect(!reloaded.fileSearchEnabled)
         #expect(reloaded.translationTarget == "ja")
@@ -110,13 +107,6 @@ struct SettingsStoreTests {
         #expect(reloaded.enabledProviderIDs == Set(oldEnabled + ["quickOpen"]))
         let reloadedAgain = SettingsStore(defaults: defaults, systemLanguageCode: "en")
         #expect(reloadedAgain.enabledProviderIDs == Set(oldEnabled + ["quickOpen"]))
-    }
-
-    @Test func searchEngineBuildsEncodedURL() {
-        let url = SettingsStore.SearchEngine.google.searchURL(for: "swift concurrency + 中文")
-        let components = URLComponents(url: url!, resolvingAgainstBaseURL: false)
-        #expect(components?.host == "www.google.com")
-        #expect(components?.queryItems?.first?.value == "swift concurrency + 中文")
     }
 
     @Test func applicationSortDefaultsToRecentUse() {

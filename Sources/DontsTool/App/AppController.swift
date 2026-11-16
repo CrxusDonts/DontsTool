@@ -6,8 +6,13 @@ import DontsToolCore
 final class AppController {
     private let settings = SettingsStore()
     private let usage = UsageStore()
-    private let websites = WebsiteShortcutStore()
+    private let searchEngines = SearchEngineStore()
+    private lazy var websites = WebsiteShortcutStore(reservedKeywords: { [weak self] in
+        guard let self else { return [] }
+        return SearchEngineKeywordRules.reservedWebsiteKeywords(for: self.searchEngines.configuration)
+    })
     private var websitesCancellable: AnyCancellable?
+    private var searchEnginesCancellable: AnyCancellable?
     private let appIndex = AppIndex()
     private var appIndexCancellable: AnyCancellable?
     private var applicationActivityCancellable: AnyCancellable?
@@ -54,11 +59,13 @@ final class AppController {
         let textProvider = TextToolsProvider(settings: settings, toolOpener: toolWindows)
         let webProvider = WebSearchProvider(
             settings: settings,
+            engines: searchEngines,
             usage: usage,
             opener: SystemURLOpener(),
             feedback: toast,
             prefill: prefiller,
-            clipboard: clipboard
+            clipboard: clipboard,
+            unavailableKeywords: { [weak websites] in Set(websites?.configuration.groups.map(\.keyword) ?? []) }
         )
         let fileProvider = FileProvider(
             settings: settings,
@@ -108,6 +115,7 @@ final class AppController {
         let settingsWindow = SettingsWindowController(
             settings: settings,
             websites: websites,
+            searchEngines: searchEngines,
             login: login,
             secrets: secrets,
             appIndex: appIndex,
@@ -131,6 +139,9 @@ final class AppController {
         self.coordinator = coordinator
         self.panel = panel
         websitesCancellable = websites.$configuration.dropFirst().sink { [weak panel] _ in
+            DispatchQueue.main.async { panel?.refreshSearch() }
+        }
+        searchEnginesCancellable = searchEngines.$configuration.dropFirst().sink { [weak panel] _ in
             DispatchQueue.main.async { panel?.refreshSearch() }
         }
         toolWindows.onDocumentsChanged = { [weak panel] in panel?.refreshSearch() }

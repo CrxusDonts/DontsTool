@@ -72,53 +72,10 @@ public final class SettingsStore: ObservableObject {
         )
     }
 
-    public enum SearchEngine: String, CaseIterable, Identifiable, Codable, Sendable {
-        case google
-        case bing
-        case baidu
-        case ddg
-
-        public var id: String { rawValue }
-
-        public var displayName: String {
-            switch self {
-            case .google: "Google"
-            case .bing: "必应"
-            case .baidu: "百度"
-            case .ddg: "DuckDuckGo"
-            }
-        }
-
-        public func searchURL(for query: String) -> URL? {
-            var components = URLComponents()
-            components.scheme = "https"
-            switch self {
-            case .google:
-                components.host = "www.google.com"
-                components.path = "/search"
-                components.queryItems = [URLQueryItem(name: "q", value: query)]
-            case .bing:
-                components.host = "www.bing.com"
-                components.path = "/search"
-                components.queryItems = [URLQueryItem(name: "q", value: query)]
-            case .baidu:
-                components.host = "www.baidu.com"
-                components.path = "/s"
-                components.queryItems = [URLQueryItem(name: "wd", value: query)]
-            case .ddg:
-                components.host = "duckduckgo.com"
-                components.path = "/"
-                components.queryItems = [URLQueryItem(name: "q", value: query)]
-            }
-            return components.url
-        }
-    }
-
     private enum Key {
         static let hotKeyKind = "dontstool.hotkey.kind"
         static let hotKeyCode = "dontstool.hotkey.keyCode"
         static let hotKeyModifiers = "dontstool.hotkey.modifiers"
-        static let defaultSearchEngine = "dontstool.defaultSearchEngine"
         static let applicationSortOrder = "dontstool.applicationSortOrder"
         static let enabledProviders = "dontstool.enabledProviders"
         static let fileSearchEnabled = "dontstool.fileSearchEnabled"
@@ -137,7 +94,6 @@ public final class SettingsStore: ObservableObject {
     private let defaults: UserDefaults
 
     @Published public private(set) var hotKey: HotKeyConfiguration
-    @Published public private(set) var defaultSearchEngine: SearchEngine
     @Published public private(set) var applicationSortOrder: ApplicationSortOrder
     @Published public private(set) var enabledProviderIDs: Set<String>
     @Published public private(set) var fileSearchEnabled: Bool
@@ -169,9 +125,6 @@ public final class SettingsStore: ObservableObject {
             hotKey = .optionSpace
         }
 
-        defaultSearchEngine = SearchEngine(
-            rawValue: defaults.string(forKey: Key.defaultSearchEngine) ?? ""
-        ) ?? .google
         applicationSortOrder = ApplicationSortOrder(
             rawValue: defaults.string(forKey: Key.applicationSortOrder) ?? ""
         ) ?? .recent
@@ -226,11 +179,6 @@ public final class SettingsStore: ObservableObject {
         defaults.set(configuration.kind.rawValue, forKey: Key.hotKeyKind)
         defaults.set(Int(configuration.keyCode), forKey: Key.hotKeyCode)
         defaults.set(Int(configuration.modifiers), forKey: Key.hotKeyModifiers)
-    }
-
-    public func setDefaultSearchEngine(_ engine: SearchEngine) {
-        defaultSearchEngine = engine
-        defaults.set(engine.rawValue, forKey: Key.defaultSearchEngine)
     }
 
     public func setApplicationSortOrder(_ order: ApplicationSortOrder) {

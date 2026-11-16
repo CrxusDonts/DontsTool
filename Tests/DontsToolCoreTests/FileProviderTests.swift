@@ -198,7 +198,7 @@ struct FileProviderTests {
         let (provider, _, launcher, _, _) = makeProvider()
         let items = await provider.search(scoped())
         let item = try #require(items.first)
-        try await item.secondaryAction?.run()
+        try await item.fileAction(.reveal)?.run()
         #expect(launcher.revealed.map(\.lastPathComponent) == ["report.pdf"])
     }
 
@@ -221,7 +221,7 @@ struct FileProviderTests {
         let items = await provider.search(scoped())
         let item = try #require(items.first)
         #expect(item.actions.map(\.id) == ["file.open", "file.reveal", "file.copyPath"])
-        try await item.actions.last?.run()
+        try await item.fileAction(.copyPath)?.run()
         #expect(clipboard.written == ["/Users/donts/Desktop/report.pdf"])
     }
 }

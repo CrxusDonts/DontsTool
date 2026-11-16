@@ -79,6 +79,7 @@ targets:
       - path: Sources/DontsTool/Shell/ToolTextEditor.swift
       - path: Sources/DontsTool/UI/Settings/WebsiteShortcutsSettingsView.swift
       - path: Sources/DontsTool/UI/Settings/SettingsComponents.swift
+      - path: Sources/DontsTool/UI/Settings/SearchEnginesSettingsView.swift
       - path: Sources/DontsTool/Shell/Selection
       - path: Sources/DontsTool/Shell/Gemini
       - path: Sources/DontsTool/Shell/Translation
@@ -91,6 +92,14 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
 
 schemes:
+  DontsToolCoreTests:
+    build:
+      targets:
+        DontsToolCoreTests: [test]
+    test:
+      config: Debug
+      targets:
+        - DontsToolCoreTests
   DontsToolBridgeTests:
     build:
       targets:

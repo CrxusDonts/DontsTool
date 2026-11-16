@@ -9,6 +9,7 @@ final class SettingsWindowController: NSWindowController {
     init(
         settings: SettingsStore,
         websites: WebsiteShortcutStore,
+        searchEngines: SearchEngineStore,
         login: LoginItemManager,
         secrets: SecretStoring,
         appIndex: AppIndex,
@@ -29,6 +30,7 @@ final class SettingsWindowController: NSWindowController {
         window.contentView = NSHostingView(rootView: SettingsRootView(
             settings: settings,
             websites: websites,
+            searchEngines: searchEngines,
             login: login,
             secrets: secrets,
             appIndex: appIndex,

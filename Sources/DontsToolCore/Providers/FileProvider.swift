@@ -86,12 +86,12 @@ public final class FileProvider: ToolProvider {
                         feedback.show(error.localizedDescription)
                     }
                 },
-                ItemAction(id: "file.reveal", title: "在访达中显示", symbol: "folder") {
+                ItemAction(id: "file.reveal", title: "在访达中显示", symbol: "folder", fileAction: .reveal) {
                     launcher.revealInFinder(hit.url)
                 },
-                ItemAction(id: "file.copyPath", title: "复制路径", symbol: "doc.on.doc") {
+                ItemAction(id: "file.copyPath", title: "复制路径", symbol: "doc.on.doc", fileAction: .copyPath) {
                     clipboard.writeString(hit.url.path)
-                    feedback.show("已复制路径")
+                    feedback.show("已复制 \(hit.url.lastPathComponent) 的路径")
                 }
             ]
         )

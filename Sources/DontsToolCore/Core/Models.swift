@@ -91,11 +91,17 @@ public enum ActionPresentation: Sendable {
     case keepPanelOpen
 }
 
+public enum FileActionKind: Sendable {
+    case reveal
+    case copyPath
+}
+
 public struct ItemAction {
     public let id: String
     public let title: String
     public let presentation: ActionPresentation
     public let symbol: String?
+    public let fileAction: FileActionKind?
     public let run: @MainActor () async throws -> Void
 
     public init(
@@ -103,12 +109,14 @@ public struct ItemAction {
         title: String,
         presentation: ActionPresentation = .dismissThenRun,
         symbol: String? = nil,
+        fileAction: FileActionKind? = nil,
         run: @escaping @MainActor () async throws -> Void
     ) {
         self.id = id
         self.title = title
         self.presentation = presentation
         self.symbol = symbol
+        self.fileAction = fileAction
         self.run = run
     }
 }
@@ -165,6 +173,11 @@ public struct SearchItem: Identifiable {
 
     public var primaryAction: ItemAction? { actions.first }
     public var secondaryAction: ItemAction? { actions.dropFirst().first }
+
+    public func fileAction(_ kind: FileActionKind) -> ItemAction? {
+        guard case .file = icon else { return nil }
+        return actions.first { $0.fileAction == kind }
+    }
 }
 
 public enum SearchPhase: Sendable {

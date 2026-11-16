@@ -53,11 +53,11 @@ struct QuickOpenProviderTests {
         try await items[0].primaryAction?.run()
         #expect(launcher.openedFiles.map(\.path) == ["/tmp/report.pdf"])
 
-        try await items[0].secondaryAction?.run()
+        try await items[0].fileAction(.reveal)?.run()
         #expect(launcher.revealed.map(\.path) == ["/tmp/report.pdf"])
         #expect(launcher.openedFiles.count == 1)
 
-        try await items[0].actions.last?.run()
+        try await items[0].fileAction(.copyPath)?.run()
         #expect(clipboard.written == ["/tmp/report.pdf"])
     }
 

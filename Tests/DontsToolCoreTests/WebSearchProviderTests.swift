@@ -16,15 +16,17 @@ final class MockURLOpener: URLOpening {
 @Suite("WebSearchProvider")
 @MainActor
 struct WebSearchProviderTests {
-    private func makeProvider() -> (WebSearchProvider, SettingsStore, MockURLOpener, MockPrefiller) {
+    private func makeProvider(defaultEngineID: String = "google") -> (WebSearchProvider, SettingsStore, MockURLOpener, MockPrefiller) {
         let suite = "dontstool.tests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         defaults.removePersistentDomain(forName: suite)
         let settings = SettingsStore(defaults: defaults, systemLanguageCode: "en")
+        defaults.set(defaultEngineID, forKey: "dontstool.defaultSearchEngine")
         let opener = MockURLOpener()
         let prefill = MockPrefiller()
         let provider = WebSearchProvider(
             settings: settings,
+            engines: SearchEngineStore(defaults: defaults),
             usage: UsageStore(defaults: defaults),
             opener: opener,
             feedback: MockFeedback(),
@@ -49,8 +51,7 @@ struct WebSearchProviderTests {
     }
 
     @Test func defaultEngineIsUsedForFallback() async throws {
-        let (provider, settings, opener, _) = makeProvider()
-        settings.setDefaultSearchEngine(.baidu)
+        let (provider, _, opener, _) = makeProvider(defaultEngineID: "baidu")
         let items = await provider.search(SearchContext(rawQuery: "swift", mode: .global))
         #expect(items.count == 1)
         try await items[0].primaryAction?.run()
@@ -108,6 +109,7 @@ struct WebSearchProviderTests {
         let clipboard = MockClipboard()
         let provider = WebSearchProvider(
             settings: settings,
+            engines: SearchEngineStore(defaults: defaults),
             usage: UsageStore(defaults: defaults),
             opener: MockURLOpener(),
             feedback: MockFeedback(),

@@ -122,12 +122,12 @@ public final class QuickOpenProvider: ToolProvider {
                         feedback.show(error.localizedDescription)
                     }
                 },
-                ItemAction(id: "quickopen.file.reveal", title: "在访达中显示", symbol: "folder") {
+                ItemAction(id: "quickopen.file.reveal", title: "在访达中显示", symbol: "folder", fileAction: .reveal) {
                     launcher.revealInFinder(url)
                 },
-                ItemAction(id: "quickopen.file.copy", title: "复制路径", symbol: "doc.on.doc") {
+                ItemAction(id: "quickopen.file.copy", title: "复制路径", symbol: "doc.on.doc", fileAction: .copyPath) {
                     clipboard.writeString(url.path)
-                    feedback.show("已复制路径")
+                    feedback.show("已复制 \(url.lastPathComponent) 的路径")
                 }
             ]
         )

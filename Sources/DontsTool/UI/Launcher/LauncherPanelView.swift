@@ -13,6 +13,7 @@ struct LauncherPanelView: View {
     let onClearQuery: () -> Void
     let onClearContent: () -> Void
     let onShowActions: () -> Void
+    var onCopyFilePath: ((Int) -> Void)? = nil
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     var body: some View {
@@ -35,7 +36,8 @@ struct LauncherPanelView: View {
                 isWarning: model.statusIsWarning,
                 isActionPanelOpen: model.isActionPanelOpen,
                 onShowActions: onShowActions,
-                hasActions: !model.actionItems.isEmpty
+                hasActions: !model.actionItems.isEmpty,
+                selectedItem: model.selectedItem
             )
         }
         .frame(width: Metrics.panelSize.width, height: Metrics.panelSize.height)
@@ -108,7 +110,8 @@ struct LauncherPanelView: View {
                                         isSelected: index == model.selectedIndex,
                                         drawsSelection: false,
                                         onExecute: { onExecute(index, false) },
-                                        onSecondaryExecute: { onExecute(index, true) }
+                                        onSecondaryExecute: { onExecute(index, true) },
+                                        onCopyFilePath: onCopyFilePath.map { action in { action(index) } }
                                     )
                                     .id(item.id)
                                     .anchorPreference(key: SelectionBoundsKey.self, value: .bounds) { [item.id: $0] }

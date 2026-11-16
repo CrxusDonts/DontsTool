@@ -10,6 +10,7 @@ final class SearchField: NSSearchField, NSSearchFieldDelegate {
     var onOpenSettings: (() -> Void)?
     var onRescan: (() -> Void)?
     var onShowActions: (() -> Void)?
+    var onCopyFilePath: (() -> Bool)?
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -32,7 +33,7 @@ final class SearchField: NSSearchField, NSSearchFieldDelegate {
         (cell as? NSSearchFieldCell)?.searchButtonCell = nil
         (cell as? NSSearchFieldCell)?.cancelButtonCell = nil
         setAccessibilityLabel("搜索")
-        setAccessibilityHelp("输入应用名或工具关键词；file 加文件名搜索文件；上下箭头选择，回车执行，⌘K 查看操作，esc 关闭")
+        setAccessibilityHelp("输入应用名或工具关键词；file 加文件名搜索文件；文件结果支持 ⌘回车定位、⌘⇧C 复制路径；上下箭头选择，回车执行，⌘K 查看操作，esc 关闭")
     }
 
     required init?(coder: NSCoder) {
@@ -48,6 +49,9 @@ final class SearchField: NSSearchField, NSSearchFieldDelegate {
 
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        if flags.intersection([.command, .shift, .option, .control]) == [.command, .shift],
+           event.charactersIgnoringModifiers?.lowercased() == "c", !isComposing,
+           onCopyFilePath?() == true { return true }
         guard flags.contains(.command) else {
             return super.performKeyEquivalent(with: event)
         }

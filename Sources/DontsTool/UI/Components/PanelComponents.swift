@@ -120,6 +120,7 @@ struct PanelFooterView: View {
     let isActionPanelOpen: Bool
     var onShowActions: (() -> Void)? = nil
     var hasActions = true
+    var selectedItem: SearchItem? = nil
 
     var body: some View {
         HStack(spacing: 6) {
@@ -143,9 +144,19 @@ struct PanelFooterView: View {
                 spacerDot
                 legend(keys: ["esc"], label: "返回")
             } else {
-                legend(keys: ["↑↓"], label: "选择")
-                spacerDot
-                legend(keys: ["↵"], label: "执行")
+                if selectedItem?.fileAction(.copyPath) != nil {
+                    legend(keys: ["↵"], label: "打开")
+                    if selectedItem?.fileAction(.reveal) != nil {
+                        spacerDot
+                        legend(keys: ["⌘↵"], label: "定位")
+                    }
+                    spacerDot
+                    legend(keys: ["⌘⇧C"], label: "复制路径")
+                } else {
+                    legend(keys: ["↑↓"], label: "选择")
+                    spacerDot
+                    legend(keys: ["↵"], label: "执行")
+                }
                 spacerDot
                 Button { onShowActions?() } label: {
                     legend(keys: ["⌘K"], label: "操作")
@@ -179,6 +190,7 @@ struct PanelFooterView: View {
                 .font(Theme.footerFont)
                 .foregroundStyle(Theme.tertiary)
         }
+        .fixedSize(horizontal: true, vertical: false)
     }
 }
 

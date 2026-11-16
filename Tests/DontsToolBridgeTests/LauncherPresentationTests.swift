@@ -175,7 +175,7 @@ struct LauncherPresentationTests {
         defer { window.close() }
         let view = NSHostingView(rootView: LauncherPanelView(model: model, searchField: field, settings: settings,
             onOpenSettings: {}, onExecute: { _, _ in }, onExecuteAction: { _ in }, onClearQuery: {},
-            onClearContent: {}, onShowActions: {}))
+            onClearContent: {}, onShowActions: {}, onCopyFilePath: { _ in }))
         window.contentView = view
         window.appearance = NSAppearance(named: appearance)
         view.frame = NSRect(origin: .zero, size: Metrics.panelSize)
@@ -209,8 +209,8 @@ private enum PresentationError: Error { case timeout }
                 subtitle: PathDisplay.parentDirectory(of: url), icon: .file(path: url.path),
                 score: 1, canonicalKey: "file-preview", actions: [
                     ItemAction(id: "file.open", title: "打开", symbol: "arrow.up.forward.app") {},
-                    ItemAction(id: "file.reveal", title: "在访达中显示", symbol: "folder") {},
-                    ItemAction(id: "file.copy", title: "复制路径", symbol: "doc.on.doc") {}
+                    ItemAction(id: "file.reveal", title: "在访达中显示", symbol: "folder", fileAction: .reveal) {},
+                    ItemAction(id: "file.copy", title: "复制路径", symbol: "doc.on.doc", fileAction: .copyPath) {}
                 ])]
         }
         let apps: [(String, String)] = [("Visual Studio Code", "/Applications/Visual Studio Code.app"),

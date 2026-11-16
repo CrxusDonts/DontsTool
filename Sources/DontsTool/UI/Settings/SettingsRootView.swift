@@ -37,6 +37,7 @@ struct SettingsRootView: View {
 
     @ObservedObject var settings: SettingsStore
     @ObservedObject var websites: WebsiteShortcutStore
+    @ObservedObject var searchEngines: SearchEngineStore
     @ObservedObject var login: LoginItemManager
     let secrets: SecretStoring
     @ObservedObject var appIndex: AppIndex
@@ -194,20 +195,9 @@ struct SettingsRootView: View {
     }
 
     private var searchTab: some View {
+      VStack(alignment: .leading, spacing: 16) {
+        SearchEnginesSettingsView(store: searchEngines, websites: websites)
         SettingsGroup(caption: "搜索行为") {
-            SettingsRow(title: "默认搜索引擎", subtitle: "全局查询无本地结果时的网页回退") {
-                Picker("", selection: Binding(
-                    get: { settings.defaultSearchEngine },
-                    set: { settings.setDefaultSearchEngine($0) }
-                )) {
-                    ForEach(SettingsStore.SearchEngine.allCases) { engine in
-                        Text(engine.displayName).tag(engine)
-                    }
-                }
-                .labelsHidden()
-                .frame(width: 140)
-            }
-            SettingsDivider()
             SettingsRow(title: "按需文件搜索", subtitle: "仅输入 file 加文件名时查询 Spotlight，普通搜索不查文件") {
                 Toggle("", isOn: Binding(
                     get: { settings.fileSearchEnabled },
@@ -217,6 +207,7 @@ struct SettingsRootView: View {
                 .labelsHidden()
             }
         }
+      }
     }
 
     private var toolsTab: some View {
