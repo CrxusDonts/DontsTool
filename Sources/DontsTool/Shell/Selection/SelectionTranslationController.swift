@@ -17,6 +17,7 @@ final class SelectionTranslationController: ObservableObject {
     let session: ToolSession
     var onOpenSettings: (() -> Void)?
     var onEditSource: ((String) -> Void)?
+    var onSuppressedMouseDown: (() -> Void)?
     private let settings: SettingsStore
     private let monitor: RightPressMonitor
     private var panel: NSPanel?
@@ -33,6 +34,7 @@ final class SelectionTranslationController: ObservableObject {
         self.settings = settings
         self.monitor = monitor
         session = ToolSession(kind: .translation, translator: translator)
+        monitor.onSuppressedMouseDown = { [weak self] in self?.onSuppressedMouseDown?() }
         monitor.onReading = { [weak self] point in self?.showReading(at: point) }
         monitor.onSelectionFailure = { [weak self] message, point in self?.showSelectionFailure(message, at: point) }
         monitor.onTranslate = { [weak self] text, point in self?.show(text: text, at: point) }

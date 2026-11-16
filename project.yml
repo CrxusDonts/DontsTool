@@ -74,6 +74,8 @@ targets:
       - path: Sources/DontsTool/UI/Launcher/LauncherPanelView.swift
       - path: Sources/DontsTool/Shell/SearchField.swift
       - path: Sources/DontsTool/Shell/PanelTransitionDriver.swift
+      - path: Sources/DontsTool/Shell/LauncherPanel.swift
+      - path: Sources/DontsTool/Shell/LauncherPanelController.swift
       - path: Sources/DontsTool/Shell/ToolTextEditor.swift
       - path: Sources/DontsTool/UI/Settings/WebsiteShortcutsSettingsView.swift
       - path: Sources/DontsTool/UI/Settings/SettingsComponents.swift

@@ -19,6 +19,13 @@ final class LauncherPanelController: NSObject, NSWindowDelegate, OperationProgre
     private let transitionDriver = PanelTransitionDriver()
     private var previousApp: NSRunningApplication?
     private var isVisible = false
+    private var globalClickMonitor: Any?
+    private var localClickMonitor: Any?
+
+    isolated deinit {
+        if let globalClickMonitor { NSEvent.removeMonitor(globalClickMonitor) }
+        if let localClickMonitor { NSEvent.removeMonitor(localClickMonitor) }
+    }
 
     init(
         registry: ToolRegistry,
@@ -68,11 +75,13 @@ final class LauncherPanelController: NSObject, NSWindowDelegate, OperationProgre
         NSApp.activate()
         panel.makeKeyAndOrderFront(nil)
         panel.makeFirstResponder(searchField)
+        startMonitoringOutsideClicks()
         Performance.end(interval)
     }
 
     func hide(restorePreviousApp: Bool = true) {
         guard isVisible else { return }
+        stopMonitoringOutsideClicks()
         model.closeActionPanel()
         isVisible = false
         transitionDriver.hide(panel: panel) { [weak self] in
@@ -121,10 +130,26 @@ final class LauncherPanelController: NSObject, NSWindowDelegate, OperationProgre
         clearQuery()
     }
 
-    func windowDidResignKey(_ notification: Notification) {
-        guard isVisible else { return }
-        // The user already chose another window; dismissal must not override that choice.
-        hide(restorePreviousApp: false)
+    private func startMonitoringOutsideClicks() {
+        stopMonitoringOutsideClicks()
+        let clicks: NSEvent.EventTypeMask = [.leftMouseDown, .rightMouseDown, .otherMouseDown]
+        globalClickMonitor = NSEvent.addGlobalMonitorForEvents(matching: clicks) { [weak self] _ in
+            self?.hide(restorePreviousApp: false)
+        }
+        localClickMonitor = NSEvent.addLocalMonitorForEvents(matching: clicks) { [weak self] event in
+            guard let self else { return event }
+            if event.window !== self.panel {
+                self.hide(restorePreviousApp: false)
+            }
+            return event
+        }
+    }
+
+    private func stopMonitoringOutsideClicks() {
+        if let globalClickMonitor { NSEvent.removeMonitor(globalClickMonitor) }
+        if let localClickMonitor { NSEvent.removeMonitor(localClickMonitor) }
+        globalClickMonitor = nil
+        localClickMonitor = nil
     }
 
     // MARK: 进度（翻译等长任务）
@@ -255,6 +280,7 @@ final class LauncherPanelController: NSObject, NSWindowDelegate, OperationProgre
         switch action.presentation {
         case .openWindow:
             // Hide synchronously before activation; a delayed dismissal must not steal focus.
+            stopMonitoringOutsideClicks()
             isVisible = false
             transitionDriver.cancel()
             panel.orderOut(nil)

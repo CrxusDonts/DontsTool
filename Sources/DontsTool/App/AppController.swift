@@ -97,6 +97,9 @@ final class AppController {
             contentProvider: contentProvider
         )
         prefiller.panel = panel
+        selectionTranslation.onSuppressedMouseDown = { [weak panel] in
+            panel?.hide(restorePreviousApp: false)
+        }
         progress.panel = panel
         settingsOpener.panel = panel
         panel.onRescanApps = { [weak self] in

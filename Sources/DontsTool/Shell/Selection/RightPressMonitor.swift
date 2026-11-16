@@ -76,6 +76,7 @@ final class RightPressMonitor {
     var onReading: ((CGPoint) -> Void)?
     var onSelectionFailure: ((String, CGPoint) -> Void)?
     var onFailure: (() -> Void)?
+    var onSuppressedMouseDown: (() -> Void)?
     var ignoresPoint: ((CGPoint) -> Bool)?
     var isRunning: Bool { tap != nil }
 
@@ -236,6 +237,7 @@ final class RightPressMonitor {
                trackpadSourceIsCurrent(candidate),
                environment.foregroundWindow(event, candidate.pid) == candidate.window {
                 consumingTrackpadClick = true
+                onSuppressedMouseDown?()
                 return false
             }
             guard downEvent == nil,
@@ -266,6 +268,8 @@ final class RightPressMonitor {
                 guard self.gesture.advance(at: self.environment.now(), buttonIsDown: isDown) == .translate else { return }
                 self.beginReading(id: id, event: copy, pid: pid)
             }
+            // AppKit monitors cannot observe a mouse-down consumed by this tap.
+            onSuppressedMouseDown?()
             return false
         case .rightMouseUp:
             if consumingTrackpadClick { consumingTrackpadClick = false; return false }
