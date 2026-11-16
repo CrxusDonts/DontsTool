@@ -3,6 +3,35 @@ import Testing
 
 @Suite("Gemini native accessibility handoff")
 struct GeminiAppAccessibilityTests {
+    @Test func committedSendCanBeAcknowledgedFromItsBoundWindowInBackground() throws {
+        let ax = GeminiAXFixture()
+        var session = GeminiAXSession(ax: ax, pid: 42)
+        try session.write("question")
+        try session.submit()
+        ax.frontmostPID = 99
+        ax.nodes["prompt"]!.text = ""
+        ax.nodes["window"]!.children.append("share")
+        ax.nodes["share"] = .init(role: "AXButton", identifier: "share_button")
+        let state = try session.read()
+        #expect(state.submissionAccepted)
+        #expect(!state.isFrontmost)
+        #expect(ax.presses == ["send"])
+        #expect(throws: Error.self) { try session.write("another question") }
+        #expect(throws: Error.self) { try session.submit() }
+    }
+
+    @Test func backgroundAcknowledgementCannotRebindToAnotherWindow() throws {
+        let ax = GeminiAXFixture()
+        var session = GeminiAXSession(ax: ax, pid: 42)
+        try session.write("question")
+        try session.submit()
+        ax.frontmostPID = 99
+        ax.nodes["other"] = ax.nodes["window"]
+        ax.focused = "other"
+        #expect(throws: Error.self) { try session.read() }
+        #expect(ax.presses == ["send"])
+    }
+
     @Test func readsOnlyTheRecognizedComposerAndSkipsChatHistory() throws {
         let ax = GeminiAXFixture()
         ax.nodes["history"] = .init(role: "AXList", children: ["private"])

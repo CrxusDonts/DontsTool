@@ -77,7 +77,7 @@ public final class GeminiConversationService: GeminiAsking {
         defer { isBusy = false; controller.finishHandoff() }
         try Task.checkCancellation()
         try await controller.open(application)
-        let existing = try await waitForComposer { $0.text != nil }
+        let existing = try await waitForComposer(awaitingInitialActivation: true) { $0.text != nil }
         guard existing.text == "" else {
             throw ActionError.invalidInput("Gemini 有未发送的草稿，请先处理；已保留原文")
         }
@@ -97,22 +97,28 @@ public final class GeminiConversationService: GeminiAsking {
         }
         try Task.checkCancellation()
         try await controller.submit()
-        _ = try await waitForComposer { $0.submissionAccepted }
+        _ = try await waitForComposer(confirmingSubmission: true) { $0.submissionAccepted }
     }
 
-    private func waitForComposer(_ ready: (GeminiComposerState) throws -> Bool) async throws -> GeminiComposerState {
+    private func waitForComposer(awaitingInitialActivation: Bool = false, confirmingSubmission: Bool = false,
+                                 _ ready: (GeminiComposerState) throws -> Bool) async throws -> GeminiComposerState {
+        var awaitingActivation = awaitingInitialActivation
         let deadline = ContinuousClock.now.advanced(by: maximumWait)
         for attempt in 0..<maximumAttempts {
             try Task.checkCancellation()
             guard ContinuousClock.now < deadline else { break }
             let state = try await controller.readComposer()
             guard ContinuousClock.now < deadline else { break }
-            guard state.isFrontmost else {
+            if state.isFrontmost || confirmingSubmission {
+                if state.isFrontmost { awaitingActivation = false }
+                if try ready(state) { return state }
+            } else if !awaitingActivation {
                 throw ActionError.invalidInput("已离开 Gemini，自动提问已取消")
             }
-            if try ready(state) { return state }
             if attempt + 1 < maximumAttempts { try await Task.sleep(for: pollInterval) }
         }
-        throw ActionError.invalidInput("Gemini 尚未就绪或界面已变化，已停止自动操作，请在应用中查看")
+        throw ActionError.invalidInput(confirmingSubmission
+            ? "Gemini 已执行发送，但尚未确认结果，请在应用中查看；不会重复发送"
+            : "Gemini 尚未就绪或界面已变化，已停止自动操作，请在应用中查看")
     }
 }

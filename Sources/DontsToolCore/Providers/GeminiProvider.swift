@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 @MainActor
 public final class GeminiProvider: ToolProvider {
@@ -10,6 +11,7 @@ public final class GeminiProvider: ToolProvider {
     private let index: AppIndex
     private let settings: SettingsStore
     private let service: any GeminiAsking
+    private let logger = Logger(subsystem: "com.donts.DontsTool", category: "gemini-handoff")
     private let feedback: any FeedbackProviding
 
     public var isEnabled: Bool {
@@ -42,6 +44,7 @@ public final class GeminiProvider: ToolProvider {
         }
         let service = service
         let feedback = feedback
+        let logger = logger
         let settings = settings
         let id = id
         return [SearchItem(providerID: id, group: .tool, title: "向 Gemini 发送新问题",
@@ -50,7 +53,10 @@ public final class GeminiProvider: ToolProvider {
                 ItemAction(id: "gemini.ask", title: "新建并发送", symbol: "paperplane") {
                     guard settings.isProviderEnabled(id) else { return }
                     do { try await service.ask(question, in: app.url) }
-                    catch { feedback.show(error.localizedDescription) }
+                    catch {
+                        logger.error("Gemini 提问失败：\(error.localizedDescription, privacy: .public)")
+                        feedback.show(error.localizedDescription)
+                    }
                 }, openAction(app.url)
             ], keyword: keyword)]
     }

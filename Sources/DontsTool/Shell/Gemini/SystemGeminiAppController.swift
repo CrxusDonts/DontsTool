@@ -1,11 +1,14 @@
 import AppKit
 import ApplicationServices
 import DontsToolCore
+import os
 
 @MainActor
 final class SystemGeminiAppController: GeminiAppControlling {
     var canAutomate: Bool { AXIsProcessTrusted() }
 
+    private let logger = Logger(subsystem: "com.donts.DontsTool", category: "gemini-handoff")
+    private var lastReadDiagnostic: String?
     private let worker = GeminiAXWorker()
     private let handoff = GeminiHandoffCancellation(monitor: SystemGeminiEscapeMonitor())
     private var cancellation = GeminiCancellationFlag()
@@ -15,6 +18,8 @@ final class SystemGeminiAppController: GeminiAppControlling {
     func open(_ application: URL) async throws {
         try Task.checkCancellation()
         cancellation = handoff.prepare()
+        lastReadDiagnostic = nil
+        logger.notice("开始打开 Gemini，等待应用激活")
         let target = application.resolvingSymlinksInPath().standardizedFileURL
         guard target.isFileURL,
               Bundle(url: target)?.bundleIdentifier == "com.google.GeminiMacOS" else {
@@ -33,6 +38,8 @@ final class SystemGeminiAppController: GeminiAppControlling {
               running.bundleURL?.resolvingSymlinksInPath().standardizedFileURL == target else {
             throw GeminiAppAutomationError.applicationUnavailable
         }
+        running.activate(options: [.activateAllWindows])
+        logger.notice("Gemini 已打开，已请求激活全部窗口")
         applicationURL = target
         processIdentifier = running.processIdentifier
         await worker.bind(pid: running.processIdentifier, cancellation: cancellation)
@@ -41,6 +48,7 @@ final class SystemGeminiAppController: GeminiAppControlling {
     func newConversation() async throws {
         try checkCancellation()
         guard let applicationURL, let processIdentifier else { throw GeminiAppAutomationError.applicationUnavailable }
+        logger.notice("已确认输入框为空，开始新建 Gemini 对话")
         try await worker.prepareForNewConversation()
         try checkCancellation()
         let configuration = NSWorkspace.OpenConfiguration()
@@ -59,6 +67,8 @@ final class SystemGeminiAppController: GeminiAppControlling {
               running.bundleURL?.resolvingSymlinksInPath().standardizedFileURL == applicationURL else {
             throw GeminiAppAutomationError.contextChanged
         }
+        running.activate(options: [.activateAllWindows])
+        logger.notice("已打开 Gemini 新对话路由，等待确认输入框")
     }
 
     func readComposer() async throws -> GeminiComposerState {
@@ -66,6 +76,11 @@ final class SystemGeminiAppController: GeminiAppControlling {
         handoff.begin()
         try checkCancellation()
         let value = try await worker.read()
+        let diagnostic = "前台=\(value.isFrontmost)，输入框=\(value.text != nil)，新对话=\(value.isNewConversation)，可发送=\(value.canSend)，已提交=\(value.submissionAccepted)"
+        if diagnostic != lastReadDiagnostic {
+            logger.notice("Gemini 状态：\(diagnostic, privacy: .public)")
+            lastReadDiagnostic = diagnostic
+        }
         return GeminiComposerState(text: value.text, isNewConversation: value.isNewConversation,
                                    isFrontmost: value.isFrontmost, canSend: value.canSend,
                                    submissionAccepted: value.submissionAccepted)
@@ -73,11 +88,14 @@ final class SystemGeminiAppController: GeminiAppControlling {
 
     func setPrompt(_ question: String) async throws {
         try checkCancellation()
+        logger.notice("开始写入 Gemini 输入框")
         try await worker.write(question)
+        logger.notice("Gemini 输入框写入操作已完成，等待读回确认")
     }
 
     func submit() async throws {
         try checkCancellation()
+        logger.notice("已确认问题完整，执行一次 Gemini 发送")
         try await worker.submit()
     }
 

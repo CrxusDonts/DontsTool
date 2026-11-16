@@ -10,6 +10,37 @@ struct GeminiConversationTests {
         GeminiConversationService(controller: control, pollInterval: .zero, maximumAttempts: 3)
     }
 
+    @Test func anApplicationStillActivatingCanBecomeReadyBeforeWriting() async throws {
+        let control = GeminiTestController()
+        control.openingSnapshots = [
+            .init(text: nil, isNewConversation: false, isFrontmost: false, canSend: false),
+            .init(text: "", isNewConversation: false, isFrontmost: true, canSend: false)
+        ]
+        try await service(control).ask("测试", in: app)
+        #expect(control.written == "测试")
+        #expect(control.events == ["open", "new", "write", "submit"])
+        #expect(control.submissions == 1)
+    }
+
+    @Test func leavingAfterActivationStillCancelsWhileTheComposerLoads() async {
+        let control = GeminiTestController()
+        control.openingSnapshots = [
+            .init(text: nil, isNewConversation: false, isFrontmost: true, canSend: false),
+            .init(text: nil, isNewConversation: false, isFrontmost: false, canSend: false)
+        ]
+        await #expect(throws: Error.self) { try await service(control).ask("测试", in: app) }
+        #expect(control.written == nil)
+        #expect(control.submissions == 0)
+    }
+
+    @Test func acceptedSubmissionCanBeConfirmedAfterTheUserReturnsToAnotherApp() async throws {
+        let control = GeminiTestController()
+        control.loseFocusAfterSubmit = true
+        try await service(control).ask("测试", in: app)
+        #expect(control.submissions == 1)
+        #expect(control.written == "测试")
+    }
+
     @Test func opensANewConversationAndSubmitsTheOriginalQuestionOnce() async throws {
         let control = GeminiTestController()
         let question = "解释 Swift actor\n保留这行和空格  "
@@ -97,11 +128,13 @@ struct GeminiConversationTests {
 @MainActor
 private final class GeminiTestController: GeminiAppControlling {
     var canAutomate = true
+    var openingSnapshots: [GeminiComposerState] = []
     var text = ""
     var isNew = false
     var active = true
     var newConversationWorks = true
     var truncateWrites = false
+    var loseFocusAfterSubmit = false
     var loseFocusAfterWrite = false
     var pauseAfterWrite = false
     var pauseOpening = false
@@ -121,7 +154,8 @@ private final class GeminiTestController: GeminiAppControlling {
     func finishHandoff() { finishes += 1 }
     func newConversation() async throws { events.append("new"); if newConversationWorks { isNew = true } }
     func readComposer() async throws -> GeminiComposerState {
-        GeminiComposerState(text: text, isNewConversation: isNew, isFrontmost: active,
+        if !openingSnapshots.isEmpty { return openingSnapshots.removeFirst() }
+        return GeminiComposerState(text: text, isNewConversation: isNew, isFrontmost: active,
                             canSend: !text.isEmpty, submissionAccepted: submissions > 0 && text.isEmpty)
     }
     func setPrompt(_ question: String) async throws {
@@ -129,5 +163,5 @@ private final class GeminiTestController: GeminiAppControlling {
         if loseFocusAfterWrite { active = false }
         if pauseAfterWrite { try await Task.sleep(for: .seconds(10)) }
     }
-    func submit() async throws { events.append("submit"); submissions += 1; text = ""; isNew = false }
+    func submit() async throws { events.append("submit"); submissions += 1; text = ""; isNew = false; if loseFocusAfterSubmit { active = false } }
 }

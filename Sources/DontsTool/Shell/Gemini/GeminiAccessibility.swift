@@ -76,7 +76,7 @@ struct GeminiAXSession<AX: GeminiAccessibility> {
 
     mutating func read() throws -> GeminiAXSnapshot {
         do {
-            return try inspect().snapshot
+            return try inspect(allowBackgroundAcknowledgement: submissionAttempted).snapshot
         } catch GeminiAppAutomationError.composerNotReady {
             try checkCancellation()
             guard ax.trusted else { throw GeminiAppAutomationError.accessibilityUnavailable }
@@ -132,19 +132,19 @@ struct GeminiAXSession<AX: GeminiAccessibility> {
         try requireContext(window: boundWindow)
     }
 
-    private func requireContext(window: AX.Element) throws {
+    private func requireContext(window: AX.Element, requireForeground: Bool = true) throws {
         try checkCancellation()
         guard ax.trusted else { throw GeminiAppAutomationError.accessibilityUnavailable }
-        guard ax.frontmostPID == pid, ax.focusedWindow(pid: pid) == window else {
+        guard (!requireForeground || ax.frontmostPID == pid), ax.focusedWindow(pid: pid) == window else {
             throw GeminiAppAutomationError.contextChanged
         }
     }
 
-    private mutating func inspect() throws -> (snapshot: GeminiAXSnapshot, prompt: AX.Element?, send: AX.Element?) {
+    private mutating func inspect(allowBackgroundAcknowledgement: Bool = false) throws -> (snapshot: GeminiAXSnapshot, prompt: AX.Element?, send: AX.Element?) {
         let deadline = ContinuousClock.now.advanced(by: .seconds(1))
         try checkCancellation(deadline: deadline)
         guard ax.trusted else { throw GeminiAppAutomationError.accessibilityUnavailable }
-        guard ax.frontmostPID == pid else {
+        guard ax.frontmostPID == pid || allowBackgroundAcknowledgement else {
             return (GeminiAXSnapshot(text: nil, isNewConversation: false, isFrontmost: false,
                                      canSend: false, submissionAccepted: false), nil, nil)
         }
@@ -152,6 +152,7 @@ struct GeminiAXSession<AX: GeminiAccessibility> {
         let focusedWindow = ax.focusedWindow(pid: pid)
         try checkCancellation(deadline: deadline)
         guard let window = focusedWindow else { throw GeminiAppAutomationError.composerNotReady }
+        if allowBackgroundAcknowledgement, boundWindow == nil { throw GeminiAppAutomationError.contextChanged }
         if let boundWindow, window != boundWindow { throw GeminiAppAutomationError.contextChanged }
         if !pendingNewLanding { boundWindow = window }
         var queue: [(AX.Element, Int)] = [(window, 0)]
@@ -198,7 +199,7 @@ struct GeminiAXSession<AX: GeminiAccessibility> {
         guard !prompts.isEmpty else { throw GeminiAppAutomationError.composerNotReady }
         guard prompts.count == 1 else { throw GeminiAppAutomationError.composerUnavailable }
         try checkCancellation(deadline: deadline)
-        try requireContext(window: window)
+        try requireContext(window: window, requireForeground: !allowBackgroundAcknowledgement)
         try checkCancellation(deadline: deadline)
         let prompt = prompts[0]
         let promptText = ax.text(prompt)
@@ -212,7 +213,7 @@ struct GeminiAXSession<AX: GeminiAccessibility> {
         let send = sends.count == 1 ? sends[0] : nil
         let canSend = send.map { ax.isEnabled($0) } ?? false
         try checkCancellation(deadline: deadline)
-        return (GeminiAXSnapshot(text: text, isNewConversation: isNew, isFrontmost: true,
+        return (GeminiAXSnapshot(text: text, isNewConversation: isNew, isFrontmost: ax.frontmostPID == pid,
                                  canSend: canSend,
                                  submissionAccepted: submissionAttempted && text.isEmpty && hasShare && !isNew), prompt, send)
     }
