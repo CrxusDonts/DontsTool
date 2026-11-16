@@ -113,16 +113,12 @@ struct SettingsRootView: View {
                     .font(.system(size: 13, weight: tab == entry ? .medium : .regular))
                 Spacer()
             }
-            .foregroundStyle(tab == entry ? Theme.accent : Theme.secondary)
+            .foregroundStyle(tab == entry ? Theme.ink : Theme.secondary)
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
             .background(
-                tab == entry ? Theme.accentFill : .clear,
-                in: RoundedRectangle(cornerRadius: 8)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .strokeBorder(tab == entry ? Theme.accentBorder : .clear, lineWidth: 0.5)
+                tab == entry ? Theme.selection : .clear,
+                in: RoundedRectangle(cornerRadius: 7)
             )
             .padding(.horizontal, 8)
             .padding(.vertical, 1)

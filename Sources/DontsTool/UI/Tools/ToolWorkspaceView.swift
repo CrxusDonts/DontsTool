@@ -100,12 +100,11 @@ struct ToolWorkspaceView: View {
                 Label(document.isPinned ? "已置顶" : "置顶", systemImage: document.isPinned ? "pin.fill" : "pin")
                     .font(.system(size: 11.5, weight: .medium))
                     .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(document.isPinned ? Theme.accentFill : Theme.controlFill, in: Capsule())
-                    .overlay(Capsule().strokeBorder(document.isPinned ? Theme.accentBorder : Theme.controlBorder, lineWidth: 0.5))
+                    .padding(.vertical, 3.5)
+                    .background(document.isPinned ? Theme.selection : Color.clear, in: RoundedRectangle(cornerRadius: 6))
             }
             .buttonStyle(.plain)
-            .foregroundStyle(document.isPinned ? ToolTheme.accent : ToolTheme.secondary)
+            .foregroundStyle(document.isPinned ? ToolTheme.ink : ToolTheme.secondary)
             .help(document.isPinned ? "取消窗口置顶" : "保持在其他普通窗口前面")
             .accessibilityValue(document.isPinned ? "已开启" : "已关闭")
 
@@ -113,9 +112,7 @@ struct ToolWorkspaceView: View {
                 Label("重命名", systemImage: "pencil")
                     .font(.system(size: 11.5, weight: .medium))
                     .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Theme.controlFill, in: Capsule())
-                    .overlay(Capsule().strokeBorder(Theme.controlBorder, lineWidth: 0.5))
+                    .padding(.vertical, 3.5)
             }
             .buttonStyle(.plain)
             .foregroundStyle(ToolTheme.secondary)
@@ -154,10 +151,13 @@ struct ToolWorkspaceView: View {
 
     private var statusBar: some View {
         HStack(spacing: 8) {
-            Circle()
-                .fill(feedback != nil ? Theme.success : ToolTheme.accent)
-                .frame(width: 6, height: 6)
+            if feedback != nil {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.success)
+            }
             Text(feedback ?? session.status)
+                .foregroundStyle(ToolTheme.secondary)
                 .lineLimit(1)
                 .truncationMode(.tail)
             Spacer(minLength: 8)
@@ -235,12 +235,12 @@ struct ToolWorkspaceView: View {
             draftEditor.run()
         } label: {
             Text(title)
-                .font(.system(size: 11.5, weight: active ? .semibold : .medium))
-                .foregroundStyle(active ? ToolTheme.accent : ToolTheme.ink)
-                .padding(.horizontal, 10)
+                .font(.system(size: 11.5, weight: active ? .semibold : .regular))
+                .foregroundStyle(active ? ToolTheme.ink : ToolTheme.secondary)
+                .padding(.horizontal, 9)
                 .padding(.vertical, 4)
-                .background(active ? Theme.accentFill : Theme.controlFill, in: Capsule())
-                .overlay(Capsule().strokeBorder(active ? Theme.accentBorder : Theme.controlBorder, lineWidth: 0.5))
+                .background(active ? Theme.selection : Color.clear, in: RoundedRectangle(cornerRadius: 6))
+                .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(active ? Theme.controlBorder : Color.clear, lineWidth: 0.5))
         }
         .buttonStyle(.plain)
         .keyboardShortcut(active ? KeyboardShortcut(.return, modifiers: .command) : nil)

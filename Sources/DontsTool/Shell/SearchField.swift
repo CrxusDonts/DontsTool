@@ -18,10 +18,10 @@ final class SearchField: NSSearchField, NSSearchFieldDelegate {
             string: "搜索应用、工具、网址…",
             attributes: [
                 .foregroundColor: Theme.tertiaryNS,
-                .font: NSFont.systemFont(ofSize: 18, weight: .regular)
+                .font: NSFont.systemFont(ofSize: 17, weight: .regular)
             ]
         )
-        font = .systemFont(ofSize: 18, weight: .regular)
+        font = .systemFont(ofSize: 17, weight: .regular)
         textColor = Theme.inkNS
         isBezeled = false
         drawsBackground = false
@@ -42,7 +42,7 @@ final class SearchField: NSSearchField, NSSearchFieldDelegate {
     func setContentMode(_ enabled: Bool) {
         placeholderAttributedString = NSAttributedString(
             string: enabled ? "筛选可用操作…" : "搜索应用、工具、网址…",
-            attributes: [.foregroundColor: Theme.tertiaryNS, .font: NSFont.systemFont(ofSize: 18)]
+            attributes: [.foregroundColor: Theme.tertiaryNS, .font: NSFont.systemFont(ofSize: 17)]
         )
     }
 

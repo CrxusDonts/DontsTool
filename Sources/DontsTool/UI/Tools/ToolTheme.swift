@@ -1,24 +1,24 @@
 import AppKit
 import SwiftUI
 
-/// 独立工具窗口与划词浮卡的配色令牌：与 Liquid Glass 系统对齐。
+/// 独立工具窗口与编辑器配色：纯中性白/炭灰，克制的 Xcode/CotEditor 语法色。
 enum ToolTheme {
     static func adaptive(_ light: UInt32, _ dark: UInt32) -> NSColor {
         NSColor(name: nil) { $0.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? Theme.hexColor(dark) : Theme.hexColor(light) }
     }
 
-    static let shellNS = adaptive(0xF1F5F9, 0x161922)
-    static let toolbarNS = adaptive(0xF8FAFC, 0x1B1F2A)
-    static let workspaceNS = adaptive(0xF1F5F9, 0x12151C)
-    static let editorNS = adaptive(0xFFFFFF, 0x0F1218)
-    static let gutterNS = adaptive(0xF8FAFC, 0x13171F)
-    static let inkNS = adaptive(0x0F172A, 0xF1F5F9)
-    static let secondaryNS = adaptive(0x475569, 0x94A3B8)
-    static let borderNS = adaptive(0xE2E8F0, 0x262C3A)
-    static let accentNS = adaptive(0x0A84FF, 0x38BDF8)
-    static let stringNS = adaptive(0x059669, 0x34D399)
-    static let numberNS = adaptive(0xD97706, 0xFBBF24)
-    static let keyNS = adaptive(0x0369A1, 0x7DD3FC)
+    static let shellNS = adaptive(0xF7F7F8, 0x18181A)
+    static let toolbarNS = adaptive(0xF7F7F8, 0x1C1C1E)
+    static let workspaceNS = adaptive(0xF4F4F5, 0x141416)
+    static let editorNS = adaptive(0xFFFFFF, 0x1C1C1E)
+    static let gutterNS = adaptive(0xFAFAFB, 0x18181A)
+    static let inkNS = adaptive(0x111113, 0xF4F4F5)
+    static let secondaryNS = adaptive(0x6E6E73, 0xA1A1AA)
+    static let borderNS = adaptive(0xE5E5E7, 0x2C2C2E)
+    static let accentNS = adaptive(0x007AFF, 0x0A84FF)
+    static let stringNS = adaptive(0x15803D, 0x73C991)
+    static let numberNS = adaptive(0xB45309, 0xE2C08D)
+    static let keyNS = adaptive(0x1E293B, 0x9CDCFE)
     static let modifiedNS = adaptive(0xFEF3C7, 0x3B3018)
 
     static let shell = Color(nsColor: shellNS)
@@ -29,6 +29,6 @@ enum ToolTheme {
     static let secondary = Color(nsColor: secondaryNS)
     static let border = Color(nsColor: borderNS)
     static let accent = Color(nsColor: accentNS)
-    static let onAccent = Color(nsColor: adaptive(0xFFFFFF, 0x082032))
+    static let onAccent = Color(nsColor: adaptive(0xFFFFFF, 0xFFFFFF))
     static let selection = Theme.selection
 }

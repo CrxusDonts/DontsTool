@@ -5,21 +5,21 @@ import SwiftUI
 struct LauncherPressStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .scaleEffect(configuration.isPressed && !Motion.reduceMotion ? 0.988 : 1)
+            .scaleEffect(configuration.isPressed && !Motion.reduceMotion ? 0.99 : 1)
             .animation(Motion.hoverEasing, value: configuration.isPressed)
     }
 }
 
-/// 键盘键帽：↑↓、↵、esc 等。
+/// 键盘键帽：↑↓、↵、esc 等，克制的按键质感。
 struct KeyCap: View {
     let text: String
 
     var body: some View {
         Text(text)
             .font(Theme.keycapFont)
-            .foregroundStyle(Theme.secondary)
+            .foregroundStyle(Theme.tertiary)
             .padding(.horizontal, 5)
-            .padding(.vertical, 2)
+            .padding(.vertical, 1.5)
             .background(Theme.controlFill, in: RoundedRectangle(cornerRadius: Metrics.keycapCornerRadius))
             .overlay(
                 RoundedRectangle(cornerRadius: Metrics.keycapCornerRadius)
@@ -28,28 +28,24 @@ struct KeyCap: View {
     }
 }
 
-/// 结果行右侧的动作胶囊：选中或悬停时出现。
+/// 结果行右侧的动作提示：选中或悬停时出现，低调中性。
 struct ActionCapsule: View {
     let title: String
 
     var body: some View {
         HStack(spacing: 4) {
             Text(title)
-            Text("↵").font(.system(size: 10, weight: .semibold))
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .help(title)
+                .font(Theme.capsuleFont)
+                .foregroundStyle(Theme.secondary)
+            KeyCap(text: "↵")
         }
-        .font(Theme.capsuleFont)
-        .foregroundStyle(Theme.accent)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 3)
-        .background(Theme.accentFill, in: RoundedRectangle(cornerRadius: Metrics.capsuleCornerRadius))
-        .overlay(
-            RoundedRectangle(cornerRadius: Metrics.capsuleCornerRadius)
-                .strokeBorder(Theme.accentBorder, lineWidth: 0.5)
-        )
     }
 }
 
-/// 关键词工具的快捷键标签：json、tr 等。
+/// 关键词工具的快捷键标签：json、tr 等，纯等宽弱化文本。
 struct ShortcutTag: View {
     let keyword: String
 
@@ -57,17 +53,10 @@ struct ShortcutTag: View {
         Text(keyword)
             .font(Theme.keycapFont)
             .foregroundStyle(Theme.tertiary)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(Theme.controlFill, in: RoundedRectangle(cornerRadius: Metrics.keycapCornerRadius))
-            .overlay(
-                RoundedRectangle(cornerRadius: Metrics.keycapCornerRadius)
-                    .strokeBorder(Theme.controlBorder, lineWidth: 0.5)
-            )
     }
 }
 
-/// 26pt 紧凑图标块：应用/文件用系统图标，符号与字形用微玻璃着色块。
+/// 20pt 克制图标：应用/文件用真实图标，工具符号统一用单色线形图标（无彩色底块）。
 struct IconTile: View {
     let icon: ItemIcon
 
@@ -78,41 +67,17 @@ struct IconTile: View {
                 Image(nsImage: FileIconImage.image(for: path))
                     .resizable()
                     .scaledToFit()
-                    .padding(1)
-            case .symbol(let name, let tint):
+            case .symbol(let name, _):
                 Image(systemName: name)
-                    .font(.system(size: 13.5, weight: .medium))
-                    .foregroundStyle(tint.style.foreground)
-            case .glyph(let text, let tint):
+                    .font(.system(size: 14, weight: .regular))
+                    .foregroundStyle(Theme.secondary)
+            case .glyph(let text, _):
                 Text(text)
-                    .font(.system(size: 10.5, weight: .bold, design: .monospaced))
-                    .foregroundStyle(tint.style.foreground)
+                    .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(Theme.secondary)
             }
         }
         .frame(width: Metrics.iconSize, height: Metrics.iconSize)
-        .background(tileBackground, in: RoundedRectangle(cornerRadius: Metrics.iconCornerRadius))
-        .overlay(
-            RoundedRectangle(cornerRadius: Metrics.iconCornerRadius)
-                .strokeBorder(tileBorder, lineWidth: 0.5)
-        )
-    }
-
-    private var tileBackground: Color {
-        switch icon {
-        case .symbol(_, let tint), .glyph(_, let tint):
-            tint.style.background
-        case .application, .file:
-            Color.clear
-        }
-    }
-
-    private var tileBorder: Color {
-        switch icon {
-        case .symbol(_, let tint), .glyph(_, let tint):
-            tint.style.border
-        default:
-            Color.clear
-        }
     }
 }
 
@@ -148,7 +113,7 @@ struct GroupHeader: View {
     }
 }
 
-/// 极简 32pt 玻璃底栏：品牌标识 + 实时状态 + 键位说明。
+/// 极简 30pt 底栏：产品名 + 实时状态 + 键位说明。
 struct PanelFooterView: View {
     let statusText: String?
     let isWarning: Bool
@@ -158,12 +123,9 @@ struct PanelFooterView: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            Circle()
-                .fill(Theme.accent)
-                .frame(width: 5, height: 5)
             Text("DontsTool")
                 .font(Theme.footerFont.weight(.medium))
-                .foregroundStyle(Theme.secondary)
+                .foregroundStyle(Theme.tertiary)
             if let statusText {
                 Text("·")
                     .foregroundStyle(Theme.tertiary)
@@ -176,15 +138,15 @@ struct PanelFooterView: View {
             Spacer(minLength: 8)
             if isActionPanelOpen {
                 legend(keys: ["↑↓"], label: "选择")
-                dot
+                spacerDot
                 legend(keys: ["↵"], label: "执行")
-                dot
+                spacerDot
                 legend(keys: ["esc"], label: "返回")
             } else {
                 legend(keys: ["↑↓"], label: "选择")
-                dot
+                spacerDot
                 legend(keys: ["↵"], label: "执行")
-                dot
+                spacerDot
                 Button { onShowActions?() } label: {
                     legend(keys: ["⌘K"], label: "操作")
                 }
@@ -192,7 +154,7 @@ struct PanelFooterView: View {
                 .disabled(!hasActions)
                 .help("查看当前结果的所有操作（⌘K）")
                 .accessibilityLabel("查看所有操作")
-                dot
+                spacerDot
                 legend(keys: ["esc"], label: "关闭")
             }
         }
@@ -202,10 +164,10 @@ struct PanelFooterView: View {
         .overlay(alignment: .top) { Theme.separator.frame(height: 0.5) }
     }
 
-    private var dot: some View {
+    private var spacerDot: some View {
         Text("·")
             .font(Theme.footerFont)
-            .foregroundStyle(Theme.tertiary.opacity(0.6))
+            .foregroundStyle(Theme.tertiary.opacity(0.5))
     }
 
     private func legend(keys: [String], label: String) -> some View {
@@ -220,7 +182,7 @@ struct PanelFooterView: View {
     }
 }
 
-/// ⌘K 动作面板：Liquid Glass 悬浮菜单。
+/// ⌘K 动作面板：中性原生菜单样式。
 struct ActionPaletteView: View {
     let itemTitle: String
     let actions: [ItemAction]
@@ -254,18 +216,18 @@ struct ActionPaletteView: View {
             }
         }
         .padding(5)
-        .frame(width: 244, alignment: .leading)
+        .frame(width: 240, alignment: .leading)
         .background {
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: 10)
                 .fill(.regularMaterial)
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: 10)
                 .fill(Theme.popoverBase)
         }
         .overlay(
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: 10)
                 .strokeBorder(Theme.panelBorder, lineWidth: 0.5)
         )
-        .shadow(color: .black.opacity(0.20), radius: 18, y: 8)
+        .shadow(color: .black.opacity(0.18), radius: 16, y: 6)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("操作")
     }
@@ -283,21 +245,19 @@ private struct ActionPaletteRow: View {
                 Image(systemName: action.symbol ?? "circle")
                     .font(.system(size: 12.5))
                     .frame(width: 16)
-                    .foregroundStyle(isSelected ? Theme.onSelectionAccent : Theme.secondary)
+                    .foregroundStyle(isSelected ? Theme.ink : Theme.secondary)
                 Text(action.title)
                     .font(.system(size: 12.5, weight: isSelected ? .medium : .regular))
-                    .foregroundStyle(isSelected ? Theme.onSelectionAccent : Theme.ink)
+                    .foregroundStyle(Theme.ink)
                 Spacer(minLength: 8)
                 if isSelected {
-                    Text("↵")
-                        .font(.system(size: 10.5, weight: .semibold, design: .monospaced))
-                        .foregroundStyle(Theme.onSelectionAccent.opacity(0.85))
+                    KeyCap(text: "↵")
                 }
             }
             .padding(.horizontal, 8)
             .frame(height: 30)
-            .background(rowBackground, in: RoundedRectangle(cornerRadius: 7))
-            .contentShape(RoundedRectangle(cornerRadius: 7))
+            .background(rowBackground, in: RoundedRectangle(cornerRadius: 6))
+            .contentShape(RoundedRectangle(cornerRadius: 6))
         }
         .buttonStyle(LauncherPressStyle())
         .onHover { isHovered = $0 }
@@ -307,20 +267,20 @@ private struct ActionPaletteRow: View {
     }
 
     private var rowBackground: Color {
-        if isSelected { return Theme.accent }
+        if isSelected { return Theme.selection }
         if isHovered { return Theme.rowHover }
         return .clear
     }
 }
 
-/// 复制/执行反馈 Toast：悬浮毛玻璃胶囊。
+/// 复制/执行反馈 Toast：极简原生浮层。
 struct ToastView: View {
     let message: String
 
     var body: some View {
         HStack(spacing: 7) {
             Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 14))
+                .font(.system(size: 13))
                 .foregroundStyle(Theme.success)
             Text(message)
                 .font(.system(size: 12, weight: .medium))
@@ -328,7 +288,7 @@ struct ToastView: View {
                 .lineLimit(2)
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.vertical, 7)
         .background {
             RoundedRectangle(cornerRadius: Metrics.toastCornerRadius)
                 .fill(.regularMaterial)
@@ -339,7 +299,7 @@ struct ToastView: View {
             RoundedRectangle(cornerRadius: Metrics.toastCornerRadius)
                 .strokeBorder(Theme.toastBorder, lineWidth: 0.5)
         )
-        .shadow(color: .black.opacity(0.14), radius: 12, y: 6)
+        .shadow(color: .black.opacity(0.12), radius: 10, y: 4)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(message)
         .accessibilityAddTraits(.isStaticText)
@@ -351,6 +311,5 @@ struct ProgressSpinner: View {
     var body: some View {
         ProgressView()
             .controlSize(.small)
-            .tint(Theme.accent)
     }
 }

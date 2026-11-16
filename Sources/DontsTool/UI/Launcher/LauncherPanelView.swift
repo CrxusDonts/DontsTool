@@ -43,14 +43,7 @@ struct LauncherPanelView: View {
         .clipShape(RoundedRectangle(cornerRadius: Metrics.panelCornerRadius))
         .overlay(
             RoundedRectangle(cornerRadius: Metrics.panelCornerRadius)
-                .strokeBorder(
-                    LinearGradient(
-                        colors: [Theme.panelHighlight, Theme.panelBorder, Theme.panelBorder],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    ),
-                    lineWidth: 0.75
-                )
+                .strokeBorder(Theme.panelBorder, lineWidth: 0.75)
         )
         .overlay(alignment: .bottomTrailing) {
             if model.isActionPanelOpen {
@@ -91,18 +84,35 @@ struct LauncherPanelView: View {
                         ForEach(model.sections) { section in
                             sectionHeader(section)
                                 .id("section-\(section.group.rawValue)")
-                            ForEach(Array(section.items.enumerated()), id: \.element.id) { offset, item in
-                                let index = section.startIndex + offset
-                                ResultRowView(
-                                    item: item,
-                                    keyword: item.keyword,
-                                    isSelected: index == model.selectedIndex,
-                                    drawsSelection: false,
-                                    onExecute: { onExecute(index, false) },
-                                    onSecondaryExecute: { onExecute(index, true) }
-                                )
-                                .id(item.id)
-                                .anchorPreference(key: SelectionBoundsKey.self, value: .bounds) { [item.id: $0] }
+                            if model.isDefaultList && section.group == .app {
+                                HStack(spacing: 6) {
+                                    ForEach(Array(section.items.enumerated()), id: \.element.id) { offset, item in
+                                        let index = section.startIndex + offset
+                                        AppDockTileView(
+                                            item: item,
+                                            isSelected: index == model.selectedIndex,
+                                            onExecute: { onExecute(index, false) }
+                                        )
+                                        .id(item.id)
+                                        .anchorPreference(key: SelectionBoundsKey.self, value: .bounds) { [item.id: $0] }
+                                    }
+                                }
+                                .padding(.horizontal, 2)
+                                .padding(.bottom, 6)
+                            } else {
+                                ForEach(Array(section.items.enumerated()), id: \.element.id) { offset, item in
+                                    let index = section.startIndex + offset
+                                    ResultRowView(
+                                        item: item,
+                                        keyword: item.keyword,
+                                        isSelected: index == model.selectedIndex,
+                                        drawsSelection: false,
+                                        onExecute: { onExecute(index, false) },
+                                        onSecondaryExecute: { onExecute(index, true) }
+                                    )
+                                    .id(item.id)
+                                    .anchorPreference(key: SelectionBoundsKey.self, value: .bounds) { [item.id: $0] }
+                                }
                             }
                         }
                     }
@@ -224,8 +234,8 @@ struct SearchHeaderView: View {
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 16, weight: .medium))
-                .foregroundStyle(Theme.accent)
+                .font(.system(size: 15, weight: .regular))
+                .foregroundStyle(Theme.tertiary)
             SearchFieldRepresentable(field: field)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             HStack(spacing: 6) {

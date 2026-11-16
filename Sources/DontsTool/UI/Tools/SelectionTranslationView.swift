@@ -13,19 +13,15 @@ struct SelectionTranslationView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
-                HStack(spacing: 5) {
-                    Circle().fill(Theme.accent).frame(width: 5, height: 5)
-                    Text(controller.gestureVerificationShown ? "长按验证" : "划词翻译")
-                        .font(.system(size: 11.5, weight: .semibold))
-                }
+                Text(controller.gestureVerificationShown ? "长按验证" : "划词翻译")
+                    .font(.system(size: 12, weight: .semibold))
                 if !controller.gestureVerificationShown {
                     Text(targetLabel)
                         .font(.system(size: 10.5, weight: .medium))
-                        .foregroundStyle(Theme.accent)
+                        .foregroundStyle(Theme.secondary)
                         .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Theme.accentFill, in: Capsule())
-                        .overlay(Capsule().strokeBorder(Theme.accentBorder, lineWidth: 0.5))
+                        .padding(.vertical, 1.5)
+                        .background(Theme.controlFill, in: RoundedRectangle(cornerRadius: 4))
                 }
                 Spacer()
                 Button { controller.pinned.toggle() } label: {
@@ -142,17 +138,10 @@ struct SelectionTranslationView: View {
                 RoundedRectangle(cornerRadius: 14).fill(reduceTransparency ? Theme.panelSolid : Theme.panelBase)
             }
         }
-        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(
-            RoundedRectangle(cornerRadius: 14)
-                .strokeBorder(
-                    LinearGradient(
-                        colors: [Theme.panelHighlight, Theme.panelBorder, Theme.panelBorder],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    ),
-                    lineWidth: 0.75
-                )
+            RoundedRectangle(cornerRadius: 12)
+                .strokeBorder(Theme.panelBorder, lineWidth: 0.75)
         )
         .frame(width: 360, height: 310)
     }
