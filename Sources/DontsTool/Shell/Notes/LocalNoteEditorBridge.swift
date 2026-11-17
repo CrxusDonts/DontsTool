@@ -27,6 +27,7 @@ final class LocalNoteEditorBridge: NSObject, ObservableObject, WKNavigationDeleg
     private var stopped = false
     private var pendingSnapshots: [UUID: (Result<LocalNoteContent, Error>) -> Void] = [:]
     private var editable = true
+    var isEditable: Bool { editable }
     private var appearance = NSApp.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? "dark" : "light"
     private(set) var hasBeenReady = false
     private let initialURL: URL

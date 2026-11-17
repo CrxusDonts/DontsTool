@@ -4,8 +4,18 @@ import DontsToolCore
 
 @MainActor
 final class AppController {
-    private(set) lazy var updateController = AppUpdateController(prepareToInstall: { [weak self] in
+    private(set) lazy var updateController = AppUpdateController(resumeAfterFailure: { [weak self] in
+        self?.noteWindows?.resumeEditing()
+        await self?.knowledgeWindows?.resumeInteraction()
+    }, prepareToInstall: { [weak self] in
         await self?.prepareToTerminate() ?? false
+    })
+    private lazy var termination = TerminationPreparation(prepare: { [weak self] in
+        guard let self else { return false }
+        guard await noteWindows?.prepareToTerminate() ?? true else { return false }
+        let approved = await knowledgeWindows?.prepareToTerminate() ?? true
+        if !approved { noteWindows?.resumeEditing() }
+        return approved
     })
     private let settings = SettingsStore()
     private let usage = UsageStore()
@@ -247,10 +257,7 @@ final class AppController {
     var needsTerminationPreparation: Bool { (knowledgeWindows?.hasOpenWindows ?? false) || (noteWindows?.hasOpenWindows ?? false) }
 
     func prepareToTerminate() async -> Bool {
-        guard await noteWindows?.prepareToTerminate() ?? true else { return false }
-        let approved = await knowledgeWindows?.prepareToTerminate() ?? true
-        if !approved { noteWindows?.resumeEditing() }
-        return approved
+        await termination.run()
     }
 
     func shutdown() {

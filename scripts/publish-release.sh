@@ -21,6 +21,7 @@ assert m['version'] == sys.argv[1] and m['commit'] == sys.argv[2]
 assert m['signing'] == 'ad-hoc' and m['notarized'] is False
 PY
 (cd dist && shasum -a 256 -c SHA256SUMS)
+python3 scripts/update-feed.py verify --dist dist --repository "$GH_REPO"
 dt_work="$(mktemp -d "${TMPDIR:-/tmp}/dontstool-publish.XXXXXX")"
 trap 'rm -rf "$dt_work"' EXIT
 dt_marker="<!-- dontstool-release:$dt_commit -->"
@@ -30,7 +31,8 @@ $dt_marker
 
 - 支持 macOS 26 或更新版本，Universal 包含 Apple Silicon 和 Intel 架构。
 - 本版本使用 ad-hoc 本地签名，未经 Apple 公证，不需要 Developer ID 证书。
-- 下载 ZIP、manifest.json 与 SHA256SUMS 后先校验，再将 DontsTool.app 放入 Applications。
+- 首次安装下载 ZIP，将 DontsTool.app 放入 Applications；之后可在应用内检查更新、安装并重启。
+- 更新包通过独立的 Ed25519 签名验证；appcast.xml 为应用自动更新源。
 - 安装及首次打开说明：[README](https://github.com/$GH_REPO/blob/$DT_RELEASE_TAG/README.md#安装)。
 - 源码提交：$dt_commit
 NOTES
@@ -51,17 +53,18 @@ else
     --title "DontsTool $DT_RELEASE_TAG" --notes-file "$dt_work/notes.md"
 fi
 gh release upload "$DT_RELEASE_TAG" --repo "$GH_REPO" --clobber \
-  "dist/$dt_archive" dist/manifest.json dist/SHA256SUMS
+  "dist/$dt_archive" dist/manifest.json dist/SHA256SUMS dist/appcast.xml
 mkdir "$dt_work/download"
 gh release download "$DT_RELEASE_TAG" --repo "$GH_REPO" --dir "$dt_work/download" \
-  --pattern "$dt_archive" --pattern manifest.json --pattern SHA256SUMS
+  --pattern "$dt_archive" --pattern manifest.json --pattern SHA256SUMS --pattern appcast.xml
 (cd "$dt_work/download" && shasum -a 256 -c SHA256SUMS)
-for dt_asset in "$dt_archive" manifest.json SHA256SUMS; do
+python3 scripts/update-feed.py verify --dist "$dt_work/download" --repository "$GH_REPO"
+for dt_asset in "$dt_archive" manifest.json SHA256SUMS appcast.xml; do
   cmp "dist/$dt_asset" "$dt_work/download/$dt_asset"
 done
 gh release edit "$DT_RELEASE_TAG" --repo "$GH_REPO" --draft=false --latest
 printf 'Release: https://github.com/%s/releases/tag/%s\n' "$GH_REPO" "$DT_RELEASE_TAG"
 if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
-  printf '### Published\n[DontsTool %s](https://github.com/%s/releases/tag/%s)\n\nUniversal ZIP, manifest and checksums were downloaded and byte-compared before publication.\n' \
+  printf '### Published\n[DontsTool %s](https://github.com/%s/releases/tag/%s)\n\nUniversal ZIP, manifest, checksums and signed update feed were downloaded and byte-compared before publication.\n' \
     "$DT_RELEASE_TAG" "$GH_REPO" "$DT_RELEASE_TAG" >> "$GITHUB_STEP_SUMMARY"
 fi

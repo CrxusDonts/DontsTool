@@ -8,6 +8,22 @@ private final class NoteResourceMarker: NSObject {}
 @Suite("本地便笺原生编辑器", .serialized)
 @MainActor
 struct LocalNoteEditorTests {
+    @Test func updateThenQuitCapturesFrozenNotesOnceAndResumeInvalidatesApproval() async throws {
+        let (root, store, record) = try fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let manager = LocalNoteWindowManager(store: store, resourcesURL: resources)
+        manager.openNote(record.id)
+        let controller = try #require(manager.controllers[record.id])
+        defer { manager.shutdown(); controller.window?.close() }
+        try await until { controller.session.bridge.state == .ready }
+        _ = try await js(controller.session.bridge, "window.captures=0; const original=window.dontsNote.snapshot; window.dontsNote.snapshot=()=>{window.captures++; return original();};")
+        #expect(await manager.prepareToTerminate())
+        #expect(await manager.prepareToTerminate())
+        #expect(try await js(controller.session.bridge, "return window.captures;") as? Int == 1)
+        manager.resumeEditing()
+        #expect(await manager.prepareToTerminate())
+        #expect(try await js(controller.session.bridge, "return window.captures;") as? Int == 2)
+    }
     private var resources: URL { Bundle(for: NoteResourceMarker.self).resourceURL!.appendingPathComponent("NotesEditor") }
     private func fixture() throws -> (URL, LocalNoteStore, LocalNoteRecord) {
         _ = NSApplication.shared

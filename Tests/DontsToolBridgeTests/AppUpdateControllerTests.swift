@@ -6,6 +6,27 @@ import Testing
 @Suite("原生更新协调", .serialized)
 @MainActor
 struct AppUpdateControllerTests {
+    @Test(arguments: [false, true])
+    func abortedPreparedUpdateRestoresEditorsAndDropsItsInstallCallback(approved: Bool) async throws {
+        _ = NSApplication.shared
+        var recoveries = 0
+        let controller = AppUpdateController(currentVersion: "0.2.6", startUpdater: false,
+                                            resumeAfterFailure: { recoveries += 1 }, prepareToInstall: { approved })
+        let item = try #require(SUAppcastItem(dictionary: [
+            "sparkle:version": "99", "sparkle:shortVersionString": "0.2.7",
+            "enclosure": ["url": "https://example.com/update.zip", "length": "100"]
+        ]))
+        var installs = 0
+        _ = controller.updater(controller.sparkleUpdater, shouldPostponeRelaunchForUpdate: item, untilInvokingBlock: { installs += 1 })
+        for _ in 0..<20 { await Task.yield() }
+        controller.updater(controller.sparkleUpdater, didAbortWithError: NSError(domain: "Fixture", code: 1))
+        for _ in 0..<20 { await Task.yield() }
+        #expect(recoveries == 1)
+        let completedBeforeAbort = installs
+        controller.checkForUpdates(nil)
+        for _ in 0..<20 { await Task.yield() }
+        #expect(installs == completedBeforeAbort)
+    }
     @Test func delegateRejectsDowngradeEvenWhenCandidateBuildIsHigher() throws {
         _ = NSApplication.shared
         let controller = AppUpdateController(currentVersion: "0.2.7", startUpdater: false, prepareToInstall: { true })

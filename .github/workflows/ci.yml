@@ -47,6 +47,8 @@ jobs:
           git diff --exit-code -- Resources/NotesEditor
       - name: Test release tag resolution
         run: ./scripts/tests/test-release-tag.sh
+      - name: Test signed update feeds
+        run: make test-updater
       - name: Test Core
         run: |
           mkdir -p build

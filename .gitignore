@@ -7,6 +7,7 @@
 xcuserdata/
 .DS_Store
 *.log
+__pycache__/
 
 # Local environment and signing material
 .env

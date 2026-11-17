@@ -16,20 +16,25 @@ final class AppUpdateController: NSObject, ObservableObject, SPUUpdaterDelegate,
     private let currentVersion: String
     private let installation: UpdateInstallationGate
     private var observations: Set<AnyCancellable> = []
+    private let resumeAfterFailure: @MainActor () async -> Void
+    private var preparedInstallation = false
+    @Published private var recovering = false
     var sparkleUpdater: SPUUpdater { standard.updater }
 
     init(currentVersion: String = AppInfo.version, startUpdater: Bool = true,
+         resumeAfterFailure: @escaping @MainActor () async -> Void = {},
          prepareToInstall: @escaping @MainActor () async -> Bool) {
         self.currentVersion = currentVersion
+        self.resumeAfterFailure = resumeAfterFailure
         installation = UpdateInstallationGate(prepare: prepareToInstall)
         super.init()
         standard = SPUStandardUpdaterController(startingUpdater: false, updaterDelegate: self, userDriverDelegate: nil)
         standard.updater.sendsSystemProfile = false
         standard.updater.automaticallyDownloadsUpdates = false
         standard.updater.publisher(for: \.canCheckForUpdates)
-            .combineLatest(installation.$hasPendingInstallation, installation.$isPreparing)
-            .sink { [weak self] available, pending, preparing in
-                self?.canCheckForUpdates = (available || pending) && !preparing
+            .combineLatest(installation.$hasPendingInstallation, installation.$isPreparing, $recovering)
+            .sink { [weak self] available, pending, preparing, recovering in
+                self?.canCheckForUpdates = (available || pending) && !preparing && !recovering
             }.store(in: &observations)
         standard.updater.publisher(for: \.automaticallyChecksForUpdates)
             .sink { [weak self] enabled in self?.automaticallyChecksForUpdates = enabled }
@@ -38,6 +43,7 @@ final class AppUpdateController: NSObject, ObservableObject, SPUUpdaterDelegate,
     }
 
     @objc func checkForUpdates(_ sender: Any? = nil) {
+        guard canCheckForUpdates else { return }
         if installation.hasPendingInstallation {
             Task { await installation.resume() }
         } else if canCheckForUpdates {
@@ -58,8 +64,20 @@ final class AppUpdateController: NSObject, ObservableObject, SPUUpdaterDelegate,
 
     func updater(_ updater: SPUUpdater, shouldPostponeRelaunchForUpdate item: SUAppcastItem,
                  untilInvokingBlock installHandler: @escaping () -> Void) -> Bool {
+        preparedInstallation = true
         installation.postpone { installHandler() }
         Task { await installation.resume() }
         return true
+    }
+
+    func updater(_ updater: SPUUpdater, didAbortWithError error: Error) {
+        guard preparedInstallation else { return }
+        preparedInstallation = false
+        recovering = true
+        Task {
+            await installation.cancel()
+            await resumeAfterFailure()
+            recovering = false
+        }
     }
 }

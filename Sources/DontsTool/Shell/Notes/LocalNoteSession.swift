@@ -43,6 +43,7 @@ final class LocalNoteSession: ObservableObject {
     }
     func captureAndFlush(freeze: Bool = false) async -> Bool {
         guard !isTrashed else { return true }
+        if freeze && !bridge.isEditable { return true }
         do {
             draft = try await bridge.snapshot(freeze: freeze)
             let saved = flush()

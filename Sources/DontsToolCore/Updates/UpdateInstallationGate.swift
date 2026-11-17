@@ -8,6 +8,8 @@ public final class UpdateInstallationGate: ObservableObject {
     @Published public private(set) var isPreparing = false
     private let prepare: @MainActor () async -> Bool
     private var install: (@MainActor () -> Void)?
+    private var preparation: Task<Bool, Never>?
+    private var generation = 0
 
     public init(prepare: @escaping @MainActor () async -> Bool) {
         self.prepare = prepare
@@ -20,12 +22,23 @@ public final class UpdateInstallationGate: ObservableObject {
     }
 
     public func resume() async {
-        guard !isPreparing, let install else { return }
+        guard !Task.isCancelled, !isPreparing, let install else { return }
+        let attempt = generation
         isPreparing = true
-        defer { isPreparing = false }
-        guard !Task.isCancelled, await prepare(), !Task.isCancelled else { return }
+        let task = Task { await prepare() }
+        preparation = task
+        defer { preparation = nil; isPreparing = false }
+        guard await task.value, !Task.isCancelled, attempt == generation else { return }
         self.install = nil
         hasPendingInstallation = false
         install()
+    }
+
+    public func cancel() async {
+        generation += 1
+        install = nil
+        hasPendingInstallation = false
+        // Finish any in-flight freeze before the caller restores document interaction.
+        if let preparation { _ = await preparation.value }
     }
 }

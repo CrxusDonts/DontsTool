@@ -220,6 +220,7 @@ xcodegen --version
 
 make test          # Core 单元测试
 make test-bridge   # 真实 WKWebView / 原生窗口集成测试
+make test-updater  # 更新签名、appcast 和篡改拒绝测试
 make app           # Debug 构建
 make run           # 退出本机同名进程，再运行 Debug 版；先保留需要的草稿
 make release       # 构建、ad-hoc 签名、校验并打包 Universal 版
@@ -230,18 +231,25 @@ make release       # 构建、ad-hoc 签名、校验并打包 Universal 版
 发布产物位于 `dist/`：
 
 ```text
-DontsTool-0.2.0-macos-universal.zip
+DontsTool-0.2.7-macos-universal.zip
 manifest.json
 SHA256SUMS
+appcast.xml
 ```
 
 `manifest.json` 记录版本、构建号、源码提交、最低系统版本、架构、签名方式和 ZIP 的 SHA256。构建与发布脚本不会修改已安装的应用。
+
+### 应用内更新
+
+0.2.7 起，应用菜单、状态栏菜单和「设置 → 关于」提供「检查更新…」。默认每天检查一次；下载与安装需要用户确认，可在「关于」关闭自动检查。安装前保存便笺并确认知识库窗口可以关闭，取消保存会推迟重启，再次点击「检查更新」可继续。
+
+更新包由 GitHub Releases 承载，安装前验证 Ed25519 签名，不需要在应用内登录 GitHub或填写 token。当前仓库仍为私有，匿名客户端尚不能访问发布源；公开发布源启用前，不能将本地构建视为已上线的自动更新。0.2.6 及更早版本需先手动下载安装一次含更新器的新版。
 
 ### GitHub Actions
 
 - [CI](.github/workflows/ci.yml)：推送 `main` 或创建 PR 时，运行 Core 与 WebKit 集成测试。
 - [Release](.github/workflows/release.yml)：推送 `vMAJOR.MINOR.PATCH` 标签时，先将标签解析为固定提交、验证同一份源码，再构建 Universal 版并验证签名、压缩包和校验文件。上传至草稿 Release 后下载回验，逐字节一致才正式发布。
-- 使用 GitHub 的临时 `GITHUB_TOKEN` 上传产物，不需要 Apple 证书、私钥或公证凭据。已发布版本不会被覆盖；同一源码的草稿可在失败后重跑。
+- 使用 GitHub 的临时 `GITHUB_TOKEN` 上传产物；`SPARKLE_PRIVATE_KEY` Secret 仅用于签名更新包，不需要 Apple 证书或公证凭据。更新私钥不入库。已发布版本不会被覆盖；同一源码的草稿可在失败后重跑。
 
 发布新版本时，先修改 [Resources/Info.plist](Resources/Info.plist) 的 `CFBundleShortVersionString`，提交到 `main`，再推送一致的标签：
 

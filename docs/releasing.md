@@ -11,6 +11,7 @@
 ```bash
 make test
 make test-bridge
+make test-updater
 make release
 (cd dist && shasum -a 256 -c SHA256SUMS)
 ```
@@ -19,16 +20,26 @@ make release
 
 可通过 `DT_BUILD_NUMBER`、`DT_DERIVED_DATA`、`DT_DIST_DIR` 指定构建号和输出位置；`DT_RELEASE_TAG` 如提供则必须与源码版本一致。脚本不会安装或启动应用，也不会访问证书或钥匙串。
 
+本地打包还需要更新签名私钥：默认读取已忽略的 `.signing/updater/private.key`，也可通过 `DT_UPDATE_KEY_FILE` 指定路径，或通过 `SPARKLE_PRIVATE_KEY` 环境变量提供。私钥应只对当前用户可读，不提交到 Git、不在命令行参数中传入密钥正文、不写入日志。
+
+`Resources/Info.plist` 的 `SUPublicEDKey` 保存公钥，`SUFeedURL` 保存固定 HTTPS 更新源。Sparkle 固定为 2.10.1，签名工具取自 SwiftPM 校验过的同一依赖。打包脚本使用 `sign_update` 签名 ZIP，再用独立 CryptoKit 公钥校验器复核；私钥与公钥不匹配时拒绝生成 appcast。
+
 ## GitHub 发布
 
 1. 提交源码版本和变更到 `main`，等待 CI 成功。
 2. 创建并推送对应版本的注释标签。
 3. Release 工作流只查询 `refs/tags` 命名空间，将注释标签解析到固定提交 SHA；测试、构建和打包都使用该 SHA，发布前再次核对远端标签未移动。
-4. 创建草稿 Release，上传 Universal ZIP、`manifest.json`、`SHA256SUMS`。
-5. 使用 GitHub CLI 下载回验，检查 SHA256 并与刚构建的三个文件逐字节比较。
+4. 创建草稿 Release，上传 Universal ZIP、`manifest.json`、`SHA256SUMS` 和 `appcast.xml`。
+5. 使用 GitHub CLI 下载回验，检查 SHA256、Ed25519 签名及 appcast 版本/长度/下载 URL，并与刚构建的四个文件逐字节比较。
 6. 验证通过才取消草稿状态并设为 Latest。
 
 整个仓库保持私有，Release 也仅对有仓库访问权限的账号可见，不支持匿名下载。CI 只需读取仓库；只有发布 job 具有 `contents: write`，GitHub 令牌仅在发布步骤通过环境变量提供给 CLI。Actions 固定到具体提交 SHA。
+
+0.2.7 的应用内更新按公开发布源设计。当前私有状态下，匿名更新尚未上线；先完成实现与本地演练，正式发布前需明确公开当前仓库或配置单独的公开发布源。不得在客户端嵌入维护者 GitHub 凭据来绕过私有权限。
+
+Release job 还需要仓库 Secret `SPARKLE_PRIVATE_KEY`，内容为 Sparkle 支持的 base64 Ed25519 私钥种子。现有密钥已在本次接入时生成并设置；公钥入库，私钥留在已忽略的本地目录与 Actions Secret 中。恢复构建环境时应恢复同一密钥；更换密钥需要单独安排迁移，不能直接用新私钥签名给旧客户端安装。
+
+`appcast.xml` 跟随每个正式 Release 发布，客户端通过 `releases/latest/download/appcast.xml` 读取。短版本和 CI 构建号同时写入 appcast；客户端额外拒绝同短版本和更低短版本，避免本地构建号与 CI 运行号差异导致降级。
 
 发布失败后可用工作流手动入口填写已有标签重跑。同一源码提交、包含脚本标识的草稿可恢复；其他草稿和正式发布不会被覆盖。已正式发布的版本需要递增版本号再发布，不移动已有标签。
 

@@ -18,6 +18,21 @@ if [[ ! "$dt_build_number" =~ ^[1-9][0-9]*$ ]]; then
   echo 'DT_BUILD_NUMBER must be a positive integer.' >&2
   exit 1
 fi
+dt_update_key="${DT_UPDATE_KEY_FILE:-$dt_root/.signing/updater/private.key}"
+dt_signing_args=()
+if [[ -z "${SPARKLE_PRIVATE_KEY:-}" ]]; then
+  [[ -f "$dt_update_key" ]] || { echo 'An update signing key is required.' >&2; exit 1; }
+  dt_signing_args=(--key-file "$dt_update_key")
+fi
+dt_update_repo="$(python3 - <<'PY'
+import plistlib, re
+from pathlib import Path
+feed = plistlib.loads(Path('Resources/Info.plist').read_bytes())['SUFeedURL']
+match = re.fullmatch(r'https://github.com/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)/releases/latest/download/appcast.xml', feed)
+assert match, 'Unexpected update feed URL'
+print(match[1])
+PY
+)"
 
 dt_derived="${DT_DERIVED_DATA:-$dt_root/build}"
 dt_dist="${DT_DIST_DIR:-$dt_root/dist}"
@@ -37,6 +52,9 @@ dt_signature="$(codesign -d --verbose=4 "$dt_app" 2>&1)"
 grep -q '^Signature=adhoc$' <<< "$dt_signature"
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$dt_app/Contents/Info.plist")" == "$dt_version" ]]
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$dt_app/Contents/Info.plist")" == "$dt_build_number" ]]
+[[ "$(/usr/libexec/PlistBuddy -c 'Print :SUPublicEDKey' "$dt_app/Contents/Info.plist")" == "$(/usr/libexec/PlistBuddy -c 'Print :SUPublicEDKey' Resources/Info.plist)" ]]
+[[ "$(/usr/libexec/PlistBuddy -c 'Print :SUFeedURL' "$dt_app/Contents/Info.plist")" == "$(/usr/libexec/PlistBuddy -c 'Print :SUFeedURL' Resources/Info.plist)" ]]
+[[ -d "$dt_app/Contents/Frameworks/Sparkle.framework" ]]
 
 mkdir -p "$dt_dist"
 dt_archive="DontsTool-$dt_version-macos-universal.zip"
@@ -55,9 +73,14 @@ manifest = {
 }
 (root / 'manifest.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + '\n')
 PY
+dt_feed_notes=()
+[[ ! -f "docs/releases/v$dt_version.md" ]] || dt_feed_notes=(--notes "docs/releases/v$dt_version.md")
+python3 scripts/update-feed.py generate --dist "$dt_dist" --repository "$dt_update_repo" \
+  --sign-tool "$dt_derived/SourcePackages/artifacts/sparkle/Sparkle/bin/sign_update" \
+  "${dt_signing_args[@]}" "${dt_feed_notes[@]}"
 (
   cd "$dt_dist"
-  shasum -a 256 "$dt_archive" manifest.json > SHA256SUMS
+  shasum -a 256 "$dt_archive" manifest.json appcast.xml > SHA256SUMS
   shasum -a 256 -c SHA256SUMS
 )
 # Validate the actual archive, not only the build directory.

@@ -7,6 +7,23 @@ import Testing
 @Suite("知识库 WebKit 插件协议", .serialized)
 @MainActor
 struct KnowledgeWebBridgeTests {
+    @Test func updateThenQuitReusesFrozenDocumentApprovalUntilInteractionResumes() async throws {
+        _ = NSApplication.shared
+        let server = try KnowledgeFixtureServer()
+        defer { server.stop() }
+        let controller = KnowledgeWindowController(origin: try KnowledgeOrigin("http://127.0.0.1:\(server.port)"), request: .init(surface: .editor, documentID: "fixture"), onSettings: {})
+        defer { controller.bridge.stop(); controller.window?.close() }
+        try await until { controller.bridge.isReady }
+        _ = try await controller.bridge.webView.callAsyncJavaScript("window.closes=0; window.dontsToolPlugin.request=async object=>{if(object.type==='prepareClose'){window.closes++;return {canClose:true};}return {accepted:true};};", arguments: [:], in: nil, contentWorld: .page)
+        #expect(await controller.prepareToClose(lock: true))
+        #expect(await controller.prepareToClose(lock: true))
+        let first = try await controller.bridge.webView.callAsyncJavaScript("return window.closes;", arguments: [:], in: nil, contentWorld: .page) as? Int
+        #expect(first == 1)
+        await controller.resumeInteraction()
+        #expect(await controller.prepareToClose(lock: true))
+        let resumed = try await controller.bridge.webView.callAsyncJavaScript("return window.closes;", arguments: [:], in: nil, contentWorld: .page) as? Int
+        #expect(resumed == 2)
+    }
     @Test func readyTitleSearchAndCloseGuardTravelThroughRealWebKit() async throws {
         let server = try KnowledgeFixtureServer()
         defer { server.stop() }

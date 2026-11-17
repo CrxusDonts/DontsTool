@@ -110,6 +110,9 @@ final class KnowledgeWindowManager: KnowledgeServing {
         }
         return true
     }
+    func resumeInteraction() async {
+        for controller in Array(controllers.values) { await controller.resumeInteraction() }
+    }
     func shutdown() { searchBridge?.stop(); controllers.values.forEach { $0.bridge.stop() } }
     private struct SearchResponse: Decodable {
         let authenticated: Bool

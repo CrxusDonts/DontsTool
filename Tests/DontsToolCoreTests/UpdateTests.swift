@@ -5,6 +5,39 @@ import Testing
 @Suite("更新版本与安装保护")
 @MainActor
 struct UpdateTests {
+    @Test func abortWhilePreparingInvalidatesThePendingInstallation() async {
+        var completion: CheckedContinuation<Bool, Never>?
+        var installs = 0
+        let gate = UpdateInstallationGate(prepare: { await withCheckedContinuation { completion = $0 } })
+        gate.postpone { installs += 1 }
+        let attempt = Task { await gate.resume() }
+        while completion == nil { await Task.yield() }
+        let abort = Task { await gate.cancel() }
+        while gate.hasPendingInstallation { await Task.yield() }
+        completion?.resume(returning: true)
+        await attempt.value
+        await abort.value
+        await gate.resume()
+        #expect(installs == 0)
+        #expect(!gate.hasPendingInstallation)
+    }
+
+    @Test func updateAndCommandQShareTheInFlightDocumentPreparation() async {
+        var calls = 0
+        var completion: CheckedContinuation<Bool, Never>?
+        let preparation = TerminationPreparation(prepare: {
+            calls += 1
+            return await withCheckedContinuation { completion = $0 }
+        })
+        let update = Task { await preparation.run() }
+        while completion == nil { await Task.yield() }
+        let quit = Task { await preparation.run() }
+        for _ in 0..<10 { await Task.yield() }
+        #expect(calls == 1)
+        completion?.resume(returning: true)
+        #expect(await update.value)
+        #expect(await quit.value)
+    }
     @Test(arguments: [
         ("0.2.7", "0.2.6", true),
         ("0.10.0", "0.9.9", true),

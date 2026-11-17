@@ -57,13 +57,13 @@
 
 **Interfaces:** Consumes compiled app + ZIP and public key. Produces signed `dist/appcast.xml`, checksum coverage and a verified set of four Release assets.
 
-- [ ] Write Python integration tests using temporary real archive inputs for appcast generation/validation, malformed metadata, absent/mismatched keys, tampered archive, exact fixed HTTPS download URL and stable versions. Run `python3 -m unittest discover -s scripts/tests -p 'test_update_feed.py'`, expect missing module/command failure.
-- [ ] Implement generation via Sparkle signing tools and fail-closed validation. Extend scripts to upload/download/compare appcast and validate signatures. Pin tool provenance to resolved Sparkle package.
-- [ ] Update new release version, installation instructions and signing-secret setup; retain previous releases unchanged.
-- [ ] Run Python, release-tag, Core, bridge and editor suites; `make release` with local signing credentials, expected verified Universal artifact and feed.
-- [ ] Exercise an isolated app against a local feed, including signature rejection and successful download/install/relaunch. Record exact limits if the environment prevents this.
-- [ ] Dispatch whole-branch reviewer; fix important findings with regression tests.
-- [ ] Commit `feat: publish signed Sparkle update feeds from GitHub Releases`.
+- [x] Write Python integration tests using temporary real archive inputs for appcast generation/validation, malformed metadata, absent/mismatched keys, tampered archive, exact fixed HTTPS download URL and stable versions. Run `python3 -m unittest discover -s scripts/tests -p 'test_update_feed.py'`, expect missing module/command failure.
+- [x] Implement generation via Sparkle signing tools and fail-closed validation. Extend scripts to upload/download/compare appcast and validate signatures. Pin tool provenance to resolved Sparkle package.
+- [x] Update new release version, installation instructions and signing-secret setup; retain previous releases unchanged.
+- [x] Run Python, release-tag, Core, bridge and editor suites; `make release` with local signing credentials, expected verified Universal artifact and feed.
+- [x] Exercise an isolated app against a local feed, including signature rejection and successful download/install/relaunch. Record exact limits if the environment prevents this.
+- [x] Dispatch whole-branch reviewer; fix important findings with regression tests.
+- [x] Commit `feat: publish signed Sparkle update feeds from GitHub Releases`.
 
 ## Execution
 

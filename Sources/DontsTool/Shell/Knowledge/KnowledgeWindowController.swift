@@ -114,6 +114,8 @@ final class KnowledgeWindowController: NSWindowController, NSWindowDelegate, NST
     }
     /// Every destructive navigation asks the existing Web draft/save guards first.
     func prepareToClose(lock: Bool = false) async -> Bool {
+        // An approved, frozen document cannot change before the ensuing system quit.
+        if lock && viewState.locked { return true }
         guard !checkingDeparture else { return false }
         checkingDeparture = true
         defer { checkingDeparture = false }
