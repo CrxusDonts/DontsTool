@@ -63,7 +63,10 @@ final class ToolWindowManager: NSObject, ToolDocumentProviding {
         if let controller = NSApp.keyWindow?.windowController as? ToolWindowController { return controller.documentRecord }
         return store.openDocuments.first { $0.id == lastActive } ?? store.openDocuments.first
     }
-    @objc private func newDocument(_ sender: Any?) { newWindow(kind: active?.kind ?? .json) }
+    @objc private func newDocument(_ sender: Any?) {
+        if let note = NSApp.keyWindow?.windowController as? any NativeNoteCreating { note.createNoteWindow() }
+        else { newWindow(kind: active?.kind ?? .json) }
+    }
     @objc private func duplicateDocument(_ sender: Any?) { if let active { duplicate(active.id) } }
     @objc private func reopenLastWindow(_ sender: Any?) { if let document = store.recentlyClosed.first { reopen(document.id) } }
     private func installDocumentMenu() {

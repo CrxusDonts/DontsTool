@@ -87,6 +87,7 @@ public final class SettingsStore: ObservableObject {
         static let knowledgeProviderMigrationCompleted = "dontstool.knowledgeProviderMigrationCompleted"
         static let builtInProviderDefaultsV2Completed = "dontstool.builtInProviderDefaultsV2Completed"
         static let applicationWorkflowsMigrationCompleted = "dontstool.applicationWorkflowsMigrationCompleted"
+        static let notesProviderMigrationCompleted = "dontstool.notesProviderMigrationCompleted"
         static let knowledgeBaseURL = "dontstool.knowledgeBaseURL"
         static let hasCompletedOnboarding = "dontstool.hasCompletedOnboarding"
     }
@@ -154,6 +155,13 @@ public final class SettingsStore: ObservableObject {
                 defaults.set(Array(enabledProviders).sorted(), forKey: Key.enabledProviders)
             }
             defaults.set(true, forKey: Key.applicationWorkflowsMigrationCompleted)
+        }
+        if !defaults.bool(forKey: Key.notesProviderMigrationCompleted) {
+            enabledProviders.insert(ProviderID.notes.rawValue)
+            if storedProviders != nil {
+                defaults.set(Array(enabledProviders).sorted(), forKey: Key.enabledProviders)
+            }
+            defaults.set(true, forKey: Key.notesProviderMigrationCompleted)
         }
         enabledProviderIDs = enabledProviders
 

@@ -6,3 +6,7 @@
 # Preserve generated design exports without rewriting their original whitespace.
 .stitch/designs/** -whitespace
 design/**/*.html -whitespace
+
+# Markdown hard breaks inside generated template strings contain intentional trailing spaces.
+Resources/NotesEditor/editor.js linguist-generated=true -whitespace
+Resources/NotesEditor/editor.css linguist-generated=true

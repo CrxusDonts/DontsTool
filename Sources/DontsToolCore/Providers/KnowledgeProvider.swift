@@ -54,7 +54,7 @@ public final class KnowledgeProvider: ToolProvider {
         guard (try? KnowledgeOrigin(settings.knowledgeBaseURL)) != nil else { return [entry(.search, query: query)] }
         do {
             let results = try await service.searchKnowledge(query)
-            guard !Task.isCancelled else { return [] }
+            guard isEnabled, !Task.isCancelled else { return [] }
             statusNotice = service.statusNotice
             var seen = Set<String>()
             let valid = results.filter { !$0.id.isEmpty && !$0.title.isEmpty && seen.insert($0.id).inserted }
@@ -65,13 +65,14 @@ public final class KnowledgeProvider: ToolProvider {
                     providerID: id, group: .knowledge, title: result.title, subtitle: result.excerpt,
                     icon: .symbol(name: "doc.text", tint: .indigo), score: Double(1000 - index),
                     canonicalKey: "knowledge:document:\(result.id)",
-                    actions: [ItemAction(id: "knowledge.document.open", title: "打开文档", presentation: .openWindow) {
+                    actions: [ItemAction(id: "knowledge.document.open", title: "打开文档", presentation: .openWindow) { [weak self] in
+                        guard self?.isEnabled == true, !Task.isCancelled else { return }
                         service.openKnowledge(.init(surface: .editor, documentID: result.id))
                     }]
                 )
             }
         } catch {
-            guard !Task.isCancelled else { return [] }
+            guard isEnabled, !Task.isCancelled else { return [] }
             statusNotice = service.statusNotice
             return [entry(.search, query: query)]
         }
@@ -104,7 +105,8 @@ public final class KnowledgeProvider: ToolProvider {
             providerID: id, group: .knowledge, title: title, subtitle: subtitle,
             icon: .symbol(name: symbol, tint: .indigo), score: 900,
             canonicalKey: "knowledge:entry:\(surface.rawValue)",
-            actions: [ItemAction(id: "knowledge.\(surface.rawValue).open", title: "打开", presentation: .openWindow) {
+            actions: [ItemAction(id: "knowledge.\(surface.rawValue).open", title: "打开", presentation: .openWindow) { [weak self] in
+                guard self?.isEnabled == true, !Task.isCancelled else { return }
                 service.openKnowledge(.init(surface: surface, query: query))
             }], keyword: keyword
         )

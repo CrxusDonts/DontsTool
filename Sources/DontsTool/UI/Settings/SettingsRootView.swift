@@ -240,6 +240,14 @@ struct SettingsRootView: View {
 
     private var knowledgeTab: some View {
         VStack(alignment: .leading, spacing: 16) {
+            SettingsGroup(caption: "知识库功能") {
+                SettingsRow(title: "启用知识库", subtitle: "控制知识库、收集箱和快速收集入口；关闭后停止后台搜索，已打开窗口仍可保存") {
+                    Toggle("启用知识库", isOn: Binding(
+                        get: { settings.isProviderEnabled(ProviderID.knowledge.rawValue) },
+                        set: { settings.setProviderEnabled(ProviderID.knowledge.rawValue, to: $0) }
+                    )).toggleStyle(.switch).labelsHidden()
+                }
+            }
             SettingsGroup(caption: "DontsKb 服务") {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("服务地址").font(.system(size: 13, weight: .medium))
@@ -254,6 +262,7 @@ struct SettingsRootView: View {
                         .font(.caption).foregroundStyle(Theme.secondary)
                 }.padding(12)
             }
+            .disabled(!settings.isProviderEnabled(ProviderID.knowledge.rawValue))
             SettingsGroup(caption: "启动器入口") {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("kb 关键词：搜索文档并在独立窗口编辑")
@@ -428,6 +437,7 @@ struct SettingsRootView: View {
             (ProviderID.web.rawValue, "网页搜索", "关键词或默认引擎回退"),
             (ProviderID.translation.rawValue, "翻译", "tr 关键词调用配置的翻译 API"),
             (ProviderID.knowledge.rawValue, "知识库", "搜索、编辑和收集 DontsKb 内容"),
+            (ProviderID.notes.rawValue, "本地便笺", "note · 所见即所得、Markdown 和图片"),
             (ProviderID.calculator.rawValue, "计算器", "算式与单位换算，回车复制结果"),
             (ProviderID.quickOpen.rawValue, "快速打开", "直接打开网址或已存在的绝对路径"),
             (ProviderID.gemini.rawValue, "Gemini 提问", "gm 加问题，新建对话并发送；自动输入需要辅助功能授权"),

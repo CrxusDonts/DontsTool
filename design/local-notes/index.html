@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+
+<html class="h-full" lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>DontsTool - 本地便笺 · 所见即所得</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "on-secondary-fixed": "#1a1b22",
+            "primary": "#000000",
+            "secondary-container": "#e3e1ec",
+            "secondary": "#5d5e66",
+            "on-error": "#ffffff",
+            "on-primary-fixed": "#1c1b1b",
+            "surface-tint": "#5f5e5e",
+            "surface-container-lowest": "#ffffff",
+            "on-primary": "#ffffff",
+            "outline": "#747878",
+            "inverse-on-surface": "#f0f1f2",
+            "on-tertiary-container": "#868381",
+            "surface-dim": "#d9dadb",
+            "on-surface": "#1a1c1d",
+            "on-background": "#1a1c1d",
+            "outline-variant": "#c4c7c7",
+            "on-primary-container": "#858383",
+            "surface-container-low": "#f3f3f4",
+            "tertiary-fixed-dim": "#cac6c3",
+            "on-secondary-container": "#63646c",
+            "primary-fixed": "#e5e2e1",
+            "tertiary-fixed": "#e6e1df",
+            "tertiary-container": "#1d1b1a",
+            "surface": "#f9f9fa",
+            "error-container": "#ffdad6",
+            "on-secondary": "#ffffff",
+            "primary-fixed-dim": "#c8c6c5",
+            "surface-variant": "#e2e2e3",
+            "secondary-fixed-dim": "#c6c5cf",
+            "on-tertiary-fixed-variant": "#484645",
+            "surface-container-highest": "#e2e2e3",
+            "primary-container": "#1c1b1b",
+            "tertiary": "#000000",
+            "background": "#f9f9fa",
+            "inverse-primary": "#c8c6c5",
+            "on-secondary-fixed-variant": "#46464e",
+            "on-primary-fixed-variant": "#474646",
+            "error": "#ba1a1a",
+            "surface-container": "#eeeeef",
+            "on-error-container": "#93000a",
+            "secondary-fixed": "#e3e1ec",
+            "surface-bright": "#f9f9fa",
+            "inverse-surface": "#2f3132",
+            "on-tertiary-fixed": "#1d1b1a",
+            "on-surface-variant": "#444748",
+            "on-tertiary": "#ffffff",
+            "surface-container-high": "#e8e8e9"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "gutter": "0.75rem",
+            "space-md": "0.5rem",
+            "space-xl": "1rem",
+            "space-lg": "0.75rem",
+            "space-xs": "0.25rem",
+            "margin": "1rem",
+            "space-sm": "0.375rem"
+          },
+          "fontFamily": {
+            "headline-md": ["Geist", "sans-serif"],
+            "label-sm": ["Geist", "sans-serif"],
+            "code-md": ["JetBrains Mono", "monospace"],
+            "headline-lg": ["Geist", "sans-serif"],
+            "headline-xl": ["Geist", "sans-serif"],
+            "body-lg": ["Geist", "sans-serif"],
+            "body-sm": ["Geist", "sans-serif"],
+            "keycap": ["JetBrains Mono", "monospace"],
+            "body-md": ["Geist", "sans-serif"]
+          },
+          "fontSize": {
+            "headline-md": ["15px", { "lineHeight": "20px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+            "label-sm": ["11px", { "lineHeight": "14px", "letterSpacing": "0.02em", "fontWeight": "500" }],
+            "code-md": ["12px", { "lineHeight": "16px", "letterSpacing": "-0.01em", "fontWeight": "400" }],
+            "headline-lg": ["18px", { "lineHeight": "24px", "letterSpacing": "-0.015em", "fontWeight": "600" }],
+            "headline-xl": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+            "body-lg": ["14px", { "lineHeight": "20px", "letterSpacing": "-0.005em", "fontWeight": "400" }],
+            "body-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0em", "fontWeight": "400" }],
+            "keycap": ["11px", { "lineHeight": "12px", "letterSpacing": "0.02em", "fontWeight": "500" }],
+            "body-md": ["13px", { "lineHeight": "18px", "letterSpacing": "0em", "fontWeight": "400" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      font-size: 16px;
+      line-height: 1;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 5px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #c4c7c7;
+      border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #747878;
+    }
+  </style>
+</head>
+<body class="bg-surface-container-high h-full text-on-surface antialiased select-none flex flex-col justify-between overflow-hidden">
+<!-- macOS Top System Menu Bar -->
+<header class="h-[28px] w-full bg-surface-container-lowest/80 backdrop-blur-md border-b border-outline-variant/60 flex items-center justify-between px-3 text-[13px] font-label-sm z-50">
+<div class="flex items-center space-x-4">
+<span class="font-bold text-primary flex items-center gap-1 cursor-default tracking-tight">
+<svg class="w-3.5 h-3.5 fill-current" viewbox="0 0 170 170">
+<path d="M150.37 130.25c-2.45 5.66-5.35 10.87-8.71 15.66-4.58 6.53-8.33 11.05-11.22 13.56-4.48 4.12-9.28 6.23-14.42 6.35-3.69 0-8.14-1.05-13.32-3.18-5.19-2.12-9.97-3.17-14.34-3.17-4.58 0-9.49 1.05-14.75 3.17-5.26 2.13-9.5 3.24-12.74 3.35-4.35.13-9.16-1.9-14.42-6.08-3.92-3.26-7.89-8.08-11.91-14.46-6.19-9.82-10.97-20.91-14.34-33.27-3.37-12.36-5.06-23.78-5.06-34.26 0-14.7 3.59-26.68 10.77-35.94 7.18-9.26 16.32-14.01 27.42-14.25 4.35 0 9.28 1.16 14.8 3.48 5.51 2.32 9.28 3.59 11.3 3.8 2.35-.43 6.31-1.8 11.87-4.12 5.56-2.32 10.42-3.37 14.58-3.16 11.09.43 20.21 4.79 27.35 13.08-9.8 5.98-14.59 14.26-14.37 24.84.22 8.38 3.48 15.35 9.77 20.91 6.29 5.56 13.88 8.71 22.77 9.47-2.39 7.4-5.33 14.8-8.81 22.21zM119.22 31.84c0-7.39 2.66-14.15 7.98-20.28 5.32-6.13 11.83-9.91 19.53-11.34.22 1.3.33 2.4.33 3.27 0 7.39-2.77 14.47-8.31 21.23-5.54 6.75-12.05 10.56-19.53 11.44z"></path>
+</svg>
+</span>
+<span class="font-semibold text-primary">DontsTool</span>
+<span class="text-on-surface-variant hover:text-on-surface cursor-default">文件</span>
+<span class="text-on-surface-variant hover:text-on-surface cursor-default">编辑</span>
+<span class="text-on-surface-variant hover:text-on-surface cursor-default">视图</span>
+<span class="text-on-surface-variant hover:text-on-surface cursor-default">格式</span>
+<span class="text-on-surface-variant hover:text-on-surface cursor-default">工具</span>
+<span class="text-on-surface-variant hover:text-on-surface cursor-default">帮助</span>
+</div>
+<div class="flex items-center space-x-3 text-on-surface-variant text-[12px] font-mono">
+<span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Dev-Daemon</span>
+<span class="material-symbols-outlined text-[15px]">wifi</span>
+<span class="material-symbols-outlined text-[15px]">battery_charging_full</span>
+<span>周日 14:32</span>
+</div>
+</header>
+<!-- Central Desktop Stage (Modal Positioning) -->
+<main class="flex-1 flex items-center justify-center p-4 relative overflow-hidden">
+<!-- Subtle Background Workspace Grid Pattern -->
+<div class="absolute inset-0 opacity-40 pointer-events-none" style="background-image: radial-gradient(#c4c7c7 0.75px, transparent 0.75px); background-size: 16px 16px;"></div>
+<!-- Standalone macOS Quick Note Window -->
+<section class="relative w-[780px] h-[620px] bg-surface-container-lowest rounded-2xl border border-outline-variant/80 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.18),0_0_0_1px_rgba(0,0,0,0.04)] flex flex-col overflow-hidden transition-all duration-150">
+<!-- Top Window Header -->
+<div class="h-[46px] px-3.5 bg-surface-container-low border-b border-outline-variant/70 flex items-center justify-between select-none">
+<!-- Left: Traffic Lights & Document Icon + Title Input -->
+<div class="flex items-center gap-3">
+<!-- Traffic Lights -->
+<div class="flex items-center gap-2 pr-1">
+<span class="w-3 h-3 rounded-full bg-[#FF5F56] border border-[#E0443E] hover:opacity-80 transition cursor-pointer flex items-center justify-center group">
+<span class="opacity-0 group-hover:opacity-100 text-[8px] font-bold text-black/70 leading-none">×</span>
+</span>
+<span class="w-3 h-3 rounded-full bg-[#FFBD2E] border border-[#DEA123] hover:opacity-80 transition cursor-pointer flex items-center justify-center group">
+<span class="opacity-0 group-hover:opacity-100 text-[8px] font-bold text-black/70 leading-none">-</span>
+</span>
+<span class="w-3 h-3 rounded-full bg-[#27C93F] border border-[#1AAB29] hover:opacity-80 transition cursor-pointer flex items-center justify-center group">
+<span class="opacity-0 group-hover:opacity-100 text-[7px] font-bold text-black/70 leading-none">+</span>
+</span>
+</div>
+<div class="h-4 w-[1px] bg-outline-variant/60"></div>
+<!-- Document Context & Inline Title Input -->
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary text-[17px]">description</span>
+<input class="bg-transparent border-0 font-headline-md text-headline-md text-primary p-0 focus:ring-0 focus:outline-none w-36 hover:bg-surface-container-highest/60 rounded px-1 -mx-1 transition-colors" type="text" value="发布排查片段"/>
+<span class="px-1.5 py-0.5 rounded text-[11px] font-mono tracking-tight bg-surface-container text-on-surface-variant border border-outline-variant/60">
+              Dev Snippet
+            </span>
+</div>
+</div>
+<!-- Right Header Action Controls -->
+<div class="flex items-center gap-1.5">
+<!-- + 新建 -->
+<button class="h-7 px-2.5 rounded bg-surface-container-lowest border border-outline-variant/80 hover:bg-surface-container text-on-surface text-[12px] font-label-sm font-medium shadow-[0_1px_1px_rgba(0,0,0,0.03)] flex items-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-[14px]">add</span>
+<span>新建</span>
+<kbd class="ml-1 text-[10px] font-keycap text-on-surface-variant font-mono">⌘N</kbd>
+</button>
+<!-- 置顶 (Pinned Active Toggle) -->
+<button class="h-7 px-2 rounded bg-surface-container-highest text-primary border border-outline-variant hover:bg-surface-container-high text-[12px] font-label-sm flex items-center gap-1 transition-colors shadow-inner" title="取消窗口置顶">
+<span class="material-symbols-outlined text-[15px] fill-current">push_pin</span>
+<span>置顶</span>
+</button>
+<!-- More Actions (···) -->
+<div class="relative">
+<button class="h-7 w-7 rounded bg-surface-container-lowest border border-outline-variant/80 hover:bg-surface-container text-on-surface-variant hover:text-primary flex items-center justify-center transition-colors shadow-[0_1px_1px_rgba(0,0,0,0.03)]" title="更多操作">
+<span class="material-symbols-outlined text-[16px]">more_horiz</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Compact WYSIWYG Formatting Toolbar -->
+<div class="h-[36px] px-3 bg-surface-container-lowest border-b border-outline-variant/60 flex items-center justify-between text-on-surface-variant text-[13px]">
+<!-- Action Buttons Group Left -->
+<div class="flex items-center gap-0.5">
+<!-- Headings -->
+<div class="flex items-center rounded border border-outline-variant/60 p-0.5 bg-surface-container-low mr-1.5">
+<button class="px-1.5 h-5 rounded text-[11px] font-bold text-on-surface hover:bg-surface-container-lowest transition-colors">H1</button>
+<button class="px-1.5 h-5 rounded text-[11px] font-semibold text-on-surface-variant hover:bg-surface-container-lowest transition-colors">H2</button>
+<button class="px-1.5 h-5 rounded text-[11px] font-medium text-on-surface-variant hover:bg-surface-container-lowest transition-colors">H3</button>
+</div>
+<!-- Text Styles -->
+<div class="flex items-center gap-0.5 pr-1 border-r border-outline-variant/60">
+<button class="w-6 h-6 rounded flex items-center justify-center hover:bg-surface-container text-primary font-bold transition-colors" title="粗体 (⌘B)">
+<span class="font-mono text-[13px]">B</span>
+</button>
+<button class="w-6 h-6 rounded flex items-center justify-center hover:bg-surface-container text-on-surface-variant hover:text-primary italic transition-colors" title="斜体 (⌘I)">
+<span class="font-serif text-[13px]">I</span>
+</button>
+<button class="w-6 h-6 rounded flex items-center justify-center hover:bg-surface-container text-on-surface-variant hover:text-primary line-through transition-colors" title="删除线">
+<span class="text-[13px]">S</span>
+</button>
+</div>
+<!-- Lists & Checklists -->
+<div class="flex items-center gap-0.5 px-1 border-r border-outline-variant/60">
+<button class="w-6 h-6 rounded flex items-center justify-center hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" title="无序列表">
+<span class="material-symbols-outlined text-[15px]">format_list_bulleted</span>
+</button>
+<button class="w-6 h-6 rounded flex items-center justify-center hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" title="有序列表">
+<span class="material-symbols-outlined text-[15px]">format_list_numbered</span>
+</button>
+<button class="w-6 h-6 rounded flex items-center justify-center bg-surface-container-highest text-primary transition-colors" title="任务代办列表">
+<span class="material-symbols-outlined text-[15px]">check_box</span>
+</button>
+</div>
+<!-- Code inline & Code Block -->
+<div class="flex items-center gap-0.5 px-1 border-r border-outline-variant/60">
+<button class="w-6 h-6 rounded flex items-center justify-center hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" title="行内代码 (⌘E)">
+<span class="material-symbols-outlined text-[15px]">code</span>
+</button>
+<button class="w-6 h-6 rounded flex items-center justify-center hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" title="代码块 (⌘⌥C)">
+<span class="material-symbols-outlined text-[15px]">data_object</span>
+</button>
+</div>
+<!-- Insert media / link / quote -->
+<div class="flex items-center gap-0.5 pl-1">
+<button class="w-6 h-6 rounded flex items-center justify-center hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" title="插入超链接 (⌘K)">
+<span class="material-symbols-outlined text-[15px]">link</span>
+</button>
+<button class="w-6 h-6 rounded flex items-center justify-center hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" title="插入图像">
+<span class="material-symbols-outlined text-[15px]">image</span>
+</button>
+<button class="w-6 h-6 rounded flex items-center justify-center hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" title="引用块">
+<span class="material-symbols-outlined text-[15px]">format_quote</span>
+</button>
+</div>
+</div>
+<!-- Right: Source Markdown Switcher -->
+<div class="flex items-center gap-2">
+<button class="h-5 px-2 rounded text-[11px] font-mono flex items-center gap-1.5 border border-outline-variant/70 text-on-surface-variant hover:text-primary hover:border-outline transition-colors bg-surface-container-low" title="切换为 Markdown 纯源码">
+<svg class="w-3.5 h-3.5 fill-current opacity-80" viewbox="0 0 16 16">
+<path d="M14.85 3H1.15C.52 3 0 3.52 0 4.15v7.69C0 12.48.52 13 1.15 13h13.69c.64 0 1.15-.52 1.15-1.15V4.15C16 3.52 15.48 3 14.85 3zM9 11H7V8l-1 1.25L5 8v3H3V5h2l1 1.25L7 5h2v6zm4.5-2.5L12 11l-1.5-2.5H12V5h1v3.5h.5z"></path>
+</svg>
+<span>Markdown 源码</span>
+</button>
+</div>
+</div>
+<!-- Single-column WYSIWYG Document Editor Body -->
+<div class="flex-1 overflow-y-auto px-8 py-6 custom-scrollbar bg-surface-container-lowest">
+<div class="max-w-[680px] mx-auto space-y-4">
+<!-- Document Title & Meta -->
+<div class="border-b border-outline-variant/40 pb-3">
+<h1 class="font-headline-xl text-headline-xl text-primary tracking-tight font-bold">
+              线上发布与回滚排查排期备忘
+            </h1>
+<div class="flex items-center gap-2 mt-2">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono bg-surface-container text-secondary border border-outline-variant/60">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+                2025-05-18 14:30 · 个人草稿
+              </span>
+<span class="text-[12px] text-on-surface-variant/80 font-body-sm">
+                DontsTool 生产排错序列 #OPS-891
+              </span>
+</div>
+</div>
+<!-- Paragraph Description -->
+<p class="font-body-lg text-body-lg text-on-surface leading-relaxed text-justify">
+            发布阶段若出现服务心跳异常或 502 流量洪峰，应优先切断 Canary 分流网关，确认本地缓存未污染后通过以下指令抓取最近容器日志及活跃连接态势：
+          </p>
+<!-- Shell Code Block -->
+<div class="rounded-lg border border-outline-variant/80 bg-[#16171a] text-[#E4E4E7] overflow-hidden shadow-sm">
+<div class="flex items-center justify-between px-3 py-1.5 bg-[#202126] border-b border-[#2D2F36] text-[11px] font-mono">
+<div class="flex items-center gap-2 text-[#9A9DA6]">
+<span class="material-symbols-outlined text-[13px]">terminal</span>
+<span>zsh / bash · prod-ops</span>
+</div>
+<button class="hover:text-white flex items-center gap-1 transition-colors px-1 py-0.5 rounded hover:bg-white/10" title="复制代码">
+<span class="material-symbols-outlined text-[13px]">content_copy</span>
+<span>复制指令</span>
+</button>
+</div>
+<div class="p-3 font-code-md text-code-md font-mono space-y-1.5 overflow-x-auto select-text leading-5">
+<div class="flex gap-3">
+<span class="text-[#565A68] select-none w-4 text-right">1</span>
+<div>
+<span class="text-[#7DD3FC]">curl</span>
+<span class="text-[#A5B4FC]">-s</span>
+<span class="text-[#A5B4FC]">-H</span>
+<span class="text-[#86EFAC]">'X-Env: staging'</span>
+<span class="text-[#FDE047]">https://avatar.test.company.example/healthz</span>
+<span class="text-[#94A3B8]">|</span>
+<span class="text-[#7DD3FC]">jq</span>
+<span class="text-[#86EFAC]">'.status'</span>
+</div>
+</div>
+<div class="flex gap-3">
+<span class="text-[#565A68] select-none w-4 text-right">2</span>
+<div>
+<span class="text-[#7DD3FC]">kubectl</span>
+<span class="text-[#F1F5F9]">logs</span>
+<span class="text-[#A5B4FC]">-n</span>
+<span class="text-[#FDE047]">prod-cluster</span>
+<span class="text-[#A5B4FC]">-l</span>
+<span class="text-[#86EFAC]">app=avatar-service</span>
+<span class="text-[#A5B4FC]">--tail=50</span>
+<span class="text-[#A5B4FC]">--timestamps</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Interactive Checklist -->
+<div class="space-y-2 pt-1">
+<div class="flex items-start gap-2.5 group cursor-pointer">
+<input checked="" class="mt-0.5 rounded border-outline text-primary focus:ring-0 cursor-pointer w-4 h-4 accent-primary" id="task-1" type="checkbox"/>
+<label class="font-body-md text-body-md text-on-surface-variant line-through select-none cursor-pointer" for="task-1">
+                验证 Staging 环境健康端点与网关路由策略
+              </label>
+<span class="text-[10px] font-mono bg-surface-container px-1 rounded text-secondary border border-outline-variant/60 ml-auto opacity-70">
+                14:28 通过
+              </span>
+</div>
+<div class="flex items-start gap-2.5 group cursor-pointer">
+<input class="mt-0.5 rounded border-outline text-primary focus:ring-0 cursor-pointer w-4 h-4 accent-primary" id="task-2" type="checkbox"/>
+<label class="font-body-md text-body-md text-on-surface font-medium select-none cursor-pointer" for="task-2">
+                触发 CDN 边缘节点热重载与本地配置刷写
+              </label>
+<span class="text-[10px] font-mono bg-amber-50 text-amber-700 border border-amber-200 px-1 rounded ml-auto">
+                待执行
+              </span>
+</div>
+</div>
+<!-- Flowchart Header Label -->
+<div class="pt-2">
+<div class="flex items-center justify-between mb-1.5">
+<span class="text-[11px] font-mono font-medium text-secondary uppercase tracking-wider">
+                架构流向拓扑 · CANARY DEPLOYMENT DIAGRAM
+              </span>
+<span class="text-[11px] text-on-surface-variant font-mono">10% 灰度切流中</span>
+</div>
+<!-- Sleek Horizontal Architecture Flowchart Diagram Box (Clean Inline SVG Architecture) -->
+<div class="w-full bg-surface border border-outline-variant/70 rounded-lg p-3 overflow-x-auto shadow-sm">
+<svg class="w-full min-w-[580px] h-[100px]" fill="none" viewbox="0 0 620 100" xmlns="http://www.w3.org/2000/svg">
+<!-- Node 1: Client -->
+<rect fill="#FFFFFF" height="44" rx="4" stroke="#C4C7C7" stroke-width="1.2" width="90" x="10" y="28"></rect>
+<text fill="#1A1C1D" font-family="Geist, sans-serif" font-size="11" font-weight="600" text-anchor="middle" x="55" y="47">客户端 (Client)</text>
+<text fill="#747878" font-family="JetBrains Mono, monospace" font-size="9" text-anchor="middle" x="55" y="62">User Traffic</text>
+<!-- Arrow 1: Client -> Ingress -->
+<path d="M100 50 H152" stroke="#747878" stroke-dasharray="2 2" stroke-width="1.2"></path>
+<polygon fill="#747878" points="152,47 158,50 152,53"></polygon>
+<rect fill="#EEEEEF" height="15" rx="2" width="34" x="110" y="42"></rect>
+<text fill="#444748" font-family="JetBrains Mono, monospace" font-size="8" text-anchor="middle" x="127" y="52">HTTPS</text>
+<!-- Node 2: Ingress Envoy -->
+<rect fill="#FFFFFF" height="60" rx="4" stroke="#1A1C1D" stroke-width="1.5" width="130" x="160" y="20"></rect>
+<text fill="#000000" font-family="Geist, sans-serif" font-size="12" font-weight="600" text-anchor="middle" x="225" y="42">Ingress Envoy</text>
+<text fill="#5D5E66" font-family="JetBrains Mono, monospace" font-size="9" text-anchor="middle" x="225" y="57">API 网关 · 分流内核</text>
+<rect fill="#E3E1EC" height="12" rx="2" width="60" x="195" y="64"></rect>
+<text fill="#1A1B22" font-family="JetBrains Mono, monospace" font-size="8" text-anchor="middle" x="225" y="73">RTT: 1.2ms</text>
+<!-- Splitting Paths -->
+<!-- Path to Canary (Top Branch) -->
+<path d="M290 42 C320 42, 330 24, 360 24" stroke="#747878" stroke-width="1.2"></path>
+<polygon fill="#747878" points="360,21 366,24 360,27"></polygon>
+<!-- Path to Stable (Bottom Branch) -->
+<path d="M290 58 C320 58, 330 76, 360 76" stroke="#747878" stroke-width="1.2"></path>
+<polygon fill="#747878" points="360,73 366,76 360,79"></polygon>
+<!-- Label Canary 10% -->
+<rect fill="#FEF3C7" height="14" rx="2" stroke="#FDE68A" stroke-width="0.8" width="38" x="306" y="16"></rect>
+<text fill="#92400E" font-family="JetBrains Mono, monospace" font-size="8" font-weight="600" text-anchor="middle" x="325" y="26">10% 灰度</text>
+<!-- Label Stable 90% -->
+<rect fill="#F3F3F4" height="14" rx="2" stroke="#C4C7C7" stroke-width="0.8" width="38" x="306" y="70"></rect>
+<text fill="#444748" font-family="JetBrains Mono, monospace" font-size="8" text-anchor="middle" x="325" y="80">90% 主集群</text>
+<!-- Node 3: Canary Cluster -->
+<rect fill="#FFFFFF" height="36" rx="4" stroke="#C4C7C7" stroke-width="1.2" width="135" x="368" y="8"></rect>
+<circle cx="380" cy="26" fill="#D97706" r="3"></circle>
+<text fill="#1A1C1D" font-family="Geist, sans-serif" font-size="11" font-weight="600" text-anchor="middle" x="432" y="24">Canary v2.4 (灰度节点)</text>
+<text fill="#747878" font-family="JetBrains Mono, monospace" font-size="8" text-anchor="middle" x="432" y="36">avatar-canary-01 · 24ms</text>
+<!-- Node 4: Stable Cluster -->
+<rect fill="#FFFFFF" height="36" rx="4" stroke="#C4C7C7" stroke-width="1.2" width="135" x="368" y="58"></rect>
+<circle cx="380" cy="76" fill="#10B981" r="3"></circle>
+<text fill="#1A1C1D" font-family="Geist, sans-serif" font-size="11" font-weight="600" text-anchor="middle" x="432" y="74">Stable v2.3 (主集群)</text>
+<text fill="#747878" font-family="JetBrains Mono, monospace" font-size="8" text-anchor="middle" x="432" y="86">avatar-prod-[01..08] · 99.9%</text>
+<!-- Output Sink arrow -->
+<path d="M503 26 H530 V46 H542" stroke="#C4C7C7" stroke-width="1.2"></path>
+<path d="M503 76 H530 V54 H542" stroke="#C4C7C7" stroke-width="1.2"></path>
+<polygon fill="#747878" points="542,47 547,50 542,53"></polygon>
+<!-- Node 5: MySQL / DB Cluster -->
+<rect fill="#F9F9FA" height="36" rx="4" stroke="#C4C7C7" stroke-width="1" width="62" x="548" y="32"></rect>
+<text fill="#1A1C1D" font-family="JetBrains Mono, monospace" font-size="9" font-weight="600" text-anchor="middle" x="579" y="48">DB Cluster</text>
+<text fill="#5D5E66" font-family="JetBrains Mono, monospace" font-size="7.5" text-anchor="middle" x="579" y="59">Read/Write</text>
+</svg>
+</div>
+</div>
+<!-- Bottom subtle note reminder -->
+<div class="text-[12px] text-on-surface-variant font-body-sm flex items-center gap-1.5 pt-1">
+<span class="material-symbols-outlined text-[14px]">info</span>
+<span>注意：回滚操作生效后需要等待约 45 秒使 DNS 缓存与 Envoy 权重完全收敛。</span>
+</div>
+</div>
+</div>
+<!-- Quiet macOS Utility Footer Bar -->
+<footer class="h-[28px] px-3 bg-surface-container-low border-t border-outline-variant/70 flex items-center justify-between text-[11px] font-mono select-none">
+<!-- Left: Status with Green Indicator Dot -->
+<div class="flex items-center gap-2 text-on-surface">
+<span class="flex h-2 w-2 relative">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60"></span>
+<span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+</span>
+<span class="font-medium">已保存在本机</span>
+<span class="text-on-surface-variant/70 hidden sm:inline">~/Library/Application Support/DontsTool/notes/</span>
+</div>
+<!-- Center: Keyboard Shortcuts Guidance -->
+<div class="hidden md:flex items-center gap-3 text-on-surface-variant">
+<span class="flex items-center gap-1"><kbd class="bg-surface-container-lowest px-1 rounded border border-outline-variant/60 font-keycap shadow-[0_1px_1px_rgba(0,0,0,0.05)]">⌘S</kbd> 保存</span>
+<span class="flex items-center gap-1"><kbd class="bg-surface-container-lowest px-1 rounded border border-outline-variant/60 font-keycap shadow-[0_1px_1px_rgba(0,0,0,0.05)]">⌘N</kbd> 新建</span>
+<span class="flex items-center gap-1"><kbd class="bg-surface-container-lowest px-1 rounded border border-outline-variant/60 font-keycap shadow-[0_1px_1px_rgba(0,0,0,0.05)]">ESC</kbd> 最小化</span>
+</div>
+<!-- Right: Document Metrics -->
+<div class="flex items-center gap-2 text-on-surface-variant">
+<span>864 字符</span>
+<span class="text-outline-variant">·</span>
+<span>28 行</span>
+<span class="text-outline-variant">·</span>
+<span class="text-primary font-semibold">UTF-8</span>
+</div>
+</footer>
+</section>
+</main>
+<!-- Interactive Hotkey & Microinteraction Script -->
+<script>
+    document.addEventListener('keydown', (e) => {
+      // CMD + S / CTRL + S: Mock Save
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        e.preventDefault();
+        const statusSpan = document.querySelector('footer span.font-medium');
+        if (statusSpan) {
+          statusSpan.textContent = '正在同步写盘...';
+          setTimeout(() => {
+            statusSpan.textContent = '已保存在本机';
+          }, 450);
+        }
+      }
+    });
+  </script>
+</body></html>

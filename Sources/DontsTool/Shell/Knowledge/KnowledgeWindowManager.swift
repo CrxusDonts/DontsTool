@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import DontsToolCore
 
 /// The only network-backed tool host. The website owns authentication and document state.
@@ -6,6 +7,8 @@ import DontsToolCore
 final class KnowledgeWindowManager: KnowledgeServing {
     private let settings: SettingsStore
     private var controllers: [UUID: KnowledgeWindowController] = [:]
+    private var enabledObservation: AnyCancellable?
+    private var searchGeneration = 0
     private var searchBridge: KnowledgeWebBridge?
     private var cascadePoint = NSPoint.zero
     private var preparingTermination = false
@@ -14,9 +17,18 @@ final class KnowledgeWindowManager: KnowledgeServing {
     var onSearchChanged: (() -> Void)?
     var hasOpenWindows: Bool { !controllers.isEmpty }
 
-    init(settings: SettingsStore) { self.settings = settings }
+    init(settings: SettingsStore) {
+        self.settings = settings
+        enabledObservation = settings.$enabledProviderIDs
+            .map { $0.contains(ProviderID.knowledge.rawValue) }.removeDuplicates()
+            .sink { [weak self] enabled in
+                guard let self, !enabled else { return }
+                searchGeneration += 1
+                searchBridge?.stop(); searchBridge = nil; statusNotice = nil
+            }
+    }
     func openKnowledge(_ request: KnowledgeOpenRequest) {
-        guard !preparingTermination else { return }
+        guard settings.isProviderEnabled(ProviderID.knowledge.rawValue), !preparingTermination else { return }
         do { show(request, origin: try KnowledgeOrigin(settings.knowledgeBaseURL)) }
         catch {
             let alert = NSAlert(); alert.messageText = "先连接你的知识库"
@@ -26,7 +38,7 @@ final class KnowledgeWindowManager: KnowledgeServing {
         }
     }
     private func show(_ request: KnowledgeOpenRequest, origin: KnowledgeOrigin) {
-        guard !preparingTermination else { return }
+        guard settings.isProviderEnabled(ProviderID.knowledge.rawValue), !preparingTermination else { return }
         let controller = KnowledgeWindowController(origin: origin, request: request, onSettings: { [weak self] in self?.onOpenSettings?() })
         controllers[controller.id] = controller
         controller.onClose = { [weak self, weak controller] in
@@ -47,9 +59,12 @@ final class KnowledgeWindowManager: KnowledgeServing {
         controller.show()
     }
     func searchKnowledge(_ query: String) async throws -> [KnowledgeSearchResult] {
+        guard settings.isProviderEnabled(ProviderID.knowledge.rawValue) else { throw KnowledgeBridgeError("知识库功能已关闭") }
+        let generation = searchGeneration
         // Scoped network search follows typing pauses; cancelled launcher generations never dispatch a new RPC.
         try await Task.sleep(for: .milliseconds(180))
         try Task.checkCancellation()
+        guard settings.isProviderEnabled(ProviderID.knowledge.rawValue), generation == searchGeneration else { throw CancellationError() }
         let origin = try KnowledgeOrigin(settings.knowledgeBaseURL)
         let bridge: KnowledgeWebBridge
         if let existing = searchBridge, existing.origin == origin { bridge = existing }
@@ -69,6 +84,7 @@ final class KnowledgeWindowManager: KnowledgeServing {
         do {
             let response = try await bridge.request(["type": "search", "query": String(query.prefix(2000))])
             try Task.checkCancellation()
+            guard settings.isProviderEnabled(ProviderID.knowledge.rawValue), generation == searchGeneration else { throw CancellationError() }
             let result = try JSONDecoder().decode(SearchResponse.self, from: Data(response.utf8))
             guard result.authenticated else {
                 statusNotice = "请先在知识库窗口登录"
@@ -77,7 +93,7 @@ final class KnowledgeWindowManager: KnowledgeServing {
             statusNotice = nil
             return result.items.prefix(8).map { .init(id: $0.id, title: $0.title, excerpt: $0.excerpt) }
         } catch {
-            if !Task.isCancelled { statusNotice = error.localizedDescription }
+            if !Task.isCancelled, settings.isProviderEnabled(ProviderID.knowledge.rawValue), generation == searchGeneration { statusNotice = error.localizedDescription }
             throw error
         }
     }

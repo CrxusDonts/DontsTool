@@ -94,7 +94,7 @@ struct SettingsStoreTests {
         defer { defaults.removePersistentDomain(forName: name) }
         defaults.set(oldEnabled, forKey: "dontstool.enabledProviders")
 
-        let newBuiltIns = ["knowledge", "calculator", "quickOpen", "gemini", "ideaProjects"]
+        let newBuiltIns = ["knowledge", "calculator", "quickOpen", "gemini", "ideaProjects", "notes"]
         let migrated = SettingsStore(defaults: defaults, systemLanguageCode: "en")
         #expect(migrated.enabledProviderIDs == Set(oldEnabled + newBuiltIns))
         #expect(Set(defaults.array(forKey: "dontstool.enabledProviders") as? [String] ?? []) == Set(oldEnabled + newBuiltIns))
@@ -103,10 +103,24 @@ struct SettingsStoreTests {
         migrated.setProviderEnabled("calculator", to: false)
         migrated.setProviderEnabled("gemini", to: false)
         migrated.setProviderEnabled("ideaProjects", to: false)
+        migrated.setProviderEnabled("notes", to: false)
         let reloaded = SettingsStore(defaults: defaults, systemLanguageCode: "en")
         #expect(reloaded.enabledProviderIDs == Set(oldEnabled + ["quickOpen"]))
         let reloadedAgain = SettingsStore(defaults: defaults, systemLanguageCode: "en")
         #expect(reloadedAgain.enabledProviderIDs == Set(oldEnabled + ["quickOpen"]))
+    }
+
+    @Test func notesMigrationEnablesOnlyNotesAndRespectsLaterDisable() {
+        let (defaults, name) = makeDefaults()
+        defer { defaults.removePersistentDomain(forName: name) }
+        defaults.set(["app"], forKey: "dontstool.enabledProviders")
+        for key in ["knowledgeProviderMigrationCompleted", "builtInProviderDefaultsV2Completed", "applicationWorkflowsMigrationCompleted"] {
+            defaults.set(true, forKey: "dontstool." + key)
+        }
+        let migrated = SettingsStore(defaults: defaults)
+        #expect(migrated.enabledProviderIDs == ["app", "notes"])
+        migrated.setProviderEnabled("notes", to: false)
+        #expect(SettingsStore(defaults: defaults).enabledProviderIDs == ["app"])
     }
 
     @Test func applicationSortDefaultsToRecentUse() {

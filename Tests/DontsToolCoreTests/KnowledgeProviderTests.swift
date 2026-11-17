@@ -8,9 +8,11 @@ import Testing
     var statusNotice: String?
     var results: [KnowledgeSearchResult] = []
     var error: Error?
+    var onSearch: (() -> Void)?
     func openKnowledge(_ request: KnowledgeOpenRequest) { requests.append(request) }
     func searchKnowledge(_ query: String) async throws -> [KnowledgeSearchResult] {
         queries.append(query)
+        onSearch?()
         if let error { throw error }
         return results
     }
@@ -103,6 +105,37 @@ struct KnowledgeProviderTests {
             #expect(provider.statusNotice == nil)
             #expect(service.queries.count == count)
         }
+    }
+
+    @Test func disablingInvalidatesPreviouslyReturnedEntryAndDocumentActions() async throws {
+        let defaults = UserDefaults(suiteName: UUID().uuidString)!
+        let settings = SettingsStore(defaults: defaults)
+        settings.setKnowledgeBaseURL("https://kb.example.com")
+        let service = KnowledgeServiceSpy()
+        service.results = [.init(id: "article", title: "文章", excerpt: nil)]
+        let provider = KnowledgeProvider(settings: settings, service: service)
+        let entries = await provider.search(.init(rawQuery: "", mode: .global))
+        let documents = await provider.search(keyword("kb", "文章"))
+        provider.isEnabled = false
+        for item in entries + documents { try await item.primaryAction?.run() }
+        #expect(service.requests.isEmpty)
+        #expect(await provider.search(keyword("inbox")).isEmpty)
+        #expect(await provider.search(keyword("collect", "片段")).isEmpty)
+        let reloaded = SettingsStore(defaults: defaults)
+        #expect(reloaded.isProviderEnabled(ProviderID.knowledge.rawValue) == false)
+    }
+
+    @Test func disabledDuringSearchDoesNotReturnDocumentsOrFallbackEntry() async {
+        let settings = settings()
+        settings.setKnowledgeBaseURL("https://kb.example.com")
+        let service = KnowledgeServiceSpy()
+        let provider = KnowledgeProvider(settings: settings, service: service)
+        service.results = [.init(id: "article", title: "文章", excerpt: nil)]
+        service.onSearch = { provider.isEnabled = false }
+        #expect(await provider.search(keyword("kb", "文章")).isEmpty)
+        provider.isEnabled = true
+        service.error = URLError(.cancelled)
+        #expect(await provider.search(keyword("kb", "文章")).isEmpty)
     }
 
     @Test func disabledOrUnrelatedQueriesDoNotTouchService() async {

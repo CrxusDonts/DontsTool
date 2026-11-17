@@ -41,6 +41,10 @@ jobs:
           swift --version
           brew list --versions xcodegen >/dev/null || brew install xcodegen
           xcodegen --version
+      - name: Verify offline notes editor
+        run: |
+          make test-editor
+          git diff --exit-code -- Resources/NotesEditor
       - name: Test release tag resolution
         run: ./scripts/tests/test-release-tag.sh
       - name: Test Core

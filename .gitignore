@@ -22,3 +22,6 @@ xcuserdata/
 
 # A local production knowledge-document screenshot (not a project fixture)
 /docs/reviews/assets/knowledge-installed-current.jpg
+
+# Local editor dependencies
+/Web/NotesEditor/node_modules/

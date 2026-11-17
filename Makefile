@@ -5,7 +5,7 @@ CONFIG ?= Debug
 DERIVED := build
 APP := $(DERIVED)/Build/Products/$(CONFIG)/$(APP_NAME).app
 
-.PHONY: project build app run test test-bridge release clean distclean
+.PHONY: project build app run test test-bridge editor test-editor release clean distclean
 
 project:
 	xcodegen generate --spec project.yml
@@ -29,6 +29,12 @@ test: project
 test-bridge: project
 	xcodebuild -project $(PROJECT) -scheme DontsToolBridgeTests -destination 'platform=macOS' \
 		-derivedDataPath $(DERIVED) test
+
+editor:
+	cd Web/NotesEditor && npm ci && npm run build
+
+test-editor:
+	cd Web/NotesEditor && npm ci && npm test && npm run build
 
 release:
 	DT_DERIVED_DATA="$(abspath $(DERIVED))" ./scripts/package-release.sh

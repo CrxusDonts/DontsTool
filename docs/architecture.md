@@ -1,6 +1,6 @@
 # DontsTool 架构总览
 
-> 状态：当前实现（V1 + 启动器扩展）。最后更新：2026-10-20。
+> 状态：当前实现（V1 + 启动器扩展）。最后更新：2026-11-17。
 > 详细行为与验收标准见 [V1 详细设计](superpowers/specs/2026-10-18-dontstool-design.md)。
 
 ## 1. 项目定位
@@ -14,7 +14,7 @@ DontsTool 是一个个人自用的原生 macOS 效率启动器。按下全局热
 
 设计目标：
 
-1. **原生响应**：启动器和本地工具使用原生界面，知识库插件按需使用 WKWebView，不引入 Electron/Tauri；热键到面板可见目标 < 100ms。
+1. **原生响应**：启动器和工具使用原生窗口，知识库与本地便笺按需使用 WKWebView，不引入 Electron/Tauri；热键到面板可见目标 < 100ms。
 2. **键盘优先**：高频操作全部可以用键盘完成。
 3. **易扩展**：新增工具只需实现 `ToolProvider` 并注册，不改搜索核心。
 4. **可维护**：模块边界清晰，决策有 ADR，行为有验收标准。
@@ -34,9 +34,9 @@ V1 非目标：跨平台、第三方插件市场、启动器自身账号与云�
 | 翻译 | 用户配置的 OpenAI Responses 兼容 HTTP API（`URLSession`）；密钥存钥匙串 |
 | 开机启动 | `SMAppService` |
 | Hash | `CryptoKit` |
-| 持久化 | `UserDefaults`（设置）+ 钥匙串（翻译 API 密钥） |
+| 持久化 | `UserDefaults`（设置）、钥匙串（翻译 API 密钥）、应用支持目录内的版本化 JSON 与便笺附件 |
 | 构建 | XcodeGen 生成工程 + `xcodebuild`，Makefile 封装；Xcode 27 / Swift 6.4 |
-| 第三方依赖 | 运行时无；构建期依赖 XcodeGen 2.46 |
+| 第三方依赖 | 本地便笺离线打包 Tiptap 3.34.0 / ProseMirror；构建依赖 XcodeGen、编辑器生成依赖 Node / esbuild |
 | 分发 | 本地构建，ad-hoc 签名，非沙盒 |
 
 ## 3. 进程与运行形态
@@ -64,6 +64,10 @@ flowchart TD
     Registry --> CalcP[CalculatorProvider]
     Registry --> QuickP[QuickOpenProvider]
     Registry --> SiteP[WebsiteShortcutProvider]
+    Registry --> NoteP[NotesProvider]
+    NoteP --> Notes[LocalNoteWindowManager / LocalNoteSession]
+    Notes --> NoteStore[LocalNoteStore / note.json / assets]
+    Notes --> NoteWeb[本地 Tiptap / WKWebView]
     AppP --> Index[AppIndex]
     FileP --> Spotlight[mdfind / Spotlight]
     TransP --> RemoteAPI[Responses API]
@@ -81,6 +85,7 @@ flowchart TD
 | Index | 应用索引与文件搜索 | `AppIndex`、`FileSearchService` |
 | Providers | 各类结果提供者，统一实现 `ToolProvider` | `AppProvider`、`FileProvider`、`TextToolsProvider`、`WebSearchProvider`、`TranslationProvider`、`CalculatorProvider`、`QuickOpenProvider`、`WebsiteShortcutProvider`、`KnowledgeProvider` |
 | Tools | 独立工具窗口与文本处理 | `ToolDefinition`、`ToolSession`、`ToolWindowManager`、`JSONDocument` |
+| Notes | 本地便笺、离线富文本、自动保存与独立附件 | `LocalNoteStore`、`LocalNoteSession`、`LocalNoteEditorBridge`、`LocalNoteWindowManager` |
 | Services | 外部 API、钥匙串、登录项、系统动作 | `RemoteTranslationService`、`SecretStore`、`LoginItemManager`、`SystemAppLauncher` |
 | Settings | 设置界面、网址配置、热键录制 | `SettingsWindowController`、`SettingsRootView` |
 
@@ -163,7 +168,7 @@ V1 没有运行时插件加载、插件市场或进程隔离。增加工具需�
 - 快速/慢速两阶段搜索，慢速请求可取消。
 - 限制每类结果数量，避免大列表布局开销。
 - 热路径上不做磁盘 I/O；使用统计延迟批量写入。
-- 原生启动器不加载 WebView；仅知识库插件在主动调用时按需加载系统 WKWebView。
+- 原生启动器不加载 WebView；知识库插件和本地便笺在主动调用时按需加载系统 WKWebView。
 
 ## 8. 权限、隐私与安全
 
@@ -332,3 +337,13 @@ IDEA Discovery actor 按当前安装版本解析最近项目 XML，缓存文件�
 划词翻译在达到设置的 300ms、500ms、1 秒或 2 秒阈值后，向已捕获且仍聚焦的源窗口发送 Cmd-C，等到剪贴板 changeCount 更新后读取新文字；不清空或还原剪贴板。窗口与安全输入校验在后台执行，取词或失败复用单张翻译卡片。显式关闭会使monitor请求失效，保留吞掉已触发mouse-up的状态，防止迟到取词结果重新弹窗或联网。
 
 Gemini 交接在打开应用及新对话路由后显式激活应用窗口，避免已运行的 Gemini 留在后台。诊断只记录阶段和前台／输入框／新对话／可发送／已提交状态，不记录问题或历史正文。
+
+## 本地便笺
+
+`NotesProvider` 只在 `note` / `便笺` 关键词内检索标题和正文；全局仅显示入口，避免便笺内容混入普通应用查询。现有网站或引擎使用 `note` 时保留其路由，中文入口继续可用。
+
+`LocalNoteStore` 持有版本化记录，每篇一个 UUID 目录，JSON 原子写入，图片验证后存入自有 `assets/`；富文本 JSON 为权威，Markdown 为交换格式。`LocalNoteSession` 缓存最新正文并在 350 ms 后保存，区分编辑错误与磁盘错误。关闭／退出在同一 JS task 取得快照并冻结编辑，落盘成功才关闭；失败或取消退出恢复编辑。最近删除移动整个目录，旧保存不能重建已删除记录。
+
+`LocalNoteEditorBridge` 通过消息协议驱动离线 Tiptap，资源和图片只通过绑定当前 UUID 的 `donts-note://` scheme 读取。CSP 禁止网络资源；链接只由用户主动点击后交给系统。剪贴板仅在显式粘贴时读取，图片复制后使用相对引用，跨便笺复制会重新归属。正文移除图片不提前删除附件，保障撤销；导出只包含当前正文引用。
+
+源码与生成资源一起维护，CI 验证 bundle 一致性；使用与数据边界见 [便笺说明](local-notes.md)。

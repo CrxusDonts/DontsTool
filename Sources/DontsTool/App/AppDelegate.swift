@@ -18,7 +18,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        guard controller?.hasKnowledgeWindows == true else { return .terminateNow }
+        guard controller?.needsTerminationPreparation == true else { return .terminateNow }
         guard !checkingTermination else { return .terminateLater }
         checkingTermination = true
         Task { [weak self] in

@@ -13,6 +13,10 @@ final class AppController {
     })
     private var websitesCancellable: AnyCancellable?
     private var searchEnginesCancellable: AnyCancellable?
+    private let notes = LocalNoteStore()
+    private var noteWindows: LocalNoteWindowManager?
+    private var enabledProvidersCancellable: AnyCancellable?
+    private var notesCancellable: AnyCancellable?
     private let appIndex = AppIndex()
     private var appIndexCancellable: AnyCancellable?
     private var applicationActivityCancellable: AnyCancellable?
@@ -56,6 +60,12 @@ final class AppController {
         let knowledgeWindows = KnowledgeWindowManager(settings: settings)
         self.knowledgeWindows = knowledgeWindows
         let knowledgeProvider = KnowledgeProvider(settings: settings, service: knowledgeWindows)
+        let noteWindows = LocalNoteWindowManager(store: notes)
+        self.noteWindows = noteWindows
+        let notesProvider = NotesProvider(settings: settings, store: notes, opener: noteWindows, unavailableKeywords: { [weak self] in
+            guard let self else { return [] }
+            return Set(self.websites.configuration.groups.map(\.keyword) + self.searchEngines.configuration.engines.map(\.keyword))
+        })
         let textProvider = TextToolsProvider(settings: settings, toolOpener: toolWindows)
         let webProvider = WebSearchProvider(
             settings: settings,
@@ -90,7 +100,7 @@ final class AppController {
         let ideaProvider = IDEProjectProvider(index: appIndex, settings: settings, usage: usage, feedback: toast)
         let registry = ToolRegistry(providers: [
             appProvider, fileProvider, textProvider, webProvider, translationProvider,
-            knowledgeProvider, websiteProvider, calculatorProvider, quickOpenProvider, geminiProvider, ideaProvider
+            knowledgeProvider, notesProvider, websiteProvider, calculatorProvider, quickOpenProvider, geminiProvider, ideaProvider
         ])
         let coordinator = SearchCoordinator(registry: registry)
         let contentProvider = ContentActionProvider(settings: settings, toolOpener: toolWindows,
@@ -138,6 +148,12 @@ final class AppController {
         }
         self.coordinator = coordinator
         self.panel = panel
+        enabledProvidersCancellable = settings.$enabledProviderIDs.dropFirst().sink { [weak panel] _ in
+            DispatchQueue.main.async { panel?.refreshSearch() }
+        }
+        notesCancellable = notes.$notes.dropFirst().sink { [weak panel] _ in
+            DispatchQueue.main.async { panel?.refreshSearch() }
+        }
         websitesCancellable = websites.$configuration.dropFirst().sink { [weak panel] _ in
             DispatchQueue.main.async { panel?.refreshSearch() }
         }
@@ -201,6 +217,8 @@ final class AppController {
             knowledgeWindows.openKnowledge(.init(surface: surface))
         }
 
+        if CommandLine.arguments.contains("--new-note") { noteWindows.createNote() }
+
         if CommandLine.arguments.contains("--show-panel") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak panel] in
                 panel?.show()
@@ -221,9 +239,14 @@ final class AppController {
 
     }
 
-    var hasKnowledgeWindows: Bool { knowledgeWindows?.hasOpenWindows ?? false }
+    var needsTerminationPreparation: Bool { (knowledgeWindows?.hasOpenWindows ?? false) || (noteWindows?.hasOpenWindows ?? false) }
 
-    func prepareToTerminate() async -> Bool { await knowledgeWindows?.prepareToTerminate() ?? true }
+    func prepareToTerminate() async -> Bool {
+        guard await noteWindows?.prepareToTerminate() ?? true else { return false }
+        let approved = await knowledgeWindows?.prepareToTerminate() ?? true
+        if !approved { noteWindows?.resumeEditing() }
+        return approved
+    }
 
     func shutdown() {
         appIndex.stopMonitoring()
@@ -233,6 +256,7 @@ final class AppController {
         selectionTranslation?.shutdown()
         doubleTapMonitor.stop()
         usage.flush()
+        noteWindows?.shutdown()
         toolWindows?.shutdown()
         knowledgeWindows?.shutdown()
     }

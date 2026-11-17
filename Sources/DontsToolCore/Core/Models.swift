@@ -11,6 +11,7 @@ public enum ProviderID: String, CaseIterable, Identifiable, Sendable {
     case quickOpen = "quickOpen"
     case gemini
     case ideaProjects
+    case notes
 
     public var id: String { rawValue }
 }

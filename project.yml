@@ -37,6 +37,9 @@ targets:
       - path: Sources/DontsTool
       - path: Resources/AppIcon.icns
         buildPhase: resources
+      - path: Resources/NotesEditor
+        type: folder
+        buildPhase: resources
     dependencies:
       - target: DontsToolCore
     settings:
@@ -63,8 +66,14 @@ targets:
     platform: macOS
     sources:
       - path: Tests/DontsToolBridgeTests
+      - path: Sources/DontsTool/Shell/Notes
+      - path: Sources/DontsTool/UI/Notes
+      - path: Resources/NotesEditor
+        type: folder
+        buildPhase: resources
       - path: Sources/DontsTool/Shell/Knowledge/KnowledgeWebBridge.swift
       - path: Sources/DontsTool/Shell/Knowledge/KnowledgeWindowController.swift
+      - path: Sources/DontsTool/Shell/Knowledge/KnowledgeWindowManager.swift
       - path: Sources/DontsTool/UI/Knowledge/KnowledgeWindowView.swift
       - path: Sources/DontsTool/UI/Tools/ToolTheme.swift
       - path: Sources/DontsTool/UI/DesignSystem/Theme.swift
