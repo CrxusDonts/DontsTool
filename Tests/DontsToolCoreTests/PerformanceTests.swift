@@ -34,7 +34,7 @@ struct PerformanceTests {
         var durations: [Double] = []
         for query in ["readme", "swift", "png", "notes", "config"] {
             let start = ContinuousClock.Instant.now
-            _ = try? await service.search(query: query, timeout: .milliseconds(300))
+            _ = try? await service.search(query: query, timeout: .seconds(2))
             durations.append(Performance.milliseconds(since: start).rounded())
         }
         print("benchmark file.search real mdfind ms: \(durations)")

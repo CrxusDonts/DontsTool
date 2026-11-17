@@ -1,9 +1,11 @@
 import Foundation
+import Darwin
 
 public struct ProcessCommandRunner: CommandRunning {
     public init() {}
 
     public func run(executable: String, arguments: [String], timeout: Duration) async throws -> CommandResult {
+        try Task.checkCancellation()
         let process = Process()
         process.executableURL = URL(fileURLWithPath: executable)
         process.arguments = arguments
@@ -25,7 +27,7 @@ public struct ProcessCommandRunner: CommandRunning {
         let state = CommandState()
         let box = ProcessBox(process)
 
-        return try await withTaskCancellationHandler {
+        let result = try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { continuation in
                 process.terminationHandler = { finished in
                     if let pipe = finished.standardOutput as? Pipe {
@@ -45,7 +47,10 @@ public struct ProcessCommandRunner: CommandRunning {
                 }
 
                 do {
+                    try Task.checkCancellation()
                     try process.run()
+                    // Cancellation may have arrived between the preflight check and launch.
+                    if Task.isCancelled { box.terminate() }
                 } catch {
                     pipe.fileHandleForReading.readabilityHandler = nil
                     state.finish(with: error, continuation: continuation)
@@ -61,18 +66,14 @@ public struct ProcessCommandRunner: CommandRunning {
                     let process = box.process
                     guard process.isRunning else { return }
                     state.markTimedOut()
-                    process.terminate()
-                    try? await Task.sleep(for: .milliseconds(200))
-                    if process.isRunning {
-                        process.interrupt()
-                    }
+                    box.terminate()
                 }
             }
         } onCancel: {
-            if box.process.isRunning {
-                box.process.terminate()
-            }
+            box.terminate()
         }
+        try Task.checkCancellation()
+        return result
     }
 }
 
@@ -81,6 +82,15 @@ private final class ProcessBox: @unchecked Sendable {
 
     init(_ process: Process) {
         self.process = process
+    }
+
+    func terminate() {
+        guard process.isRunning else { return }
+        process.terminate()
+        Task.detached { [self] in
+            try? await Task.sleep(for: .milliseconds(200))
+            if process.isRunning { _ = Darwin.kill(process.processIdentifier, SIGKILL) }
+        }
     }
 }
 
@@ -178,12 +188,14 @@ public struct FileSearchService: Sendable {
     }
 
     public func search(query: String, timeout: Duration) async throws -> FileSearchResult {
-        // 个人启动器只搜用户目录：全盘 mdfind 在本机实测 ~330ms，超出 300ms 预算。
+        try Task.checkCancellation()
+        // Keep Spotlight scoped to the user directory rather than querying the whole disk.
         let result = try await runner.run(
             executable: "/usr/bin/mdfind",
             arguments: ["-name", query, "-onlyin", searchRoot.path],
             timeout: timeout
         )
+        try Task.checkCancellation()
 
         if result.output.isEmpty && result.terminationStatus != 0 && !result.timedOut {
             throw ActionError.commandFailed("文件搜索不可用")

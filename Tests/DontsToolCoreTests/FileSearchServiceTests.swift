@@ -86,6 +86,44 @@ struct FileSearchServiceTests {
 
 @Suite("ProcessCommandRunner")
 struct ProcessCommandRunnerTests {
+    @Test func alreadyCancelledTaskNeverStartsTheCommand() async throws {
+        let marker = FileManager.default.temporaryDirectory.appendingPathComponent("cancelled-command-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: marker) }
+        let task = Task {
+            withUnsafeCurrentTask { $0?.cancel() }
+            return try await ProcessCommandRunner().run(executable: "/usr/bin/touch", arguments: [marker.path], timeout: .seconds(2))
+        }
+        await #expect(throws: CancellationError.self) { try await task.value }
+        #expect(!FileManager.default.fileExists(atPath: marker.path))
+    }
+
+    @Test func timeoutKillsACommandThatIgnoresTerminateAndInterrupt() async throws {
+        let start = ContinuousClock.now
+        let result = try await ProcessCommandRunner().run(executable: "/usr/bin/python3", arguments: [
+            "-c", "import signal,time; signal.signal(signal.SIGTERM,signal.SIG_IGN); signal.signal(signal.SIGINT,signal.SIG_IGN); time.sleep(4)"
+        ], timeout: .milliseconds(250))
+        #expect(result.timedOut)
+        #expect(ContinuousClock.now - start < .seconds(2))
+    }
+
+    @Test func cancellationTerminatesAnActiveCommandAndThrowsCancellation() async throws {
+        let marker = FileManager.default.temporaryDirectory.appendingPathComponent("running-command-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: marker) }
+        let task = Task {
+            try await ProcessCommandRunner().run(executable: "/usr/bin/python3", arguments: [
+                "-c", "import sys,signal,time,pathlib; signal.signal(signal.SIGTERM,signal.SIG_IGN); signal.signal(signal.SIGINT,signal.SIG_IGN); pathlib.Path(sys.argv[1]).touch(); time.sleep(4)", marker.path
+            ], timeout: .seconds(10))
+        }
+        let deadline = ContinuousClock.now.advanced(by: .seconds(3))
+        while !FileManager.default.fileExists(atPath: marker.path), ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(FileManager.default.fileExists(atPath: marker.path))
+        let start = ContinuousClock.now
+        task.cancel()
+        await #expect(throws: CancellationError.self) { try await task.value }
+        #expect(ContinuousClock.now - start < .seconds(2))
+    }
     @Test func capturesStandardOutput() async throws {
         let result = try await ProcessCommandRunner().run(
             executable: "/bin/echo",

@@ -14,6 +14,7 @@ public final class LauncherPanelModel: ObservableObject {
 
     @Published public private(set) var items: [SearchItem] = []
     @Published public private(set) var status: SearchCoordinator.Status = .idle
+    @Published public private(set) var isComposing = false
     @Published public private(set) var selectedIndex = 0
     @Published public private(set) var progressMessage: String?
     @Published public private(set) var toastMessage: String?
@@ -79,11 +80,12 @@ public final class LauncherPanelModel: ObservableObject {
     }
 
     public var showsEmptyState: Bool {
-        items.isEmpty && status != .searchingFiles
+        !isComposing && items.isEmpty && status != .searchingFiles
     }
 
     /// 底栏状态文本：进行中的进度优先，其次是搜索状态提示。
     public var statusText: String? {
+        if isComposing { return "输入完成后搜索" }
         if let progressMessage { return progressMessage }
         switch status {
         case .idle:
@@ -96,7 +98,7 @@ public final class LauncherPanelModel: ObservableObject {
     }
 
     public var statusIsWarning: Bool {
-        progressMessage == nil && status != .idle && status != .searchingFiles
+        !isComposing && progressMessage == nil && status != .idle && status != .searchingFiles
     }
 
     public func item(at index: Int) -> SearchItem? {
@@ -104,6 +106,7 @@ public final class LauncherPanelModel: ObservableObject {
     }
 
     public func submit(_ query: String, frontmostBundleID: String? = nil) {
+        isComposing = false
         if submittedQuery != query {
             selectedIndex = 0
             submittedQuery = query
@@ -121,6 +124,14 @@ public final class LauncherPanelModel: ObservableObject {
         }
         searchInterval = Performance.begin("search.fast")
         coordinator.submit(query, frontmostBundleID: frontmostBundleID)
+    }
+
+    public func suspendSearchForComposition() {
+        coordinator.cancel()
+        if let searchInterval { Performance.end(searchInterval); self.searchInterval = nil }
+        isComposing = true
+        closeActionPanel()
+        replaceResults([], status: .idle)
     }
 
     @discardableResult

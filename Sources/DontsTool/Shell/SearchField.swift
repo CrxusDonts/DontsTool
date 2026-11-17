@@ -2,6 +2,7 @@ import AppKit
 
 final class SearchField: NSSearchField, NSSearchFieldDelegate {
     var onTextChange: ((String) -> Void)?
+    var onCompositionBegin: (() -> Void)?
     var onMoveUp: (() -> Void)?
     var onMoveDown: (() -> Void)?
     var onConfirm: (() -> Void)?
@@ -48,6 +49,7 @@ final class SearchField: NSSearchField, NSSearchFieldDelegate {
     }
 
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        guard !isComposing else { return super.performKeyEquivalent(with: event) }
         let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         if flags.intersection([.command, .shift, .option, .control]) == [.command, .shift],
            event.charactersIgnoringModifiers?.lowercased() == "c", !isComposing,
@@ -96,15 +98,17 @@ final class SearchField: NSSearchField, NSSearchFieldDelegate {
     }
 
     func controlTextDidChange(_ obj: Notification) {
-        if isComposing { return }
+        if isComposing { onCompositionBegin?(); return }
         onTextChange?(stringValue)
     }
 
-    private var isComposing: Bool {
+    var isComposing: Bool {
         (currentEditor() as? NSTextView)?.hasMarkedText() == true
+            || (currentEditor() as? LauncherFieldEditor)?.isUpdatingComposition == true
     }
 
     func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+        guard !textView.hasMarkedText(), !isComposing else { return false }
         switch commandSelector {
         case #selector(NSResponder.moveUp(_:)):
             onMoveUp?()
@@ -133,6 +137,40 @@ final class SearchField: NSSearchField, NSSearchFieldDelegate {
 final class LauncherFieldEditor: NSTextView {
     var onPasteContent: ((String) -> Bool)?
     var pasteboardForPaste: () -> NSPasteboard = { .general }
+    var onCompositionChange: ((Bool, String) -> Void)?
+    private var compositionEditDepth = 0
+    var isUpdatingComposition: Bool { compositionEditDepth > 0 }
+
+    override func setMarkedText(_ text: Any, selectedRange: NSRange, replacementRange: NSRange) {
+        onCompositionChange?(true, string)
+        compositionEditDepth += 1
+        super.setMarkedText(text, selectedRange: selectedRange, replacementRange: replacementRange)
+        finishCompositionEdit()
+    }
+
+    override func unmarkText() {
+        guard hasMarkedText() || isUpdatingComposition else { super.unmarkText(); return }
+        compositionEditDepth += 1
+        super.unmarkText()
+        finishCompositionEdit()
+    }
+
+    override func insertText(_ text: Any, replacementRange: NSRange) {
+        guard hasMarkedText() || isUpdatingComposition else {
+            super.insertText(text, replacementRange: replacementRange)
+            return
+        }
+        compositionEditDepth += 1
+        super.insertText(text, replacementRange: replacementRange)
+        finishCompositionEdit()
+    }
+
+    private func finishCompositionEdit() {
+        compositionEditDepth -= 1
+        // AppKit may call unmarkText from inside insertText. Publish only after
+        // the outer edit has applied the final candidate, never its intermediate text.
+        if compositionEditDepth == 0 { onCompositionChange?(hasMarkedText(), string) }
+    }
 
     override func paste(_ sender: Any?) {
         if attachPastedContent() { return }

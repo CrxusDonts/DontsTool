@@ -5,6 +5,24 @@ import Testing
 @Suite("FileProvider")
 @MainActor
 struct FileProviderTests {
+    @Test func ordinaryHalfSecondQueryFinishesWithoutFalseTimeout() async {
+        let suite = "dontstool.slow-files.\(UUID())"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let provider = FileProvider(settings: SettingsStore(defaults: defaults, systemLanguageCode: "en"),
+            usage: UsageStore(defaults: defaults), launcher: MockAppLauncher(), feedback: MockFeedback(),
+            service: FileSearchService(runner: SlowSpotlightFixture()))
+        let items = await provider.search(scoped())
+        #expect(items.map(\.title) == ["report.pdf"])
+        #expect(provider.statusNotice == nil)
+    }
+
+    @Test func cancelledSearchDoesNotReportFileServiceFailure() async {
+        let (provider, _, _, _, _) = makeProvider(commandError: CancellationError())
+        let items = await provider.search(scoped())
+        #expect(items.isEmpty)
+        #expect(provider.statusNotice == nil)
+    }
     private func makeProvider(
         output: String = "/Users/donts/Desktop/report.pdf\n",
         terminationStatus: Int32 = 0,
@@ -223,5 +241,13 @@ struct FileProviderTests {
         #expect(item.actions.map(\.id) == ["file.open", "file.reveal", "file.copyPath"])
         try await item.fileAction(.copyPath)?.run()
         #expect(clipboard.written == ["/Users/donts/Desktop/report.pdf"])
+    }
+}
+
+private struct SlowSpotlightFixture: CommandRunning {
+    func run(executable: String, arguments: [String], timeout: Duration) async throws -> CommandResult {
+        try await ProcessCommandRunner().run(executable: "/usr/bin/python3", arguments: [
+            "-c", "import time; time.sleep(0.5); print('/Users/test/report.pdf', flush=True)"
+        ], timeout: timeout)
     }
 }

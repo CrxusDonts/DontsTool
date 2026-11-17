@@ -49,12 +49,16 @@ public final class FileProvider: ToolProvider {
         guard !query.isEmpty else { return [] }
 
         do {
-            let result = try await service.search(query: query, timeout: .milliseconds(300))
+            let result = try await service.search(query: query, timeout: .seconds(2))
+            guard !Task.isCancelled else { return [] }
             if result.timedOut {
                 statusNotice = result.hits.isEmpty ? "文件搜索超时" : "文件搜索较慢，已显示部分结果"
             }
             return result.hits.map(makeItem)
+        } catch is CancellationError {
+            return []
         } catch {
+            guard !Task.isCancelled else { return [] }
             statusNotice = "文件搜索不可用"
             Log.provider.error("文件搜索失败: \(error.localizedDescription, privacy: .public)")
             return []

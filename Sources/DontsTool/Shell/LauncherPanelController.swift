@@ -44,6 +44,14 @@ final class LauncherPanelController: NSObject, NSWindowDelegate, OperationProgre
         panel.delegate = self
         fieldEditor.isFieldEditor = true
         fieldEditor.onPasteContent = { [weak self] text in self?.receiveContent(text) ?? false }
+        fieldEditor.onCompositionChange = { [weak self] marked, text in
+            guard let self else { return }
+            if marked { model.suspendSearchForComposition() }
+            else {
+                if searchField.stringValue != text { searchField.stringValue = text }
+                refreshSearch()
+            }
+        }
         installContent()
         wireSearchField()
     }
@@ -103,6 +111,7 @@ final class LauncherPanelController: NSObject, NSWindowDelegate, OperationProgre
     }
 
     func refreshSearch() {
+        guard !searchField.isComposing else { model.suspendSearchForComposition(); return }
         let query = searchField.stringValue
         model.updateQueryText(query)
         model.updateQueryRoute(model.attachedContent == nil ? keywordRoute(for: query) : nil)
@@ -193,6 +202,7 @@ final class LauncherPanelController: NSObject, NSWindowDelegate, OperationProgre
     }
 
     private func wireSearchField() {
+        searchField.onCompositionBegin = { [weak self] in self?.model.suspendSearchForComposition() }
         searchField.onTextChange = { [weak self] _ in self?.refreshSearch() }
         searchField.onMoveUp = { [weak self] in
             guard let self else { return }
