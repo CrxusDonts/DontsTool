@@ -205,8 +205,8 @@ struct AppProviderTests {
     }
 
     @Test(arguments: [
-        ("", ["Bravo", "Zulu", "Alpha"]),
-        ("recent", ["Bravo", "Zulu", "Alpha"]),
+        ("", ["Bravo", "Zulu"]),
+        ("recent", ["Bravo", "Zulu"]),
         ("frequency", ["Zulu", "Bravo", "Alpha"]),
         ("name", ["Alpha", "Bravo", "Zulu"])
     ])
@@ -308,6 +308,56 @@ struct AppProviderTests {
         try await items[0].primaryAction?.run()
         #expect(launcher.openedApplications.map(\.path) == ["/Applications/Safari.app"])
         #expect(usage.record(for: "/Applications/Safari.app")?.count == 1)
+        let recent = await provider.search(SearchContext(rawQuery: "", mode: .global))
+        #expect(recent.map(\.title) == ["Safari"])
+    }
+
+    @Test func failedLaunchDoesNotEnterRecentHistoryAndSearchStillFindsUnusedApps() async throws {
+        let defaultsName = "dontstool.tests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: defaultsName)!
+        defer { defaults.removePersistentDomain(forName: defaultsName) }
+        let usage = UsageStore(defaults: defaults)
+        let index = AppIndex(scanner: AppScanner(roots: []))
+        index.setAppsForTesting([makeEntry("Safari", path: "/Applications/Safari.app")])
+        let launcher = MockAppLauncher()
+        launcher.error = ActionError.openFailed("Safari")
+        let provider = AppProvider(index: index,
+            settings: SettingsStore(defaults: defaults, systemLanguageCode: "en"),
+            usage: usage, launcher: launcher, feedback: MockFeedback())
+        let empty = await provider.search(SearchContext(rawQuery: "", mode: .global))
+        #expect(empty.isEmpty)
+        let results = await provider.search(SearchContext(rawQuery: "saf", mode: .global))
+        #expect(results.map(\.title) == ["Safari"])
+        try await results[0].primaryAction?.run()
+        #expect(usage.record(for: "/Applications/Safari.app") == nil)
+        let afterFailure = await provider.search(SearchContext(rawQuery: "", mode: .global))
+        #expect(afterFailure.isEmpty)
+    }
+
+    @Test func migratedCountsRemainUsableButDoNotInventRecentLaunchTimes() async throws {
+        let name = "dontstool.tests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: name)!
+        defer { defaults.removePersistentDomain(forName: name) }
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let path = "/Applications/Safari.app"
+        defaults.set(try JSONEncoder().encode([path: UsageStore.Record(count: 3, lastUsed: now)]), forKey: "dontstool.usage.records")
+        let usage = UsageStore(defaults: defaults, now: { now })
+        let settings = SettingsStore(defaults: defaults, systemLanguageCode: "en")
+        let index = AppIndex(scanner: AppScanner(roots: []))
+        index.setAppsForTesting([makeEntry("Safari", path: path)])
+        let provider = AppProvider(index: index, settings: settings, usage: usage,
+                                   launcher: MockAppLauncher(), feedback: MockFeedback())
+        let recent = await provider.search(SearchContext(rawQuery: "", mode: .global))
+        #expect(recent.isEmpty)
+        settings.setApplicationSortOrder(.frequency)
+        let frequent = await provider.search(SearchContext(rawQuery: "", mode: .global))
+        #expect(frequent.map(\.title) == ["Safari"])
+        try await frequent[0].primaryAction?.run()
+        settings.setApplicationSortOrder(.recent)
+        let opened = await provider.search(SearchContext(rawQuery: "", mode: .global))
+        #expect(opened.map(\.title) == ["Safari"])
+        #expect(usage.record(for: path)?.count == 4)
+        #expect(usage.record(for: path)?.lastUsed == now)
     }
 
     @Test func disabledProviderReturnsNoItems() async {

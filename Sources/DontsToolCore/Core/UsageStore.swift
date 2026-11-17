@@ -14,6 +14,7 @@ public final class UsageStore {
 
     private enum Key {
         static let records = "dontstool.usage.records"
+        static let launcherApplicationsOnly = "dontstool.usage.launcherApplicationsOnlyV1"
     }
 
     private let defaults: UserDefaults
@@ -30,6 +31,20 @@ public final class UsageStore {
         } else {
             records = [:]
         }
+        if !defaults.bool(forKey: Key.launcherApplicationsOnly) {
+            // Old application times mixed launcher opens with unrelated system activations.
+            // Counts still identify real launcher opens; their historical order cannot be recovered.
+            for (key, var record) in records where key.hasPrefix("/") && URL(fileURLWithPath: key).pathExtension.lowercased() == "app" {
+                if record.count > 0 {
+                    record.lastUsed = .distantPast
+                    records[key] = record
+                } else {
+                    records.removeValue(forKey: key)
+                }
+            }
+            flush()
+            defaults.set(true, forKey: Key.launcherApplicationsOnly)
+        }
     }
 
     public func recordUse(of key: String, at date: Date? = nil) {
@@ -37,14 +52,6 @@ public final class UsageStore {
         var record = records[key] ?? Record(count: 0, lastUsed: timestamp)
         record.count += 1
         record.lastUsed = timestamp
-        records[key] = record
-        scheduleFlush()
-    }
-
-    public func recordActivation(of key: String, at date: Date? = nil) {
-        let timestamp = date ?? now()
-        var record = records[key] ?? Record(count: 0, lastUsed: timestamp)
-        record.lastUsed = max(record.lastUsed, timestamp)
         records[key] = record
         scheduleFlush()
     }

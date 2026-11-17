@@ -32,7 +32,6 @@ final class AppController {
     private var notesCancellable: AnyCancellable?
     private let appIndex = AppIndex()
     private var appIndexCancellable: AnyCancellable?
-    private var applicationActivityCancellable: AnyCancellable?
     private var applicationSortCancellable: AnyCancellable?
     private let hotKeyManager = HotKeyManager()
     private let doubleTapMonitor = ModifierDoubleTapMonitor()
@@ -181,16 +180,6 @@ final class AppController {
         applicationSortCancellable = settings.$applicationSortOrder.dropFirst().sink { [weak panel] _ in
             DispatchQueue.main.async { panel?.refreshSearch() }
         }
-        applicationActivityCancellable = NSWorkspace.shared.notificationCenter
-            .publisher(for: NSWorkspace.didActivateApplicationNotification)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] notification in
-                guard let application = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
-                      application.bundleIdentifier != Bundle.main.bundleIdentifier,
-                      let url = application.bundleURL, url.pathExtension.lowercased() == "app" else { return }
-                let path = url.standardizedFileURL.path
-                MainActor.assumeIsolated { self?.usage.recordActivation(of: path) }
-            }
 
         let menuBar = MenuBarController()
         menuBar.updates = updateController
@@ -263,7 +252,6 @@ final class AppController {
     func shutdown() {
         appIndex.stopMonitoring()
         appIndexCancellable?.cancel()
-        applicationActivityCancellable?.cancel()
         applicationSortCancellable?.cancel()
         selectionTranslation?.shutdown()
         doubleTapMonitor.stop()

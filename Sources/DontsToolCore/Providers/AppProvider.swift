@@ -82,7 +82,13 @@ public final class AppProvider: ToolProvider {
     }
 
     private func commonApps() -> [AppEntry] {
-        Array(index.apps.sorted { lhs, rhs in
+        let candidates = settings.applicationSortOrder == .recent
+            ? index.apps.filter {
+                guard let record = usage.record(for: $0.id) else { return false }
+                return record.count > 0 && record.lastUsed > .distantPast
+            }
+            : index.apps
+        return Array(candidates.sorted { lhs, rhs in
             let left = usage.record(for: lhs.id)
             let right = usage.record(for: rhs.id)
             switch settings.applicationSortOrder {

@@ -12,7 +12,7 @@ public final class SettingsStore: ObservableObject {
 
         public var displayName: String {
             switch self {
-            case .recent: "最近使用"
+            case .recent: "最近打开"
             case .frequency: "使用频率"
             case .name: "名称"
             }
