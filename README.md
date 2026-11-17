@@ -24,7 +24,7 @@
 
 ## 安装
 
-> 注：一键安装命令需在仓库公开且 `install.sh` 合入 `main` 后对外可用。
+在终端运行以下命令即可安装，无需登录 GitHub：
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/CrxusDonts/DontsTool/main/install.sh | /bin/bash

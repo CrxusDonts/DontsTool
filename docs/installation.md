@@ -4,7 +4,7 @@
 
 ## 使用
 
-公开仓库的 `main` 包含脚本后：
+在终端运行，无需登录 GitHub：
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/CrxusDonts/DontsTool/main/install.sh | /bin/bash
