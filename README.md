@@ -1,304 +1,81 @@
 <p align="center">
-  <img src="docs/assets/banner.png" alt="DontsTool — 搜索、跳转、处理文本，一次唤起" width="100%">
+  <img src="docs/assets/banner.png" alt="DontsTool" width="100%">
 </p>
 
 # DontsTool
 
-一个原生 macOS 研发效率启动器。用快捷键唤起，搜索应用和文件，打开常用网址，或进入独立工具窗口处理 JSON、Base64、时间戳等内容。
+这是我们自己日常使用的 macOS 效率小工具，把启动应用、查找文件和常用文本处理放在一个快捷入口里。功能按自己的工作习惯持续改进，也分享给有类似需求的朋友。
 
-[下载 Release](https://github.com/CrxusDonts/DontsTool/releases/latest) · [安装](#安装) · [网址配置](docs/website-shortcuts.md) · [开发与发布](#开发与发布)
+使用 Swift 6、AppKit 与 SwiftUI 构建，需要 **macOS 26+**，Universal 安装包支持 Apple Silicon 和 Intel。应用常驻菜单栏，不显示 Dock 图标，默认按 **⌥ Space** 呼出。
 
-## 能做什么
+## 常用功能
 
-| 功能 | 使用方式 |
+| 功能 | 说明 |
 | --- | --- |
-| 应用与文件 | 文件输入 `file 文件名` 按需搜索，回车打开、`⌘↵` 定位、`⌘⇧C` 复制路径，结果行也提供操作按钮；应用目录变化后自动更新 |
-| 应用排序与检索 | 空搜索默认最近从启动器打开的应用，可切换使用频率或名称；支持中文拼音、首字母、英文简称及应用文件名 |
-| 内容动作 | 在空搜索框主动粘贴 JSON、链接或文本，再筛选适用操作；原文保留到明确执行时带入工具 |
-| Gemini 提问 | `gm 问题` 回车后在已安装的 Gemini 中新建对话并发送；保留已有草稿 |
-| IDEA 项目 | `idea` 列最近项目，`idea 名称` 筛选，回车交给 IDEA 打开 |
-| 计算器与单位换算 | 直接输入 `1+1`、`sqrt(16)` 或 `10 km to mi`，回车复制结果 |
-| 快速打开 | 直接输入 `https://…`、`www.…`、`~/…` 或已存在的绝对路径 |
-| 操作面板 | 任意结果按 `⌘K`，可打开、在访达中显示、退出应用、复制路径或链接 |
-| 网址快捷入口 | 自定义 `前缀 系统 子页面 环境`，如 `ops avatar management prod`；支持单网址、多环境、页面路径、别名和 JSON 导入导出 |
-| JSON | 格式化、压缩、转义、去转义和结构对比，保留大整数精度 |
-| 文本小工具 | Base64、URL 编解码，时间戳转换，批量 UUID，MD5 / SHA1 / SHA256 |
-| 网页搜索 | 自定义引擎、快捷词和网址模板，支持默认引擎、名称查找、手动及 JSON 配置；内置 `g`、`bing`、`bd`、`ddg`、`gh` |
-| 翻译 | `tr` 打开翻译窗口；可选开启全局右键长按划词翻译，使用自己配置的 Responses 兼容 API 服务，密钥保存在钥匙串 |
-| 本地便笺 | `note` / `便笺` 查看最近和搜索；独立窗口所见即所得，支持 Markdown、粘贴图片和自动保存 |
-| DontsKb 插件 | `kb` 搜索和编辑文章，`collect` 快速收集，`inbox` 打开收集箱 |
+| 应用与文件搜索 | 快捷启动应用；输入 `file 文件名` 进行按需 Spotlight 搜索，支持 `⌘↵` 在访达定位、`⌘⇧C` 复制路径 |
+| 网址快捷入口 | 自定义层级跳转，支持多环境与子页面（如 `ops avatar management prod`），支持 JSON 批量导入导出 |
+| 文本与研发工具 | 输入 `json`、`base64`、`uuid` 等打开独立工具窗口，支持 JSON 格式化与双栏对比、编解码、时间戳与常见哈希 |
+| 本地便笺 | 输入 `note` 或 `便笺` 快速检索与新建；独立窗口所见即所得编辑，支持 Markdown 与粘贴图片，数据本地持久化 |
+| 划词与独立翻译 | 输入 `tr` 打开翻译窗口，或开启全局右键长按取词；需自行配置 Responses 兼容服务地址、模型与 API 密钥，密钥保存在本机钥匙串 |
+| 常用应用联动 | 输入 `gm 问题` 在已安装的 Gemini Mac 中新建对话发送（需辅助功能权限）；输入 `idea 名称` 快速打开 IntelliJ 最近项目 |
+| 即时计算与换算 | 输入框直接计算数学算式（如 `1+1`、`sqrt(16)`）或常用单位换算（如 `10 km to mi`），回车快速复制结果 |
 
-从启动器打开 JSON、Base64 等工具会新建独立窗口。同类工具可以同时处理多份内容，标题可命名，窗口可置顶。JSON、Base64 和 URL 使用单编辑区原地操作，支持撤销；JSON 对比使用双栏。
-
-JSON 等工具文本草稿仅保留本次运行，退出应用后清除；本地便笺会自动持久化正文和图片。网址配置和设置保存在本机；知识库的保存与草稿由 DontsKb 管理。
+选中结果后按 `⌘K` 查看可用操作，如在访达中显示、退出应用、复制链接或路径。
 
 ## 安装
 
-需要 **macOS 26 或更新版本**。发布包是 **Universal**，同时包含 Apple Silicon（arm64）和 Intel（x86_64）架构。
-
-### 一键安装
-
-仓库公开且安装脚本合入 `main` 后，可运行以下命令，无需 GitHub 登录、Homebrew 或开发工具：
+> 注：一键安装命令需在仓库公开且 `install.sh` 合入 `main` 后对外可用。
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/CrxusDonts/DontsTool/main/install.sh | /bin/bash
 ```
 
-脚本从最新稳定版 Release 下载并验证 SHA256、应用标识、版本和签名完整性，然后安装到 `/Applications/DontsTool.app`。更新前先保存草稿并从菜单栏正常退出；替换失败时恢复旧应用。脚本不会自动启动应用或移除 macOS 隔离标记，首次打开仍按下文处理系统提示。
+脚本会从最新稳定版 GitHub Release 下载，自动校验 SHA256 与应用完整性后安装到 `/Applications/DontsTool.app`，无需 `sudo`。若已有旧版，更新前请先正常退出应用。脚本支持指定安装目录与指定版本等参数，详情见 [安装文档](docs/installation.md)。
 
-也可[下载脚本](install.sh)、检查内容后运行。安装到用户目录或指定版本：
+**手动安装**：
 
-```bash
-bash install.sh --dir "$HOME/Applications"
-bash install.sh --version v0.2.6
-```
-
-无需 `sudo`。安装后的[应用内更新](#应用内更新)和首次打开方法见下文；脚本的参数和验证说明见[安装脚本](docs/installation.md)。
-
-### 下载与更新
-
-1. 前往 [Releases](https://github.com/CrxusDonts/DontsTool/releases/latest)，下载 `DontsTool-版本号-macos-universal.zip`。公开仓库无需登录；仓库仍为私有时，需登录有访问权限的 GitHub 账号，否则可能显示 404。
-2. 一并下载 `SHA256SUMS` 和 `manifest.json`。将三个文件放在同一目录，在终端进入该目录后校验：
-
-   ```bash
-   shasum -a 256 -c SHA256SUMS
-   ```
-
-3. 解压 ZIP，将 `DontsTool.app` 拖入「应用程序」目录。更新前先保存或复制需要保留的工具草稿，并从菜单栏正常退出旧版，再替换应用。
-4. 打开「应用程序 → DontsTool」。它常驻菜单栏，不显示 Dock 图标；默认按 **⌥ Space** 呼出启动器。
-
-也可以用已登录的 GitHub CLI 下载：
-
-```bash
-gh release download --repo CrxusDonts/DontsTool \
-  --pattern 'DontsTool-*-macos-universal.zip' \
-  --pattern manifest.json --pattern SHA256SUMS \
-  --dir "$HOME/Downloads/DontsTool" --clobber
-
-cd "$HOME/Downloads/DontsTool"
-shasum -a 256 -c SHA256SUMS
-```
+1. 前往 [Releases](https://github.com/CrxusDonts/DontsTool/releases/latest) 下载 `DontsTool-版本号-macos-universal.zip` 及校验文件。
+2. 解压后将 `DontsTool.app` 拖入「应用程序」目录。
+3. 从「应用程序」打开 DontsTool，按 `⌥ Space` 开始使用。更新时先保存草稿并正常退出旧版，再替换应用。
 
 ### 首次打开：本地签名
 
-当前发布使用 **ad-hoc 本地签名**，没有 Developer ID 证书，也**未经 Apple 公证**。签名完整性检查通过，不代表 Apple 已验证开发者身份或完成安全审查。
+当前发布包采用 **ad-hoc 本地签名**，未经 Apple 官方公证。签名完整性校验通过不代表已经过 Apple 审查。
 
-如果 macOS 提示无法验证开发者，先尝试打开一次，再进入「系统设置 → 隐私与安全性」，找到 DontsTool 对应的提示并选择「仍要打开」。操作说明见 [Apple 官方文档](https://support.apple.com/102445)。
-
-如果下载隔离标记仍阻止打开，仅在确认包来自本仓库、SHA256 校验通过后，可针对这个应用移除隔离标记：
-
-```bash
-codesign --verify --deep --strict "/Applications/DontsTool.app"
-xattr -dr com.apple.quarantine "/Applications/DontsTool.app"
-open "/Applications/DontsTool.app"
-```
-
-无需关闭整个系统的 Gatekeeper，也无需重新签名发布包。
+如果首次打开被系统拦截，先尝试打开一次，再到 **系统设置 → 隐私与安全性**，找到 DontsTool 对应的提示并选择 **仍要打开**。
 
 ## 开始使用
 
-在启动器底部点击设置按钮，或按 **⌘ ,** 进入设置。
+- **快捷唤起**：默认通过 `⌥ Space` 唤起启动器，按 `⌘,` 进入设置调整快捷键（支持修改组合键或双击修饰键）。
+- **内容处理**：在空搜索框粘贴文本、链接或 JSON，启动器会自动推荐适用工具并保留原文带入。
+- **工具窗口**：从启动器输入 `json`、`base64`、`uuid` 回车可新建独立窗口。窗口可多开、重命名及置顶；工具文本草稿仅保留本次运行，便笺会自动保存。
+- **自定义搜索**：可在设置中添加自定义搜索引擎（如公司内网文档库），分配专属快捷词快速跳转。
+- **数据与配置**：便笺、网址配置和设置保存在本机；翻译需在设置中配置自己的服务，原文会发送到该服务。
 
-- **最近打开**：空搜索时，应用分组默认显示最近从 DontsTool 启动器成功打开的应用，按时间倒序，最多四个。不足四个时不拿其他应用填充；没有记录时可输入应用名搜索。Dock、访达和 Cmd-Tab 的启动或切换不影响此列表。排序可切换为启动器打开频率或名称；记录仅保存在本机。旧版本混入系统切换的记录会一次性清理，已知打开次数保留，最近顺序重新积累。
-- **定位文件**：选中或悬停文件结果，点击右侧文件夹按钮，在访达打开所在目录并选中文件。也可按 `⌘Enter`，或从 `⌘K` 操作菜单选择「在访达中显示」；普通回车仍打开文件。直接输入完整路径的结果同样支持。
-- **按需搜索文件**：普通输入不查询文件；输入 `file 报告` 才按文件名查询 Spotlight，单独输入 `file` 显示使用提示。中文输入法组词时暂停并取消旧查询，确认上屏后再开始 120ms 防抖。查询正常完成立即返回，最长等待 2 秒，超时保留部分结果。可在「设置 → 搜索」关闭此功能；完整路径仍可直接打开。
-- **主动粘贴**：在空搜索框按 `⌘V` 或「粘贴并匹配样式」，内容会成为可移除的胶囊；搜索框用于筛选动作。JSON 推荐 JSON 工具，网页链接提供打开和 URL 编解码，文本提供 Base64 与翻译入口。回车只打开对应工具并带入原文，不自动转换或发送翻译请求。Esc 先关闭动作面板，再清空筛选词、移除内容，最后收起启动器。
-- **界面与动效**：启动器采用石墨／暖灰与薄荷绿配色，遵循系统外观。窗口短距离淡入淡出、选中背景连续移动，系统开启「减少动态效果」或「减少透明度」时相应降级。本地可交互设计稿见 [Fluid Launcher](design/fluid-launcher/index.html)。
+## 开发与构建
 
-- **快捷键**：默认 `⌥ Space`；可改为其他组合键，或双击 `⌥`、`⌘`、`⌃`、`⇧` 呼出。双击修饰键不依赖输入监控或辅助功能授权。
-- **Gemini 提问**：先检测本机是否安装 Gemini Mac 版，设置中显示安装状态，未安装时开关不可用。输入 `gm 问题` 或 `gemini 问题`，回车后在已安装的 Gemini Mac 应用中新建并发送。自动输入需要辅助功能授权，可在「设置 → 内置工具 → Gemini 自动提问」授权；未授权时可选「仅打开 Gemini」。已有未发送草稿会保留并停止操作，发送前按 Esc 或切换应用可取消。
-- **IDEA 项目**：输入 `idea` 按最近打开时间列出当前版本项目，`idea kb` 按名称或路径筛选，也可输入 `idea 完整项目目录`。回车使用已安装的 IntelliJ IDEA 打开，`⌘K` 可在访达中显示或复制路径；无需辅助功能或 IDE 插件。详见 [应用动作](docs/application-actions.md)。
-- **计算器**：直接输入算式或 `10 km to mi` 这类单位换算，结果会出现在工具分组；回车复制。支持 `+ - * / ^`、取模 `%`、括号、`sqrt`、`abs`、`round`、`floor`、`ceil`、`ln`、`log`、`sin`、`cos`、`tan` 和长度、质量、温度、数据、时间、速度换算。`calc` 或 `=` 可强制按算式处理。
-- **快速打开**：直接输入网址（含 `www.` 开头）或已存在的 `~/`、绝对路径；`open` 关键字可强制进入该模式。网址只有在执行打开动作时才交给默认浏览器。
-- **文件操作**：选中文件后，点击结果右侧“定位”或按 `⌘↵`，在访达中显示并选中文件；点击“复制路径”或按 `⌘⇧C`，复制完整路径。底栏同步显示这些快捷键。普通 `↵` 继续打开文件，`⌘C` 保留输入文字复制。
-- **操作面板**：选中结果按 `⌘K` 打开全部操作，`↑`、`↓` 选择，`↵` 执行，`esc` 返回。应用支持退出应用和复制路径；文件支持在访达中显示和复制路径；网页结果支持复制链接。
-- **本地便笺**：输入 `note` 或 `便笺` 查看最近记录，追加文字搜索标题和正文。默认所见即所得，也可切换 Markdown 源码；图片可直接粘贴或拖入，会复制到便笺附件目录。不同便笺使用独立窗口，同一篇复用现有窗口；可命名、置顶、移入最近删除和恢复，或导出包含图片的 Markdown ZIP。正文自动保存在 `~/Library/Application Support/DontsTool/Notes`，不需要网络；详见 [便笺说明](docs/local-notes.md)。
-- **工具窗口**：输入 `json`、`base64`、`uuid` 等，回车新建窗口。操作文本、命名和置顶都在工具窗口内完成。
-- **网址快捷入口**：在设置中添加分组和网址，或导入 JSON。输入 `gh` 列出分组内项目，`gh a` 匹配项目，回车才打开默认浏览器；多环境系统可用 `ops 订单 test` / `ops 订单 prod` 筛选，`ops 订单` 列出全部环境及实际地址；系统内可添加子页面，`ops avatar management prod` 直达生产管理页；分组内没有匹配时不会回退到公共搜索。
-- **知识库**：可在「设置 → 知识库」关闭整个功能，隐藏知识库、收集箱和快速收集入口并停止后台搜索；已有窗口继续保留，便于保存。设置兼容 `/tool` 插件页面的 DontsKb 服务地址，在知识库窗口内登录。普通打开文章沿用当前窗口，只有明确选择「新窗口打开」才另开。
-- **翻译**：使用你在「设置 → 翻译」填写的大模型服务，需要接口地址、模型和 API 密钥（Responses 兼容）。未配置时提示补全设置，不自动切换到系统翻译。
-
-### 右键长按划词翻译
-
-在「设置 → 翻译」打开「右键长按翻译」，点击「授权辅助功能」，在 macOS 系统设置中允许 DontsTool。返回应用后会重新检查授权，也可点击「重新检查」。此功能默认关闭，不会在启动时请求权限；原有启动器快捷键不需要该授权。
-
-在其他应用中先选中文字，再按住鼠标右键，或在妙控板上用双指保持接触，鼠标旁会显示原文和译文卡片。「设置 → 翻译 → 唤起时间」可选 **300ms、500ms、1 秒、2 秒**，默认 2 秒，修改后立即生效。卡片支持复制译文、重试、固定及打开原文编辑；Esc 关闭，未固定时点击外部或切换应用也会关闭。一次只保留一张卡片。
-
-短按在松开时还原原有右键，移动超过容差则恢复右键拖动。达到设定时间后才复制取词；读取期间显示等待状态，失败或超时显示具体原因，不发送翻译请求。关闭卡片或编辑原文会取消尚未完成的取词。仅处理鼠标所在且已聚焦的前台普通窗口；后台窗口、菜单和带修饰键的右键保持原样。
-
-取词直接向源应用发送 Cmd-C，再等待本次复制产生的新剪贴板内容。不会主动清空或还原剪贴板，复制的选区会保留；未收到新内容时不会把原有剪贴板文字当成选区。目标应用需支持复制，安全输入框不参与，单次选区上限为 8000 个 UTF-16 单元。不做截图、OCR 或剪贴板历史。详细实现与验收边界见 [划词翻译说明](docs/selection-translation.md)。
-
-### 网址配置示例
-
-下面的地址为虚构示例，请替换成自己的站点：
-
-```json
-{
-  "version": 3,
-  "groups": [
-    {
-      "keyword": "ops",
-      "name": "公司系统",
-      "items": [
-        {
-          "key": "avatar",
-          "name": "Avatar",
-          "aliases": [
-            "头像系统"
-          ],
-          "environments": [
-            {
-              "key": "test",
-              "name": "测试",
-              "url": "https://avatar.test.company.example"
-            },
-            {
-              "key": "prod",
-              "name": "生产",
-              "url": "https://avatar.company.example"
-            }
-          ],
-          "pages": [
-            {
-              "key": "management",
-              "name": "管理页",
-              "path": "/admin/management",
-              "aliases": [
-                "管理",
-                "managment"
-              ]
-            },
-            {
-              "key": "metrics",
-              "name": "监控",
-              "path": "/metrics",
-              "urls": {
-                "prod": "https://metrics.company.example/avatar"
-              }
-            }
-          ]
-        }
-      ]
-    }
-  ]
-}
-```
-
-手动编辑与 JSON 配置共用同一份数据。导入后先检查，点击保存才替换；错误配置不会部分覆盖。完整字段、匹配规则和限制见 [网址快捷入口说明](docs/website-shortcuts.md) 与 [示例文件](docs/examples/website-shortcuts.json)。
-
-### 配置搜索引擎
-
-在「设置 → 搜索」添加引擎，填写名称、快捷词和网址模板，例如：
-
-- 名称：公司文档
-- 快捷词：`wiki`
-- 网址模板：`https://docs.company.example/search?term={query}`
-
-在启动器输入 `wiki 发布流程`，回车打开对应搜索页；只输入 `wiki` 会显示提示，回车填入 `wiki ` 后继续输入。搜索引擎名称也能找到该入口。普通查询使用选定的默认引擎提供网页回退。
-
-`{query}` 会替换为编码后的搜索内容，支持放在路径、查询参数或页面片段中。搜索内容中的中文、空格、`+`、`&` 等不会改变网址结构。配置只支持 HTTP/HTTPS 搜索页。
-
-「JSON 配置」用于批量编辑全部引擎，「复制 JSON」用于导出。最小示例：
-
-```json
-{
-  "version": 1,
-  "defaultEngineID": "company-docs",
-  "engines": [
-    {
-      "id": "company-docs",
-      "name": "公司文档",
-      "keyword": "wiki",
-      "urlTemplate": "https://docs.company.example/search?term={query}",
-      "isEnabled": true
-    }
-  ]
-}
-```
-
-保存后立即生效。快捷词不能与已启用功能、搜索引擎或网址分组冲突；已有 `gh` 网址分组仍优先接管内置 GitHub 搜索，可以把搜索引擎的快捷词改为其他名称。旧的默认搜索引擎选择会自动保留。
-
-## 数据与网络
-
-- 本地工具处理和网址匹配在本机执行，无遥测，不监听剪贴板。算式和单位换算完全在本地计算，不联网。
-- 在工具窗口或操作面板中显式复制/粘贴、以及长按触发划词翻译时访问剪贴板；操作面板的复制动作也只写入用户明确选择的结果。启用双击修饰键后，只订阅修饰键变化并查询普通按键计数/时间，不记录普通按键内容。
-- 开启划词翻译后，通过鼠标事件及妙控板触点识别长按，向已聚焦的源应用发送复制指令获取选区；浮动卡片显示期间监听 Esc 以关闭。仅在长按成功或主动重试时把选中文字发送到配置的翻译服务，不记录选中文字或普通按键内容。
-- 网址仅在执行打开动作时交给默认浏览器；网页搜索、翻译和知识库连接会访问对应服务。
-- 翻译密钥保存在 macOS 钥匙串。知识库登录由同源 Web 页面管理，DontsTool 不通过桥接读取登录凭据。
-
-## 开发与发布
-
-运行时无第三方依赖，使用 Swift 6、AppKit、SwiftUI 与系统 WebKit。工程由 [project.yml](project.yml) 通过 XcodeGen 生成，`DontsTool.xcodeproj` 不入库。
-
-准备完整 Xcode（含 macOS 26 SDK）、命令行工具及 XcodeGen：
+项目由 `project.yml` 通过 XcodeGen 管理，`DontsTool.xcodeproj` 不入库。本地开发需要 macOS 26、Xcode 26+ 与 XcodeGen：
 
 ```bash
 brew install xcodegen
-xcodebuild -version
-xcodegen --version
-
-make test          # Core 单元测试
-make test-bridge   # 真实 WKWebView / 原生窗口集成测试
-make test-updater  # 更新签名、appcast 和篡改拒绝测试
-make app           # Debug 构建
-make run           # 退出本机同名进程，再运行 Debug 版；先保留需要的草稿
-make release       # 构建、ad-hoc 签名、校验并打包 Universal 版
+make build
+open build/Build/Products/Debug/DontsTool.app
 ```
 
-本地已使用 Xcode 27.1 / XcodeGen 2.46 构建；CI 使用 GitHub `macos-26` 镜像自带的 Xcode，并在日志记录实际版本。[Runner 工具列表](https://github.com/actions/runner-images/blob/main/images/macos/macos-26-arm64-Readme.md) 可用于核对环境。
-
-发布产物位于 `dist/`：
-
-```text
-DontsTool-0.2.7-macos-universal.zip
-manifest.json
-SHA256SUMS
-appcast.xml
-```
-
-`manifest.json` 记录版本、构建号、源码提交、最低系统版本、架构、签名方式和 ZIP 的 SHA256。构建与发布脚本不会修改已安装的应用。
-
-### 应用内更新
-
-0.2.7 起，应用菜单、状态栏菜单和「设置 → 关于」提供「检查更新…」。默认每天检查一次；下载与安装需要用户确认，可在「关于」关闭自动检查。安装前保存便笺并确认知识库窗口可以关闭，取消保存会推迟重启，再次点击「检查更新」可继续。
-
-更新包由 GitHub Releases 承载，安装前验证 Ed25519 签名，不需要在应用内登录 GitHub或填写 token。当前仓库仍为私有，匿名客户端尚不能访问发布源；公开发布源启用前，不能将本地构建视为已上线的自动更新。0.2.6 及更早版本需先手动下载安装一次含更新器的新版。
-
-### GitHub Actions
-
-- [CI](.github/workflows/ci.yml)：推送 `main` 或创建 PR 时，运行 Core 与 WebKit 集成测试。
-- [Release](.github/workflows/release.yml)：推送 `vMAJOR.MINOR.PATCH` 标签时，先将标签解析为固定提交、验证同一份源码，再构建 Universal 版并验证签名、压缩包和校验文件。上传至草稿 Release 后下载回验，逐字节一致才正式发布。
-- 使用 GitHub 的临时 `GITHUB_TOKEN` 上传产物；`SPARKLE_PRIVATE_KEY` Secret 仅用于签名更新包，不需要 Apple 证书或公证凭据。更新私钥不入库。已发布版本不会被覆盖；同一源码的草稿可在失败后重跑。
-
-发布新版本时，先修改 [Resources/Info.plist](Resources/Info.plist) 的 `CFBundleShortVersionString`，提交到 `main`，再推送一致的标签：
+常用测试命令：
 
 ```bash
-# 示例：将源码版本更新为 0.2.1 并提交后
-git push origin main
-git tag -a v0.2.1 -m 'DontsTool v0.2.1'
-git push origin v0.2.1
+make test            # Core 核心单元测试
+make test-bridge     # 原生窗口与集成测试
+make test-installer  # 安装脚本完整性测试
 ```
 
-也可在 Release 工作流的手动运行入口填写**已存在的标签**重试。版本不匹配、测试失败或校验失败都会阻止发布。流程细节见 [发布说明](docs/releasing.md)。
+## 详细文档
 
-## 项目结构与文档
-
-```text
-Sources/DontsTool/          应用生命周期、原生窗口与界面
-Sources/DontsToolCore/      搜索、配置、工具逻辑与服务协议
-Tests/                     Core 测试与 WebKit 集成测试
-Resources/                 应用元数据
-scripts/                   构建、校验与发布脚本
-.github/workflows/         CI 和 Release
-design/                   设计参考与 HTML 导出
-docs/                     使用说明、架构决策和验证记录
-```
-
-- [架构总览](docs/architecture.md) · [架构决策 ADR](docs/adr/)
-- [工具窗口设计](docs/superpowers/specs/2026-10-18-tool-workspaces-design.md) · [实现审查](docs/reviews/2026-10-18-tool-workspaces-review.md)
-- [知识库插件协议](docs/superpowers/specs/2026-10-18-knowledge-plugin-design.md) · [窗口交互审查](docs/reviews/2026-10-18-knowledge-window-refinement.md)
-- [网址快捷入口](docs/website-shortcuts.md) · [实现审查](docs/reviews/2026-10-18-website-shortcuts.md)
-- [常用操作与即时工具](docs/reviews/2026-10-20-launcher-actions.md)
-- [工具工作区 HTML 参考](design/tool-workspaces-v2/index.html) · [网址配置 HTML 参考](design/website-shortcuts/index.html)
-
-设计稿与历史计划用于记录决策；当前能力以源码、测试和本 README 为准。仓库保持私有。
+- [安装与完整性校验](docs/installation.md)
+- [网址快捷入口配置说明](docs/website-shortcuts.md)
+- [本地便笺使用指南](docs/local-notes.md)
+- [划词翻译与配置说明](docs/selection-translation.md)
+- [外部应用联动（Gemini / IDEA）](docs/application-actions.md)
+- [架构设计与技术决策](docs/architecture.md)
+- [版本发布与打包流程](docs/releasing.md)
