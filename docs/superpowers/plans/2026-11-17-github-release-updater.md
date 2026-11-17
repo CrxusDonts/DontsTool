@@ -45,11 +45,11 @@
 
 **Interfaces:** Consumes Task 1. Produces `AppUpdateController(prepareToInstall:)`, observable `canCheckForUpdates`, `automaticallyChecksForUpdates`, `checkForUpdates()`.
 
-- [ ] Add bridge tests exercising real menu actions, pending install retry, and version rejection through the controller boundaries; run focused tests and confirm failures.
-- [ ] Pin Sparkle 2.10.1; add controller/delegate and menu/settings injection. Preserve existing app termination checks and use install postponement callback to finish saving before Sparkle continues.
-- [ ] Add public update key/feed/daily checks to plist; suppress automatic downloads and system profiling. Generate update private key outside Git and store CI secret without logging it.
-- [ ] Run Core and bridge suites; expected all pass. Build app and verify embedded Sparkle framework.
-- [ ] Commit `feat: add Sparkle in-app updates and native controls`.
+- [x] Add bridge tests exercising real menu actions, pending install retry, and version rejection through the controller boundaries; run focused tests and confirm failures.
+- [x] Pin Sparkle 2.10.1; add controller/delegate and menu/settings injection. Preserve existing app termination checks and use install postponement callback to finish saving before Sparkle continues.
+- [x] Add public update key/feed/daily checks to plist; suppress automatic downloads and system profiling. Generate update private key outside Git and store CI secret without logging it.
+- [x] Run Core and bridge suites; expected all pass. Build app and verify embedded Sparkle framework.
+- [x] Commit `feat: add Sparkle in-app updates and native controls`.
 
 ### Task 3: 签名发布与真实演练
 

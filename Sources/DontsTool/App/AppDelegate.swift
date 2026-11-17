@@ -11,8 +11,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if CommandLine.arguments.contains("--dark") {
             NSApp.appearance = NSAppearance(named: .darkAqua)
         }
-        installApplicationMenu()
         let controller = AppController()
+        installApplicationMenu(updateController: controller.updateController)
         self.controller = controller
         controller.start()
     }

@@ -2,6 +2,7 @@ import AppKit
 
 @MainActor
 final class MenuBarController: NSObject {
+    weak var updates: AppUpdateController?
     var onOpenLauncher: (() -> Void)?
     var onQuit: (() -> Void)?
     var hotKeyDisplay = "⌥Space" {
@@ -22,6 +23,9 @@ final class MenuBarController: NSObject {
         let open = NSMenuItem(title: "打开启动器", action: #selector(openLauncher), keyEquivalent: "")
         open.target = self
         menu.addItem(open)
+        let update = NSMenuItem(title: "检查更新…", action: #selector(AppUpdateController.checkForUpdates(_:)), keyEquivalent: "")
+        update.target = updates
+        menu.addItem(update)
         menu.addItem(.separator())
         let quit = NSMenuItem(title: "退出 DontsTool", action: #selector(quit), keyEquivalent: "q")
         quit.target = self

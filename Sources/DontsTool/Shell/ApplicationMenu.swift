@@ -1,10 +1,13 @@
 import AppKit
 
 @MainActor
-func installApplicationMenu() {
+func installApplicationMenu(updateController: AppUpdateController) {
     let menu = NSMenu()
     let application = NSMenuItem()
     let appMenu = NSMenu(title: "DontsTool")
+    let updates = appMenu.addItem(withTitle: "检查更新…", action: #selector(AppUpdateController.checkForUpdates(_:)), keyEquivalent: "")
+    updates.target = updateController
+    appMenu.addItem(.separator())
     appMenu.addItem(withTitle: "退出 DontsTool", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
     application.submenu = appMenu; menu.addItem(application)
     let edit = NSMenuItem(); edit.title = "编辑"

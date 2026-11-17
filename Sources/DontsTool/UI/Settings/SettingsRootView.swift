@@ -35,6 +35,7 @@ struct SettingsRootView: View {
         }
     }
 
+    @ObservedObject var updates: AppUpdateController
     @ObservedObject var settings: SettingsStore
     @ObservedObject var websites: WebsiteShortcutStore
     @ObservedObject var searchEngines: SearchEngineStore
@@ -396,6 +397,15 @@ struct SettingsRootView: View {
                 SettingsDivider()
                 SettingsRow(title: "版本", subtitle: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0") {
                     SettingsBadge(text: "ad-hoc 签名")
+                }
+                SettingsDivider()
+                SettingsRow(title: "应用更新", subtitle: "下载新版后，在应用内安装并重启") {
+                    SettingsButton(title: "检查更新…") { updates.checkForUpdates() }
+                        .disabled(!updates.canCheckForUpdates)
+                }
+                SettingsDivider()
+                SettingsRow(title: "自动检查更新", subtitle: "每天检查一次，安装前由你确认") {
+                    Toggle("自动检查更新", isOn: $updates.automaticallyChecksForUpdates).labelsHidden()
                 }
             }
             privacyNote

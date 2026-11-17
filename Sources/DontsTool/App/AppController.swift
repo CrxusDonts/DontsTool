@@ -4,6 +4,9 @@ import DontsToolCore
 
 @MainActor
 final class AppController {
+    private(set) lazy var updateController = AppUpdateController(prepareToInstall: { [weak self] in
+        await self?.prepareToTerminate() ?? false
+    })
     private let settings = SettingsStore()
     private let usage = UsageStore()
     private let searchEngines = SearchEngineStore()
@@ -123,6 +126,7 @@ final class AppController {
             self?.rescanApps()
         }
         let settingsWindow = SettingsWindowController(
+            updates: updateController,
             settings: settings,
             websites: websites,
             searchEngines: searchEngines,
@@ -179,6 +183,7 @@ final class AppController {
             }
 
         let menuBar = MenuBarController()
+        menuBar.updates = updateController
         menuBar.onOpenLauncher = { [weak panel] in panel?.toggle() }
         menuBar.onQuit = { NSApp.terminate(nil) }
         menuBar.hotKeyDisplay = HotKeyFormatter.displayString(for: settings.hotKey)

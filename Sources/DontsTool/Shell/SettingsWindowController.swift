@@ -7,6 +7,7 @@ import SwiftUI
 final class SettingsWindowController: NSWindowController {
     private let navigation = SettingsNavigationState()
     init(
+        updates: AppUpdateController,
         settings: SettingsStore,
         websites: WebsiteShortcutStore,
         searchEngines: SearchEngineStore,
@@ -28,6 +29,7 @@ final class SettingsWindowController: NSWindowController {
         window.center()
         window.isReleasedWhenClosed = false
         window.contentView = NSHostingView(rootView: SettingsRootView(
+            updates: updates,
             settings: settings,
             websites: websites,
             searchEngines: searchEngines,

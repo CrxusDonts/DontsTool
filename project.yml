@@ -1,4 +1,8 @@
 name: DontsTool
+packages:
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    exactVersion: 2.10.1
 options:
   bundleIdPrefix: com.donts
   deploymentTarget:
@@ -42,6 +46,7 @@ targets:
         buildPhase: resources
     dependencies:
       - target: DontsToolCore
+      - package: Sparkle
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.donts.DontsTool
@@ -67,6 +72,9 @@ targets:
     sources:
       - path: Tests/DontsToolBridgeTests
       - path: Sources/DontsTool/Shell/Notes
+      - path: Sources/DontsTool/Shell/Updates
+      - path: Sources/DontsTool/Shell/ApplicationMenu.swift
+      - path: Sources/DontsTool/App/MenuBarController.swift
       - path: Sources/DontsTool/UI/Notes
       - path: Resources/NotesEditor
         type: folder
@@ -95,6 +103,7 @@ targets:
       - path: Sources/DontsTool/UI/Tools/SelectionTranslationView.swift
     dependencies:
       - target: DontsToolCore
+      - package: Sparkle
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.donts.DontsToolBridgeTests

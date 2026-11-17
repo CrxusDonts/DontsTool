@@ -19,7 +19,7 @@
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>0.2.6</string>
+    <string>0.2.7</string>
     <key>CFBundleVersion</key>
     <string>$(CURRENT_PROJECT_VERSION)</string>
     <key>LSMinimumSystemVersion</key>
@@ -34,5 +34,19 @@
     <string>public.app-category.productivity</string>
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 donts</string>
+    <key>SUFeedURL</key>
+    <string>https://github.com/CrxusDonts/DontsTool/releases/latest/download/appcast.xml</string>
+    <key>SUPublicEDKey</key>
+    <string>sIZD6ui+3+H5xrWpsQIUEMayW/u18LE4zxYZbaGmJWA=</string>
+    <key>SUEnableAutomaticChecks</key>
+    <true/>
+    <key>SUScheduledCheckInterval</key>
+    <integer>86400</integer>
+    <key>SUAutomaticallyUpdate</key>
+    <false/>
+    <key>SUEnableSystemProfiling</key>
+    <false/>
+    <key>SUVerifyUpdateBeforeExtraction</key>
+    <true/>
 </dict>
 </plist>
