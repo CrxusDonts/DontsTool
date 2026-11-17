@@ -5,7 +5,7 @@ CONFIG ?= Debug
 DERIVED := build
 APP := $(DERIVED)/Build/Products/$(CONFIG)/$(APP_NAME).app
 
-.PHONY: project build app run test test-bridge test-updater editor test-editor release clean distclean
+.PHONY: project build app run test test-bridge test-updater test-installer editor test-editor release clean distclean
 
 project:
 	xcodegen generate --spec project.yml
@@ -33,6 +33,9 @@ test-bridge: project
 test-updater: project
 	xcodebuild -project $(PROJECT) -scheme $(SCHEME) -derivedDataPath $(DERIVED) -resolvePackageDependencies
 	python3 -m unittest discover -s scripts/tests -p 'test_update_feed.py'
+
+test-installer:
+	python3 -m unittest discover -s scripts/tests -p 'test_installer.py'
 
 editor:
 	cd Web/NotesEditor && npm ci && npm run build

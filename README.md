@@ -36,9 +36,28 @@ JSON 等工具文本草稿仅保留本次运行，退出应用后清除；本地
 
 需要 **macOS 26 或更新版本**。发布包是 **Universal**，同时包含 Apple Silicon（arm64）和 Intel（x86_64）架构。
 
+### 一键安装
+
+仓库公开且安装脚本合入 `main` 后，可运行以下命令，无需 GitHub 登录、Homebrew 或开发工具：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/CrxusDonts/DontsTool/main/install.sh | /bin/bash
+```
+
+脚本从最新稳定版 Release 下载并验证 SHA256、应用标识、版本和签名完整性，然后安装到 `/Applications/DontsTool.app`。更新前先保存草稿并从菜单栏正常退出；替换失败时恢复旧应用。脚本不会自动启动应用或移除 macOS 隔离标记，首次打开仍按下文处理系统提示。
+
+也可[下载脚本](install.sh)、检查内容后运行。安装到用户目录或指定版本：
+
+```bash
+bash install.sh --dir "$HOME/Applications"
+bash install.sh --version v0.2.6
+```
+
+无需 `sudo`。安装后的[应用内更新](#应用内更新)和首次打开方法见下文；脚本的参数和验证说明见[安装脚本](docs/installation.md)。
+
 ### 下载与更新
 
-1. 登录有仓库访问权限的 GitHub 账号，前往 [Releases](https://github.com/CrxusDonts/DontsTool/releases/latest)，下载 `DontsTool-版本号-macos-universal.zip`。仓库和 Release 均为私有，未登录时可能显示 404。
+1. 前往 [Releases](https://github.com/CrxusDonts/DontsTool/releases/latest)，下载 `DontsTool-版本号-macos-universal.zip`。公开仓库无需登录；仓库仍为私有时，需登录有访问权限的 GitHub 账号，否则可能显示 404。
 2. 一并下载 `SHA256SUMS` 和 `manifest.json`。将三个文件放在同一目录，在终端进入该目录后校验：
 
    ```bash
@@ -87,7 +106,7 @@ open "/Applications/DontsTool.app"
 - **界面与动效**：启动器采用石墨／暖灰与薄荷绿配色，遵循系统外观。窗口短距离淡入淡出、选中背景连续移动，系统开启「减少动态效果」或「减少透明度」时相应降级。本地可交互设计稿见 [Fluid Launcher](design/fluid-launcher/index.html)。
 
 - **快捷键**：默认 `⌥ Space`；可改为其他组合键，或双击 `⌥`、`⌘`、`⌃`、`⇧` 呼出。双击修饰键不依赖输入监控或辅助功能授权。
-- **Gemini 提问**：输入 `gm 问题` 或 `gemini 问题`，回车后在已安装的 Gemini Mac 应用中新建并发送。自动输入需要辅助功能授权，可在「设置 → 内置工具 → Gemini 自动提问」授权；未授权时可选「仅打开 Gemini」。已有未发送草稿会保留并停止操作，发送前按 Esc 或切换应用可取消。
+- **Gemini 提问**：先检测本机是否安装 Gemini Mac 版，设置中显示安装状态，未安装时开关不可用。输入 `gm 问题` 或 `gemini 问题`，回车后在已安装的 Gemini Mac 应用中新建并发送。自动输入需要辅助功能授权，可在「设置 → 内置工具 → Gemini 自动提问」授权；未授权时可选「仅打开 Gemini」。已有未发送草稿会保留并停止操作，发送前按 Esc 或切换应用可取消。
 - **IDEA 项目**：输入 `idea` 按最近打开时间列出当前版本项目，`idea kb` 按名称或路径筛选，也可输入 `idea 完整项目目录`。回车使用已安装的 IntelliJ IDEA 打开，`⌘K` 可在访达中显示或复制路径；无需辅助功能或 IDE 插件。详见 [应用动作](docs/application-actions.md)。
 - **计算器**：直接输入算式或 `10 km to mi` 这类单位换算，结果会出现在工具分组；回车复制。支持 `+ - * / ^`、取模 `%`、括号、`sqrt`、`abs`、`round`、`floor`、`ceil`、`ln`、`log`、`sin`、`cos`、`tan` 和长度、质量、温度、数据、时间、速度换算。`calc` 或 `=` 可强制按算式处理。
 - **快速打开**：直接输入网址（含 `www.` 开头）或已存在的 `~/`、绝对路径；`open` 关键字可强制进入该模式。网址只有在执行打开动作时才交给默认浏览器。
