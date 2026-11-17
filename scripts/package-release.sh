@@ -19,10 +19,8 @@ if [[ ! "$dt_build_number" =~ ^[1-9][0-9]*$ ]]; then
   exit 1
 fi
 dt_update_key="${DT_UPDATE_KEY_FILE:-$dt_root/.signing/updater/private.key}"
-dt_signing_args=()
 if [[ -z "${SPARKLE_PRIVATE_KEY:-}" ]]; then
   [[ -f "$dt_update_key" ]] || { echo 'An update signing key is required.' >&2; exit 1; }
-  dt_signing_args=(--key-file "$dt_update_key")
 fi
 dt_update_repo="$(python3 - <<'PY'
 import plistlib, re
@@ -73,11 +71,15 @@ manifest = {
 }
 (root / 'manifest.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + '\n')
 PY
-dt_feed_notes=()
-[[ ! -f "docs/releases/v$dt_version.md" ]] || dt_feed_notes=(--notes "docs/releases/v$dt_version.md")
-python3 scripts/update-feed.py generate --dist "$dt_dist" --repository "$dt_update_repo" \
-  --sign-tool "$dt_derived/SourcePackages/artifacts/sparkle/Sparkle/bin/sign_update" \
-  "${dt_signing_args[@]}" "${dt_feed_notes[@]}"
+dt_feed_args=(generate --dist "$dt_dist" --repository "$dt_update_repo"
+  --sign-tool "$dt_derived/SourcePackages/artifacts/sparkle/Sparkle/bin/sign_update")
+if [[ -z "${SPARKLE_PRIVATE_KEY:-}" ]]; then
+  dt_feed_args+=(--key-file "$dt_update_key")
+fi
+if [[ -f "docs/releases/v$dt_version.md" ]]; then
+  dt_feed_args+=(--notes "docs/releases/v$dt_version.md")
+fi
+python3 scripts/update-feed.py "${dt_feed_args[@]}"
 (
   cd "$dt_dist"
   shasum -a 256 "$dt_archive" manifest.json appcast.xml > SHA256SUMS
