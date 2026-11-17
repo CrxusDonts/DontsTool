@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 import Testing
 @testable import DontsToolCore
 
@@ -99,10 +100,11 @@ struct ProcessCommandRunnerTests {
 
     @Test func timeoutKillsACommandThatIgnoresTerminateAndInterrupt() async throws {
         let start = ContinuousClock.now
-        let result = try await ProcessCommandRunner().run(executable: "/usr/bin/python3", arguments: [
-            "-c", "import signal,time; signal.signal(signal.SIGTERM,signal.SIG_IGN); signal.signal(signal.SIGINT,signal.SIG_IGN); time.sleep(4)"
+        let result = try await ProcessCommandRunner().run(executable: "/bin/sh", arguments: [
+            "-c", "trap '' TERM INT; exec /bin/sleep 4"
         ], timeout: .milliseconds(250))
         #expect(result.timedOut)
+        #expect(result.terminationStatus == SIGKILL)
         #expect(ContinuousClock.now - start < .seconds(2))
     }
 
@@ -110,8 +112,8 @@ struct ProcessCommandRunnerTests {
         let marker = FileManager.default.temporaryDirectory.appendingPathComponent("running-command-\(UUID())")
         defer { try? FileManager.default.removeItem(at: marker) }
         let task = Task {
-            try await ProcessCommandRunner().run(executable: "/usr/bin/python3", arguments: [
-                "-c", "import sys,signal,time,pathlib; signal.signal(signal.SIGTERM,signal.SIG_IGN); signal.signal(signal.SIGINT,signal.SIG_IGN); pathlib.Path(sys.argv[1]).touch(); time.sleep(4)", marker.path
+            try await ProcessCommandRunner().run(executable: "/bin/sh", arguments: [
+                "-c", "trap '' TERM INT; /usr/bin/touch \"$1\"; exec /bin/sleep 4", "fixture", marker.path
             ], timeout: .seconds(10))
         }
         let deadline = ContinuousClock.now.advanced(by: .seconds(3))

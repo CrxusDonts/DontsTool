@@ -246,8 +246,8 @@ struct FileProviderTests {
 
 private struct SlowSpotlightFixture: CommandRunning {
     func run(executable: String, arguments: [String], timeout: Duration) async throws -> CommandResult {
-        try await ProcessCommandRunner().run(executable: "/usr/bin/python3", arguments: [
-            "-c", "import time; time.sleep(0.5); print('/Users/test/report.pdf', flush=True)"
+        try await ProcessCommandRunner().run(executable: "/bin/sh", arguments: [
+            "-c", "/bin/sleep 0.5; printf '/Users/test/report.pdf\\n'"
         ], timeout: timeout)
     }
 }
