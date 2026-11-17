@@ -34,6 +34,11 @@ struct AppSearchDocument {
         aliases = derived.filter { !$0.isEmpty }.map(FuzzyMatcher.PreparedCandidate.init)
     }
 
+    func matchesShortcut(_ normalizedKeyword: String) -> Bool {
+        names.contains { $0.normalized == normalizedKeyword || $0.words.contains(normalizedKeyword) }
+            || aliases.contains { $0.normalized == normalizedKeyword }
+    }
+
     func score(normalizedQuery: String, compactQuery: String) -> Double? {
         let direct = names.compactMap {
             FuzzyMatcher.score(normalizedQuery: normalizedQuery, candidate: $0)

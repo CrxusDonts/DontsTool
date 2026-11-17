@@ -40,6 +40,43 @@ private actor PausingProjectDiscovery: IDEProjectDiscovering {
 @Suite("IDEA project provider")
 @MainActor
 struct IDEProjectProviderTests {
+    @Test func bareIDEAKeywordOffersApplicationAndProjects() async throws {
+        let fixture = try IDEProjectFixture()
+        defer { fixture.remove() }
+        let project = try fixture.project("Sample Project")
+        try fixture.history(version: "2026.3", paths: [(project.path, 1)])
+        let suite = "dontstool.tests.\(UUID())"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let settings = SettingsStore(defaults: defaults, systemLanguageCode: "en")
+        settings.setProviderEnabled("ideaProjects", to: true)
+        let usage = UsageStore(defaults: defaults)
+        let index = AppIndex(scanner: AppScanner(roots: []))
+        index.setAppsForTesting([
+            AppEntry(id: fixture.app.path, displayName: "IntelliJ IDEA", bundleID: "com.jetbrains.intellij", url: fixture.app, modifiedAt: nil),
+            AppEntry(id: "/Applications/IdeaBoard.app", displayName: "IdeaBoard", bundleID: "example.ideaboard", url: URL(fileURLWithPath: "/Applications/IdeaBoard.app"), modifiedAt: nil),
+        ])
+        let appLauncher = MockAppLauncher()
+        let feedback = MockFeedback()
+        let apps = AppProvider(index: index, settings: settings, usage: usage, launcher: appLauncher, feedback: feedback)
+        let projects = IDEProjectProvider(index: index, settings: settings, usage: usage, launcher: ProjectLauncherSpy(),
+                                          feedback: feedback, discovery: IDEProjectDiscovery(homeDirectory: fixture.root, jetBrainsDirectory: fixture.config, applicationRoots: []))
+        let coordinator = SearchCoordinator(registry: ToolRegistry(providers: [apps, projects]))
+        var items: [SearchItem] = []
+        coordinator.onUpdate = { items = $0.items }
+
+        coordinator.submit(" IDEA ")
+        await coordinator.waitForPendingSearch()
+        #expect(items.map(\.title) == ["IntelliJ IDEA", "Sample Project"])
+        #expect(items.map(\.group) == [.app, .tool])
+        try await #require(items.first?.primaryAction).run()
+        #expect(appLauncher.openedApplications == [fixture.app])
+
+        coordinator.submit("idea Sample")
+        await coordinator.waitForPendingSearch()
+        #expect(items.map(\.title) == ["Sample Project"])
+    }
+
     @Test func keywordOnlySearchFiltersProjectsAndOpensWithSelectedIDE() async throws {
         let fixture = try IDEProjectFixture()
         defer { fixture.remove() }

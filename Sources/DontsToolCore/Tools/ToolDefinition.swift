@@ -3,6 +3,7 @@ import Foundation
 public enum ToolKind: String, CaseIterable, Identifiable, Sendable {
     case json, base64, url, timestamp, uuid, hash, translation
     public var id: String { rawValue }
+    public var launcherKey: String { "tool:\(rawValue)" }
     public var title: String {
         switch self {
         case .json: "JSON 工具"
@@ -54,7 +55,7 @@ public enum ToolKind: String, CaseIterable, Identifiable, Sendable {
     @MainActor public func entry(providerID: String, keyword: String? = nil, input: String? = nil, opener: any ToolOpening) -> SearchItem {
         let mode = ["b64d", "urld"].contains(keyword ?? "") ? "decode" : ["md5", "sha1", "sha256"].contains(keyword ?? "") ? keyword! : defaultMode
         return SearchItem(providerID: providerID, group: .tool, title: title, subtitle: summary,
-            icon: icon, score: 1000 - Double(Self.allCases.firstIndex(of: self) ?? 0), canonicalKey: "tool:\(rawValue)",
+            icon: icon, score: 1000 - Double(Self.allCases.firstIndex(of: self) ?? 0), canonicalKey: launcherKey,
             actions: [ItemAction(id: "tool.open.\(rawValue)", title: "新建窗口", presentation: .openWindow) {
                 opener.openTool(ToolOpenRequest(kind: self, mode: mode, input: input))
             }], keyword: keywords.first)

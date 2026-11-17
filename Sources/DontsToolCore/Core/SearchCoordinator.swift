@@ -16,12 +16,14 @@ public final class SearchCoordinator {
     public var onUpdate: ((Update) -> Void)?
 
     private let registry: ToolRegistry
+    private let usage: UsageStore?
     private let slowDelay: Duration
     private var generation = 0
     private var searchTask: Task<Void, Never>?
 
-    public init(registry: ToolRegistry, slowDelay: Duration = .milliseconds(120)) {
+    public init(registry: ToolRegistry, usage: UsageStore? = nil, slowDelay: Duration = .milliseconds(120)) {
         self.registry = registry
+        self.usage = usage
         self.slowDelay = slowDelay
     }
 
@@ -60,8 +62,10 @@ public final class SearchCoordinator {
 
         let selected: [ToolProvider]
         switch context.mode {
-        case .keyword(let providerID, _, _):
-            selected = enabled.filter { $0.id == providerID }
+        case .keyword(let providerID, _, let argument):
+            selected = enabled.filter {
+                $0.id == providerID || (argument.isEmpty && $0.id == ProviderID.app.rawValue)
+            }
         case .global:
             selected = enabled.filter(\.supportsGlobalSearch)
         }
@@ -133,8 +137,30 @@ public final class SearchCoordinator {
             }
         }
 
+        var toolRanks: [String: Double] = [:]
+        var latestTool: String?
+        if context.mode == .global, context.query.isEmpty, let usage {
+            let rankedAt = Date()
+            var latestUse = Date.distantPast
+            for item in merged where item.group == .tool {
+                let key = item.canonicalKey
+                guard let record = usage.record(for: key), record.count > 0 else { continue }
+                toolRanks[key] = usage.boost(for: key, now: rankedAt)
+                if record.lastUsed > latestUse {
+                    latestUse = record.lastUsed
+                    latestTool = key
+                }
+            }
+        }
+
         merged.sort {
             if $0.group != $1.group { return $0.group < $1.group }
+            let lhsIsLatest = $0.canonicalKey == latestTool
+            let rhsIsLatest = $1.canonicalKey == latestTool
+            if lhsIsLatest != rhsIsLatest { return lhsIsLatest }
+            let lhsRank = toolRanks[$0.canonicalKey, default: 0]
+            let rhsRank = toolRanks[$1.canonicalKey, default: 0]
+            if lhsRank != rhsRank { return lhsRank > rhsRank }
             if $0.score != $1.score { return $0.score > $1.score }
             return $0.title.localizedStandardCompare($1.title) == .orderedAscending
         }

@@ -64,7 +64,7 @@ final class AppController {
             clipboard: clipboard
         )
         let translator = RemoteTranslationService(settings: settings, secrets: secrets)
-        let toolWindows = ToolWindowManager(settings: settings, translator: translator)
+        let toolWindows = ToolWindowManager(settings: settings, translator: translator, usage: usage)
         self.toolWindows = toolWindows
         let selectionTranslation = SelectionTranslationController(settings: settings, translator: translator,
             gestureVerificationOnly: CommandLine.arguments.contains("--verify-right-press"))
@@ -114,7 +114,7 @@ final class AppController {
             appProvider, fileProvider, textProvider, webProvider, translationProvider,
             knowledgeProvider, notesProvider, websiteProvider, calculatorProvider, quickOpenProvider, geminiProvider, ideaProvider
         ])
-        let coordinator = SearchCoordinator(registry: registry)
+        let coordinator = SearchCoordinator(registry: registry, usage: usage)
         let contentProvider = ContentActionProvider(settings: settings, toolOpener: toolWindows,
             urlOpener: SystemURLOpener(), feedback: toast)
         let panel = LauncherPanelController(

@@ -8,6 +8,7 @@ final class ToolWindowManager: NSObject, ToolDocumentProviding {
     let store: ToolDocumentStore
     private var controllers: [UUID: ToolWindowController] = [:]
     private let settings: SettingsStore
+    private let usage: UsageStore
     private var lastActive: UUID?
     private var cascadePoint = NSPoint.zero
     private var observation: AnyCancellable?
@@ -15,8 +16,9 @@ final class ToolWindowManager: NSObject, ToolDocumentProviding {
     var onDocumentsChanged: (() -> Void)?
     var toolDocuments: [ToolDocument] { store.openDocuments }
 
-    init(settings: SettingsStore, translator: TranslationServicing) {
+    init(settings: SettingsStore, translator: TranslationServicing, usage: UsageStore) {
         self.settings = settings
+        self.usage = usage
         store = ToolDocumentStore(translator: translator, translationTarget: settings.translationTarget)
         super.init()
         observation = store.objectWillChange.sink { [weak self] _ in
@@ -43,10 +45,12 @@ final class ToolWindowManager: NSObject, ToolDocumentProviding {
             if let frame = controller.window?.frame { cascadePoint = NSPoint(x: frame.minX + 24, y: frame.maxY - 24) }
             controllers[document.id] = controller
         }
+        guard let window = controller.window else { return }
         store.activate(document.id); lastActive = document.id
         NSApp.activate(ignoringOtherApps: true)
-        controller.window?.deminiaturize(nil)
-        controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+        window.deminiaturize(nil)
+        controller.showWindow(nil); window.makeKeyAndOrderFront(nil)
+        usage.recordUse(of: document.kind.launcherKey)
     }
     func newWindow(kind: ToolKind) { openTool(ToolOpenRequest(kind: kind)) }
     func duplicate(_ id: UUID) { if let document = store.duplicate(id) { show(document) } }

@@ -40,18 +40,29 @@ public final class AppProvider: ToolProvider {
     }
 
     public func search(_ context: SearchContext) async -> [SearchItem] {
-        guard case .global = context.mode, isEnabled else { return [] }
-        if context.query.isEmpty {
+        guard isEnabled else { return [] }
+        let input: String
+        switch context.mode {
+        case .global:
+            input = context.query
+        case .keyword(_, let keyword, let argument) where argument.isEmpty:
+            input = keyword
+        default:
+            return []
+        }
+        if input.isEmpty {
             return commonApps().enumerated().map { offset, entry in
                 makeItem(entry, score: 1000 - Double(offset))
             }
         }
 
         refreshSearchDocuments()
-        let query = FuzzyMatcher.normalize(context.query.trimmingCharacters(in: .whitespacesAndNewlines))
+        let query = FuzzyMatcher.normalize(input)
         let compactQuery = query.components(separatedBy: CharacterSet.alphanumerics.inverted).joined()
         let scored = index.apps.compactMap { entry -> (AppEntry, Double)? in
-            guard let match = searchDocuments[entry.id]?.score(normalizedQuery: query, compactQuery: compactQuery) else {
+            guard let document = searchDocuments[entry.id],
+                  context.mode == .global || document.matchesShortcut(query),
+                  let match = document.score(normalizedQuery: query, compactQuery: compactQuery) else {
                 return nil
             }
             return (entry, match + usage.boost(for: entry.id))

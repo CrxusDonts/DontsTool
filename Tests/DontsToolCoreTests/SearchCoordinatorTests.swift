@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import DontsToolCore
 
@@ -12,6 +13,37 @@ struct SearchCoordinatorTests {
         var updates: [SearchCoordinator.Update] = []
         coordinator.onUpdate = { updates.append($0) }
         return { updates }
+    }
+
+    @Test func defaultToolsFavorLatestThenFrequentOpens() async throws {
+        let suite = "dontstool.tool-order.\(UUID())"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let settings = SettingsStore(defaults: defaults)
+        let opener = MockToolOpener()
+        let providers: [ToolProvider] = [
+            TextToolsProvider(settings: settings, toolOpener: opener),
+            TranslationProvider(settings: settings, toolOpener: opener),
+        ]
+        let usage = UsageStore(defaults: defaults)
+        let frequentDate = Date().addingTimeInterval(-60)
+        usage.recordUse(of: "tool:base64", at: frequentDate)
+        for _ in 0..<4 { usage.recordUse(of: "tool:url", at: frequentDate) }
+        usage.recordUse(of: "tool:translation")
+        usage.flush()
+
+        let coordinator = SearchCoordinator(registry: ToolRegistry(providers: providers),
+                                            usage: UsageStore(defaults: defaults))
+        let updates = collect(coordinator)
+        coordinator.submit("")
+        await coordinator.waitForPendingSearch()
+        #expect(updates().last?.items.map(\.canonicalKey) == [
+            "tool:translation", "tool:url", "tool:base64", "tool:json", "tool:timestamp", "tool:uuid", "tool:hash",
+        ])
+
+        coordinator.submit("编码")
+        await coordinator.waitForPendingSearch()
+        #expect(updates().last?.items.map(\.canonicalKey) == ["tool:base64", "tool:url"])
     }
 
     @Test func keywordModeQueriesOnlyTargetProvider() async {
