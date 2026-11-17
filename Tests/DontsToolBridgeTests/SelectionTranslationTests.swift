@@ -23,13 +23,13 @@ struct SelectionTranslationTests {
         _ = NSApplication.shared
         let controller = SelectionTranslationController(settings: settings, translator: ImmediateSelectionTranslator())
         defer { controller.shutdown() }
-        controller.showReading(at: CGPoint(x: 300, y: 200))
+        controller.show(text: "event propagation", at: CGPoint(x: 300, y: 200))
         controller.pinned = true
         controller.dismissForApplicationChange()
-        #expect(controller.selectionReadInProgress)
+        #expect(translationPanel(for: controller)?.isVisible == true)
         controller.pinned = false
         controller.dismissForApplicationChange()
-        #expect(!controller.selectionReadInProgress)
+        #expect(translationPanel(for: controller)?.isVisible != true)
     }
 
     @Test func reusingCardCannotPublishAnEarlierTranslation() async throws {
@@ -82,6 +82,26 @@ struct SelectionTranslationTests {
         #expect(controller.session.output == "事件传播")
         try capture(controller, name: "native-dark", appearance: .darkAqua)
         try capture(controller, name: "native-light", appearance: .aqua)
+        service.result = """
+        run
+
+        动词 v.
+        1. 跑；奔跑。
+        2. （程序、机器）运行；运转。
+        3. 管理；经营（run a company）。
+        例：The engine is running. 发动机正在运转。
+
+        名词 n.
+        1. 跑步；奔跑。
+        2. 一段连续时间；一连串事件。
+        3. 行程；路线；班次。
+        例：We went for a run. 我们去跑步了。
+        """
+        controller.session.input = "run"
+        await controller.session.perform()
+        #expect(controller.session.canCopy)
+        try capture(controller, name: "native-dictionary-dark", appearance: .darkAqua)
+        try capture(controller, name: "native-dictionary-light", appearance: .aqua)
         controller.session.input = "a new selection"
         service.isConfigured = false
         await controller.session.perform()
@@ -90,23 +110,71 @@ struct SelectionTranslationTests {
         try capture(controller, name: "native-unconfigured", appearance: .darkAqua)
     }
 
-    @Test func selectionFailureShowsEditableCardWithoutSendingTranslation() async throws {
+    @Test func readingAndSelectionFailureStayInvisibleWithoutSendingTranslation() async throws {
         let (settings, defaults, name) = makeSettings()
         defer { defaults.removePersistentDomain(forName: name) }
         _ = NSApplication.shared
         let translator = DelayedSelectionTranslator()
         let controller = SelectionTranslationController(settings: settings, translator: translator)
         defer { controller.shutdown() }
+        controller.showReading(at: CGPoint(x: 300, y: 200))
+        #expect(controller.selectionReadInProgress)
+        #expect(translationPanel(for: controller)?.isVisible != true)
         controller.showSelectionFailure("应用未提供选中文字", at: CGPoint(x: 300, y: 200))
+        #expect(translationPanel(for: controller)?.isVisible != true)
         #expect(controller.selectionFailure == "应用未提供选中文字")
         #expect(controller.session.input.isEmpty)
         #expect(!controller.session.isRunning)
         #expect(!controller.session.canCopy)
         #expect(translator.requests.isEmpty)
-        var edited: String?
-        controller.onEditSource = { edited = $0 }
-        controller.editSource()
-        #expect(edited == "")
+        #expect(!controller.selectionReadInProgress)
+        #expect(controller.lastGestureDiagnostic == "应用未提供选中文字")
+    }
+
+    @Test(arguments: ["", "  \n\t", "\u{00A0}\u{2003}"])
+    func whitespaceCannotOpenCardOrStartTranslation(_ text: String) async throws {
+        let (settings, defaults, name) = makeSettings()
+        defer { defaults.removePersistentDomain(forName: name) }
+        _ = NSApplication.shared
+        let translator = DelayedSelectionTranslator()
+        let controller = SelectionTranslationController(settings: settings, translator: translator)
+        defer { controller.shutdown() }
+        controller.show(text: text, at: CGPoint(x: 300, y: 200))
+        for _ in 0..<20 { await Task.yield() }
+        #expect(translationPanel(for: controller)?.isVisible != true)
+        #expect(!controller.session.isRunning)
+        #expect(translator.requests.isEmpty)
+        for request in translator.requests { request.resume(returning: "unexpected") }
+    }
+
+    @Test func failedReadDoesNotReplaceAnExistingPinnedTranslation() async throws {
+        let (settings, defaults, name) = makeSettings()
+        defer { defaults.removePersistentDomain(forName: name) }
+        _ = NSApplication.shared
+        let controller = SelectionTranslationController(settings: settings, translator: ImmediateSelectionTranslator())
+        defer { controller.shutdown() }
+        controller.show(text: "event propagation", at: CGPoint(x: 300, y: 200))
+        try await until { controller.session.isFresh }
+        controller.pinned = true
+        controller.showReading(at: CGPoint(x: 320, y: 200))
+        controller.showSelectionFailure("未选中文字", at: CGPoint(x: 320, y: 200))
+        #expect(translationPanel(for: controller)?.isVisible == true)
+        #expect(controller.session.input == "event propagation")
+        #expect(controller.session.output == "事件传播")
+        #expect(controller.session.canCopy)
+    }
+
+    @Test func applicationChangeCancelsInvisibleReadingEvenWhenAnOlderCardIsPinned() throws {
+        let (settings, defaults, name) = makeSettings()
+        defer { defaults.removePersistentDomain(forName: name) }
+        _ = NSApplication.shared
+        let controller = SelectionTranslationController(settings: settings, translator: ImmediateSelectionTranslator())
+        defer { controller.shutdown() }
+        controller.pinned = true
+        controller.showReading(at: CGPoint(x: 300, y: 200))
+        controller.dismissForApplicationChange()
+        #expect(!controller.selectionReadInProgress)
+        #expect(translationPanel(for: controller)?.isVisible != true)
     }
 
     @Test func readingCardCannotSendAnEarlierSourceToTranslator() async throws {
@@ -171,6 +239,12 @@ struct SelectionTranslationTests {
         return (SettingsStore(defaults: defaults, systemLanguageCode: "zh"), defaults, name)
     }
 
+    private func translationPanel(for controller: SelectionTranslationController) -> NSWindow? {
+        NSApp.windows.first { window in
+            (window.contentView as? NSHostingView<SelectionTranslationView>)?.rootView.controller === controller
+        }
+    }
+
     private func until(_ condition: @MainActor () -> Bool) async throws {
         let deadline = ContinuousClock.now.advanced(by: .seconds(5))
         while !condition() {
@@ -217,5 +291,6 @@ private final class DelayedSelectionTranslator: TranslationServicing {
 @MainActor
 private final class ImmediateSelectionTranslator: TranslationServicing {
     var isConfigured = true
-    func translate(_ text: String, target: String) async throws -> String { "事件传播" }
+    var result = "事件传播"
+    func translate(_ text: String, target: String) async throws -> String { result }
 }

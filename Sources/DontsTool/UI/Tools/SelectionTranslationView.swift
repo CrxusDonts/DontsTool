@@ -74,14 +74,7 @@ struct SelectionTranslationView: View {
                             .font(.system(size: 10, weight: .semibold))
                             .foregroundStyle(Theme.tertiary)
 
-                        if controller.selectionReadInProgress {
-                            HStack(spacing: 8) { ProgressView().controlSize(.small); Text("正在读取选中文字…") }
-                                .font(.system(size: 12)).foregroundStyle(Theme.secondary)
-                        } else if let failure = controller.selectionFailure {
-                            Text(failure).font(.system(size: 12)).foregroundStyle(.red)
-                            Text("可点击“编辑原文”输入文字后翻译。")
-                                .font(.system(size: 11.5)).foregroundStyle(Theme.secondary)
-                        } else if session.isRunning {
+                        if session.isRunning {
                             HStack(spacing: 8) { ProgressView().controlSize(.small); Text("正在翻译…") }
                                 .font(.system(size: 12)).foregroundStyle(Theme.secondary)
                         } else if !session.translationConfigured {

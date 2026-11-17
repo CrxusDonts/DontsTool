@@ -81,6 +81,10 @@ final class SelectionTranslationController: ObservableObject {
     }
 
     func show(text: String, at point: CGPoint) {
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            showSelectionFailure("未读取到有效文字", at: point)
+            return
+        }
         gestureVerificationShown = false
         selectionFailure = nil
         selectionReadInProgress = false
@@ -92,14 +96,26 @@ final class SelectionTranslationController: ObservableObject {
         gestureVerificationShown = false
         selectionFailure = nil
         selectionReadInProgress = true
-        prepareCard(text: "", at: point)
+        if !pinned {
+            panel?.orderOut(nil)
+            session.cancel()
+            session.input = ""
+        }
+        // Esc and outside clicks must still cancel a read before any window exists.
+        installDismissalMonitors()
     }
 
     func showSelectionFailure(_ message: String, at point: CGPoint) {
         gestureVerificationShown = false
         selectionReadInProgress = false
         selectionFailure = message
-        prepareCard(text: "", at: point)
+        lastGestureDiagnostic = message
+        if !pinned {
+            panel?.orderOut(nil)
+            session.cancel()
+            session.input = ""
+        }
+        if panel?.isVisible != true { removeDismissalMonitors() }
     }
 
     func showGestureVerification(at point: CGPoint) {
@@ -153,11 +169,11 @@ final class SelectionTranslationController: ObservableObject {
         selectionReadInProgress = false
         panel?.orderOut(nil)
         session.cancel()
-        for token in [outsideMonitor, localMonitor, escapeMonitor].compactMap({ $0 }) { NSEvent.removeMonitor(token) }
-        outsideMonitor = nil; localMonitor = nil; escapeMonitor = nil
+        removeDismissalMonitors()
     }
 
     func dismissForApplicationChange() {
+        if selectionReadInProgress { cancelReading() }
         if !pinned, panel?.isVisible == true { dismiss() }
     }
 
@@ -195,8 +211,12 @@ final class SelectionTranslationController: ObservableObject {
         guard outsideMonitor == nil else { return }
         outsideMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
             MainActor.assumeIsolated {
-                guard let self, !self.pinned, self.panel?.frame.contains(NSEvent.mouseLocation) == false else { return }
-                self.dismiss()
+                guard let self else { return }
+                let inside = self.panel?.isVisible == true && self.panel?.frame.contains(NSEvent.mouseLocation) == true
+                guard !inside else { return }
+                if self.pinned {
+                    if self.selectionReadInProgress { self.cancelReading() }
+                } else { self.dismiss() }
             }
         }
         escapeMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
@@ -208,11 +228,25 @@ final class SelectionTranslationController: ObservableObject {
                 if event.type == .keyDown, event.keyCode == 53 {
                     self.dismiss(); return false
                 }
-                if event.type != .keyDown, event.window !== self.panel, !self.pinned { self.dismiss() }
+                if event.type != .keyDown, event.window !== self.panel {
+                    if !self.pinned { self.dismiss() }
+                    else if self.selectionReadInProgress { self.cancelReading() }
+                }
                 return true
             }
             return forward ? event : nil
         }
+    }
+
+    private func cancelReading() {
+        monitor.cancelPendingReading()
+        selectionReadInProgress = false
+        if panel?.isVisible != true { removeDismissalMonitors() }
+    }
+
+    private func removeDismissalMonitors() {
+        for token in [outsideMonitor, localMonitor, escapeMonitor].compactMap({ $0 }) { NSEvent.removeMonitor(token) }
+        outsideMonitor = nil; localMonitor = nil; escapeMonitor = nil
     }
 
     private func contains(_ point: CGPoint) -> Bool {
