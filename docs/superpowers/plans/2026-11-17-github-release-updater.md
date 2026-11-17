@@ -1,6 +1,6 @@
 # GitHub Releases Updater Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** 无需登录的 GitHub Releases 下载、签名验证、应用内安装与重启。
 
@@ -33,11 +33,11 @@
 
 **Interfaces:** Produces `UpdateVersion.isNewer(_:than:) -> Bool`; `@MainActor UpdateInstallationGate(prepare: @escaping @MainActor () async -> Bool)`, `postpone(_ install: @escaping @MainActor () -> Void)`, `resume() async`, observable `hasPendingInstallation` and `isPreparing`.
 
-- [ ] Write tests: 0.2.7 > 0.2.6; 0.10.0 > 0.9.9; equal/older/invalid/prerelease false. Denied preparation keeps pending without invocation; retry invokes once; concurrent resume calls prepare/install once.
-- [ ] Run `make test`, confirm missing types fail compilation.
-- [ ] Implement strict three-component stable comparison and serialized async installation gate.
-- [ ] Run `make test`, expected all Core tests pass.
-- [ ] Commit `feat: guard update versions and document-safe installation`.
+- [x] Write tests: 0.2.7 > 0.2.6; 0.10.0 > 0.9.9; equal/older/invalid/prerelease false. Denied preparation keeps pending without invocation; retry invokes once; concurrent resume calls prepare/install once.
+- [x] Run `make test`, confirm missing types fail compilation.
+- [x] Implement strict three-component stable comparison and serialized async installation gate.
+- [x] Run `make test`, expected all Core tests pass.
+- [x] Commit `feat: guard update versions and document-safe installation`.
 
 ### Task 2: Sparkle 接入与原生入口
 
