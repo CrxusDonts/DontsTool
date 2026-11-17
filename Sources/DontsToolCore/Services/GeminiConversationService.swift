@@ -40,6 +40,7 @@ public protocol GeminiAsking: AnyObject {
 
 @MainActor
 public final class GeminiConversationService: GeminiAsking {
+    public static let applicationBundleIdentifier = "com.google.GeminiMacOS"
     public static let maximumQuestionLength = 32_768
     private let controller: any GeminiAppControlling
     private let pollInterval: Duration

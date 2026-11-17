@@ -22,7 +22,7 @@ final class SystemGeminiAppController: GeminiAppControlling {
         logger.notice("开始打开 Gemini，等待应用激活")
         let target = application.resolvingSymlinksInPath().standardizedFileURL
         guard target.isFileURL,
-              Bundle(url: target)?.bundleIdentifier == "com.google.GeminiMacOS" else {
+              Bundle(url: target)?.bundleIdentifier == GeminiConversationService.applicationBundleIdentifier else {
             throw GeminiAppAutomationError.applicationUnavailable
         }
         let configuration = NSWorkspace.OpenConfiguration()

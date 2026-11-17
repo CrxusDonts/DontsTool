@@ -30,7 +30,7 @@ public final class GeminiProvider: ToolProvider {
     public func search(_ context: SearchContext) async -> [SearchItem] {
         guard isEnabled, case .keyword(let providerID, let keyword, _) = context.mode,
               providerID == id else { return [] }
-        guard let app = index.apps.first(where: { $0.bundleID == "com.google.GeminiMacOS" }) else {
+        guard let app = index.apps.first(where: { $0.bundleID == GeminiConversationService.applicationBundleIdentifier }) else {
             return [hint("未找到 Gemini 应用", detail: "安装 Gemini Mac 版后重新扫描应用")]
         }
         let question = context.query
