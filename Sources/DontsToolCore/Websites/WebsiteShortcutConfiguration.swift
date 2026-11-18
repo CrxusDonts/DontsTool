@@ -135,7 +135,7 @@ public struct WebsiteShortcutConfiguration: Codable, Equatable, Sendable {
         guard (1...3).contains(version) else { throw Self.invalid("不支持配置版本 \(version)，当前支持 version: 1、2 和 3") }
         guard groups.count <= 100, itemCount <= 5000 else { throw Self.invalid("最多支持 100 个分组、5000 个系统") }
         guard addressCount <= 5000 else { throw Self.invalid("最多支持 5000 个网址（包含首页、子页面和所有环境）") }
-        let reserved = Set(ToolKind.allCases.flatMap(\.keywords) + ["kb", "collect", "inbox"])
+        let reserved = Set(ToolKind.allCases.flatMap(\.keywords))
         var result = self
         var keywords = Set<String>()
         for index in result.groups.indices {

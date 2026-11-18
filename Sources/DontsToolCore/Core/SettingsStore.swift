@@ -84,12 +84,47 @@ public final class SettingsStore: ObservableObject {
         static let translationAPIModel = "dontstool.translationAPIModel"
         static let selectionHoldDelay = "dontstool.selectionHoldDelay"
         static let selectionTranslationEnabled = "dontstool.selectionTranslationEnabled"
-        static let knowledgeProviderMigrationCompleted = "dontstool.knowledgeProviderMigrationCompleted"
         static let builtInProviderDefaultsV2Completed = "dontstool.builtInProviderDefaultsV2Completed"
         static let applicationWorkflowsMigrationCompleted = "dontstool.applicationWorkflowsMigrationCompleted"
         static let notesProviderMigrationCompleted = "dontstool.notesProviderMigrationCompleted"
-        static let knowledgeBaseURL = "dontstool.knowledgeBaseURL"
         static let hasCompletedOnboarding = "dontstool.hasCompletedOnboarding"
+        static let cloudSyncEnabled = "dontstool.cloudSync.enabled"
+        static let cloudSyncServerURL = "dontstool.cloudSync.serverURL"
+        static let cloudSyncDeviceID = "dontstool.cloudSync.deviceID"
+    }
+
+    public struct SyncedAppSettings: Codable, Equatable, Sendable {
+        public var hotKey: HotKeyConfiguration
+        public var applicationSortOrder: ApplicationSortOrder
+        public var enabledProviderIDs: [String]
+        public var fileSearchEnabled: Bool
+        public var translationTarget: String
+        public var translationAPIBaseURL: String
+        public var translationAPIModel: String
+        public var selectionHoldDelayRawValue: Int
+        public var selectionTranslationEnabled: Bool
+
+        public init(
+            hotKey: HotKeyConfiguration,
+            applicationSortOrder: ApplicationSortOrder,
+            enabledProviderIDs: [String],
+            fileSearchEnabled: Bool,
+            translationTarget: String,
+            translationAPIBaseURL: String,
+            translationAPIModel: String,
+            selectionHoldDelayRawValue: Int,
+            selectionTranslationEnabled: Bool
+        ) {
+            self.hotKey = hotKey
+            self.applicationSortOrder = applicationSortOrder
+            self.enabledProviderIDs = enabledProviderIDs.sorted()
+            self.fileSearchEnabled = fileSearchEnabled
+            self.translationTarget = translationTarget
+            self.translationAPIBaseURL = translationAPIBaseURL
+            self.translationAPIModel = translationAPIModel
+            self.selectionHoldDelayRawValue = selectionHoldDelayRawValue
+            self.selectionTranslationEnabled = selectionTranslationEnabled
+        }
     }
 
     private let defaults: UserDefaults
@@ -103,8 +138,10 @@ public final class SettingsStore: ObservableObject {
     @Published public private(set) var translationAPIModel: String
     @Published public private(set) var selectionHoldDelay: SelectionHoldDelay
     @Published public private(set) var selectionTranslationEnabled: Bool
-    @Published public private(set) var knowledgeBaseURL: String
     @Published public private(set) var hasCompletedOnboarding: Bool
+    @Published public private(set) var cloudSyncEnabled: Bool
+    @Published public private(set) var cloudSyncServerURL: String
+    public let cloudSyncDeviceID: String
 
     public var hotKeyChanges: AnyPublisher<HotKeyConfiguration, Never> {
         $hotKey.eraseToAnyPublisher()
@@ -132,13 +169,6 @@ public final class SettingsStore: ObservableObject {
 
         let storedProviders = defaults.array(forKey: Key.enabledProviders) as? [String]
         var enabledProviders = storedProviders.map(Set.init) ?? Set(ProviderID.allCases.map(\.rawValue))
-        if !defaults.bool(forKey: Key.knowledgeProviderMigrationCompleted) {
-            enabledProviders.insert(ProviderID.knowledge.rawValue)
-            if storedProviders != nil {
-                defaults.set(Array(enabledProviders).sorted(), forKey: Key.enabledProviders)
-            }
-            defaults.set(true, forKey: Key.knowledgeProviderMigrationCompleted)
-        }
         if !defaults.bool(forKey: Key.builtInProviderDefaultsV2Completed) {
             enabledProviders.formUnion([
                 ProviderID.calculator.rawValue,
@@ -163,6 +193,7 @@ public final class SettingsStore: ObservableObject {
             }
             defaults.set(true, forKey: Key.notesProviderMigrationCompleted)
         }
+        enabledProviders.remove("knowledge")
         enabledProviderIDs = enabledProviders
 
         if defaults.object(forKey: Key.fileSearchEnabled) != nil {
@@ -178,8 +209,17 @@ public final class SettingsStore: ObservableObject {
         translationAPIModel = defaults.string(forKey: Key.translationAPIModel) ?? ""
         selectionHoldDelay = SelectionHoldDelay(rawValue: defaults.integer(forKey: Key.selectionHoldDelay)) ?? .seconds2
         selectionTranslationEnabled = defaults.bool(forKey: Key.selectionTranslationEnabled)
-        knowledgeBaseURL = defaults.string(forKey: Key.knowledgeBaseURL) ?? ""
         hasCompletedOnboarding = defaults.bool(forKey: Key.hasCompletedOnboarding)
+        cloudSyncEnabled = defaults.bool(forKey: Key.cloudSyncEnabled)
+        cloudSyncServerURL = defaults.string(forKey: Key.cloudSyncServerURL) ?? ""
+        if let existingDeviceID = defaults.string(forKey: Key.cloudSyncDeviceID),
+           !existingDeviceID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            cloudSyncDeviceID = existingDeviceID
+        } else {
+            let generated = UUID().uuidString
+            defaults.set(generated, forKey: Key.cloudSyncDeviceID)
+            cloudSyncDeviceID = generated
+        }
     }
 
     public func setHotKey(_ configuration: HotKeyConfiguration) {
@@ -237,11 +277,6 @@ public final class SettingsStore: ObservableObject {
         defaults.set(enabled, forKey: Key.selectionTranslationEnabled)
     }
 
-    public func setKnowledgeBaseURL(_ url: String) {
-        knowledgeBaseURL = url
-        defaults.set(url, forKey: Key.knowledgeBaseURL)
-    }
-
     public func completeOnboarding() {
         hasCompletedOnboarding = true
         defaults.set(true, forKey: Key.hasCompletedOnboarding)
@@ -250,5 +285,44 @@ public final class SettingsStore: ObservableObject {
     public func resetOnboarding() {
         hasCompletedOnboarding = false
         defaults.set(false, forKey: Key.hasCompletedOnboarding)
+    }
+
+    public func setCloudSyncEnabled(_ enabled: Bool) {
+        cloudSyncEnabled = enabled
+        defaults.set(enabled, forKey: Key.cloudSyncEnabled)
+    }
+
+    public func setCloudSyncServerURL(_ url: String) {
+        cloudSyncServerURL = url
+        defaults.set(url, forKey: Key.cloudSyncServerURL)
+    }
+
+    public func exportSyncedSettings() -> SyncedAppSettings {
+        SyncedAppSettings(
+            hotKey: hotKey,
+            applicationSortOrder: applicationSortOrder,
+            enabledProviderIDs: Array(enabledProviderIDs).sorted(),
+            fileSearchEnabled: fileSearchEnabled,
+            translationTarget: translationTarget,
+            translationAPIBaseURL: translationAPIBaseURL,
+            translationAPIModel: translationAPIModel,
+            selectionHoldDelayRawValue: selectionHoldDelay.rawValue,
+            selectionTranslationEnabled: selectionTranslationEnabled
+        )
+    }
+
+    public func applySyncedSettings(_ synced: SyncedAppSettings) {
+        setHotKey(synced.hotKey)
+        setApplicationSortOrder(synced.applicationSortOrder)
+        var providers = Set(synced.enabledProviderIDs)
+        providers.remove("knowledge")
+        enabledProviderIDs = providers
+        defaults.set(Array(providers).sorted(), forKey: Key.enabledProviders)
+        setFileSearchEnabled(synced.fileSearchEnabled)
+        setTranslationTarget(synced.translationTarget)
+        setTranslationAPIBaseURL(synced.translationAPIBaseURL)
+        setTranslationAPIModel(synced.translationAPIModel)
+        setSelectionHoldDelay(SelectionHoldDelay(rawValue: synced.selectionHoldDelayRawValue) ?? .seconds2)
+        setSelectionTranslationEnabled(synced.selectionTranslationEnabled)
     }
 }

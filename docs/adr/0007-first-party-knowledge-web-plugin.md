@@ -1,6 +1,6 @@
 # ADR 0007：知识库插件复用同源 Web 编辑器
 
-- 状态：已接受；用户于 2026-10-18 明确授权实现
+- 状态：已废弃（知识库功能已从应用中移除）
 - 部分取代：[ADR 0001](0001-native-swift-over-tauri.md) 中全部界面无 WebView 的约束
 - 保留：[ADR 0002](0002-built-in-modules-over-plugin-runtime.md) 的内置模块，不引入通用运行时插件系统
 

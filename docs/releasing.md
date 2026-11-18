@@ -16,9 +16,16 @@ make release
 (cd dist && shasum -a 256 -c SHA256SUMS)
 ```
 
-`make release` 调用 `scripts/package-release.sh`，重新生成 Xcode 工程，构建 arm64 / x86_64 Universal 应用，验证版本与构建号，使用 `codesign --sign - --timestamp=none` 签名。`lipo -verify_arch` 检查两种架构，`codesign --verify --deep --strict` 检查签名；ZIP 解压后再次验证并与构建二进制比对。
+`make release` 调用 `scripts/package-release.sh`，重新生成 Xcode 工程，构建开启 Hardened Runtime 的 arm64 / x86_64 Universal `Release` 应用（日常 `Debug` 与测试构建保留无证书 ad-hoc，确保 CI 与本地免证书运行测试）。脚本随后验证版本与构建号，使用 Team ID `Q2K3CAKGG2` 的 `Developer ID Application` 证书**由内向外**依次签名 Sparkle 嵌套组件（`Downloader.xpc`、`Installer.xpc`、`Autoupdate`、`Updater.app`、`Sparkle.framework`）与主应用 `DontsTool.app`（均携带 `--options runtime --timestamp`，不使用 `codesign --deep` 签名以免破坏嵌套组件权限），提交 Apple Notary Service（`xcrun notarytool submit --wait`）公证，再执行 `xcrun stapler staple` 钉入离线票据与 `spctl --assess` 验收，之后重新打包最终发布 ZIP 并校验签名、公证票据与二进制一致性。
 
-可通过 `DT_BUILD_NUMBER`、`DT_DERIVED_DATA`、`DT_DIST_DIR` 指定构建号和输出位置；`DT_RELEASE_TAG` 如提供则必须与源码版本一致。脚本不会安装或启动应用，也不会访问证书或钥匙串。
+本地执行 `make release` 前提：
+- 本机钥匙串已安装 `Developer ID Application: ... (Q2K3CAKGG2)` 证书（可用 `DT_SIGNING_IDENTITY` 或 `DT_SIGNING_KEYCHAIN` 覆盖）。
+- 已保存公证凭据，推荐执行一次：
+  ```bash
+  xcrun notarytool store-credentials DontsTool-Notary --apple-id "<你的 Apple ID>" --team-id Q2K3CAKGG2
+  ```
+  也可通过 `DT_NOTARY_PROFILE`、`DT_NOTARY_KEYCHAIN` 或环境变量 `APPLE_ID` + `APPLE_APP_SPECIFIC_PASSWORD` 提供。
+- 可通过 `DT_BUILD_NUMBER`、`DT_DERIVED_DATA`、`DT_DIST_DIR` 指定构建号和输出位置；`DT_RELEASE_TAG` 如提供则必须与源码版本一致。脚本不会安装或启动应用。
 
 本地打包还需要更新签名私钥：默认读取已忽略的 `.signing/updater/private.key`，也可通过 `DT_UPDATE_KEY_FILE` 指定路径，或通过 `SPARKLE_PRIVATE_KEY` 环境变量提供。私钥应只对当前用户可读，不提交到 Git、不在命令行参数中传入密钥正文、不写入日志。
 
@@ -37,12 +44,19 @@ make release
 
 0.2.7 起提供基于公开 Release 的应用内更新。仅公开仓库不会生成更新源，需正式发布包含签名安装包和 `appcast.xml` 的新版后才能使用。0.2.6 及更早版本需先手动安装含更新器的新版；客户端不需要 GitHub 登录或维护者凭据。
 
-Release job 还需要仓库 Secret `SPARKLE_PRIVATE_KEY`，内容为 Sparkle 支持的 base64 Ed25519 私钥种子。现有密钥已在本次接入时生成并设置；公钥入库，私钥留在已忽略的本地目录与 Actions Secret 中。恢复构建环境时应恢复同一密钥；更换密钥需要单独安排迁移，不能直接用新私钥签名给旧客户端安装。
+Release job 需要以下 5 个 GitHub 仓库 Secrets：
+- `SPARKLE_PRIVATE_KEY`：Sparkle 支持的 base64 Ed25519 私钥种子。现有密钥已在接入更新器时生成并设置；公钥入库，私钥留在已忽略的本地目录与 Actions Secret 中。恢复构建环境时应恢复同一密钥；更换密钥需要单独安排迁移，不能直接用新私钥签名给旧客户端安装。
+- `DEVELOPER_ID_APPLICATION_P12`：导出的 `Developer ID Application`（Team ID `Q2K3CAKGG2`）证书 `.p12` 文件的 base64 编码。
+- `DEVELOPER_ID_APPLICATION_P12_PASSWORD`：上述 `.p12` 文件的导出密码。
+- `APPLE_ID`：用于 Apple 公证的 Apple ID 邮箱。
+- `APPLE_APP_SPECIFIC_PASSWORD`：上述 Apple ID 的 App 专用密码。
+
+Release workflow 在 `$RUNNER_TEMP` 中创建一次性随机密码临时钥匙串，优先从 Xcode 内置资源校验并导入 `DeveloperIDCA-G2.cer`（或校验系统钥匙串预置证书）以及 `.p12`，完成签名和公证后在 `if: always()` 步骤删除临时钥匙串。
 
 `appcast.xml` 跟随每个正式 Release 发布，客户端通过 `releases/latest/download/appcast.xml` 读取。短版本和 CI 构建号同时写入 appcast；客户端额外拒绝同短版本和更低短版本，避免本地构建号与 CI 运行号差异导致降级。
 
 发布失败后可用工作流手动入口填写已有标签重跑。同一源码提交、包含脚本标识的草稿可恢复；其他草稿和正式发布不会被覆盖。已正式发布的版本需要递增版本号再发布，不移动已有标签。
 
-## 安装边界
+## 签名与安装边界
 
-产物使用 ad-hoc 本地签名，非 Developer ID 签名、非 Apple 公证。签名校验验证包完整性，不提供 Apple 的开发者身份认证。首次打开可能需要在系统隐私与安全性设置中允许该应用，详见 [README 安装说明](../README.md#安装)。
+`0.2.10` 及之后版本的发布产物使用 Team ID `Q2K3CAKGG2` 的 Developer ID Application 证书签名、开启 Hardened Runtime 并经 Apple 官方公证及 `stapler` 钉票，通过 GitHub Release 直接分发（非沙盒，不上架 Mac App Store），用户安装后可直接通过 Gatekeeper 打开。`0.2.9` 及更早历史版本仍采用 ad-hoc 本地签名，详见 [README 签名与公证说明](../README.md#签名与公证说明)。

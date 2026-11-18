@@ -44,7 +44,8 @@ print(key.publicKey.rawRepresentation.base64EncodedString())'''
         self.manifest = {
             'name': 'DontsTool', 'version': '0.2.7', 'build': '42', 'commit': '1' * 40,
             'platform': 'macOS', 'minimumSystemVersion': '26.0',
-            'architectures': ['arm64', 'x86_64'], 'signing': 'ad-hoc', 'notarized': False,
+            'architectures': ['arm64', 'x86_64'], 'signing': 'developer-id',
+            'teamId': 'Q2K3CAKGG2', 'notarized': True,
             'archive': self.archive.name, 'sha256': hashlib.sha256(self.archive.read_bytes()).hexdigest()
         }
         self.write_manifest()
@@ -116,6 +117,16 @@ print(key.publicKey.rawRepresentation.base64EncodedString())'''
     def test_unsafe_archive_paths_unstable_versions_and_bad_builds_are_rejected(self):
         for field, value in [('archive', '../outside.zip'), ('version', '0.2.7-beta.1'),
                              ('version', '00.2.7'), ('build', '0'), ('build', 'abc')]:
+            with self.subTest(field=field, value=value):
+                original = self.manifest[field]
+                self.manifest[field] = value
+                self.write_manifest()
+                self.assertNotEqual(self.run_feed().returncode, 0)
+                self.manifest[field] = original
+                self.write_manifest()
+
+    def test_unexpected_signing_or_team_metadata_is_rejected(self):
+        for field, value in [('signing', 'ad-hoc'), ('notarized', False), ('teamId', 'OTHERTEAM1')]:
             with self.subTest(field=field, value=value):
                 original = self.manifest[field]
                 self.manifest[field] = value

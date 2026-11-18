@@ -6,7 +6,6 @@ public enum ProviderID: String, CaseIterable, Identifiable, Sendable {
     case text
     case web
     case translation
-    case knowledge
     case calculator
     case quickOpen = "quickOpen"
     case gemini
@@ -55,10 +54,9 @@ public struct KeywordRoute: Equatable, Sendable {
 public enum ResultGroup: Int, CaseIterable, Comparable, Sendable {
     case app = 0
     case tool = 1
-    case knowledge = 2
-    case file = 3
-    case web = 4
-    case shortcut = 5
+    case file = 2
+    case web = 3
+    case shortcut = 4
 
     public static func < (lhs: ResultGroup, rhs: ResultGroup) -> Bool {
         lhs.rawValue < rhs.rawValue

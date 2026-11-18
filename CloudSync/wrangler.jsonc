@@ -1,0 +1,37 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "dontstool-cloud-sync",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "routes": [
+    {
+      "pattern": "sync.ddonts.com",
+      "custom_domain": true
+    }
+  ],
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+  "r2_buckets": [
+    {
+      "binding": "SYNC_BUCKET",
+      "bucket_name": "dontstool-sync"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "SYNC_HUB",
+        "class_name": "SyncHub"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["SyncHub"]
+    }
+  ]
+}

@@ -14,13 +14,13 @@ DontsTool 是一个个人自用的原生 macOS 效率启动器。按下全局热
 
 设计目标：
 
-1. **原生响应**：启动器和工具使用原生窗口，知识库与本地便笺按需使用 WKWebView，不引入 Electron/Tauri；热键到面板可见目标 < 100ms。
+1. **原生响应**：启动器和工具使用原生窗口，本地便笺按需使用离线 WKWebView，不引入 Electron/Tauri；热键到面板可见目标 < 100ms。
 2. **键盘优先**：高频操作全部可以用键盘完成。
 3. **易扩展**：新增工具只需实现 `ToolProvider` 并注册，不改搜索核心。
 4. **可维护**：模块边界清晰，决策有 ADR，行为有验收标准。
-5. **隐私优先**：无遥测；不监听剪贴板；网络由用户主动执行网页搜索、翻译和知识库连接触发。
+5. **隐私优先**：无遥测；不监听剪贴板；网络仅由用户主动执行网页搜索、翻译或检查应用更新时触发。
 
-V1 非目标：跨平台、第三方插件市场、启动器自身账号与云同步、App Store 发布与沙盒。知识库窗口复用 DontsKb 的账号和同步。
+V1 非目标：跨平台、第三方插件市场、启动器自身账号与云同步、App Store 发布与沙盒。
 
 ## 2. 技术栈
 
@@ -37,7 +37,7 @@ V1 非目标：跨平台、第三方插件市场、启动器自身账号与云�
 | 持久化 | `UserDefaults`（设置）、钥匙串（翻译 API 密钥）、应用支持目录内的版本化 JSON 与便笺附件 |
 | 构建 | XcodeGen 生成工程 + `xcodebuild`，Makefile 封装；Xcode 27 / Swift 6.4 |
 | 第三方依赖 | 本地便笺离线打包 Tiptap 3.34.0 / ProseMirror；构建依赖 XcodeGen、编辑器生成依赖 Node / esbuild |
-| 分发 | 本地构建，ad-hoc 签名，非沙盒 |
+| 分发 | GitHub Release（Universal），Developer ID（`Q2K3CAKGG2`）签名与 Apple 公证，非沙盒 |
 
 ## 3. 进程与运行形态
 
@@ -80,12 +80,13 @@ flowchart TD
 
 | 模块 | 职责 | 关键类型 |
 | --- | --- | --- |
-| AppShell | 应用生命周期、菜单栏、浮动面板、热键、焦点管理、独立工具/知识库窗口 | `AppDelegate`、`HotKeyManager`、`ModifierDoubleTapMonitor`、`LauncherPanelController`、`MenuBarController` |
+| AppShell | 应用生命周期、菜单栏、浮动面板、热键、焦点管理、独立工具与便笺窗口 | `AppDelegate`、`HotKeyManager`、`ModifierDoubleTapMonitor`、`LauncherPanelController`、`MenuBarController` |
 | Core | 查询解析、路由、聚合、排序、注册、设置与使用统计、即时计算与路径识别 | `SearchCoordinator`、`QueryParser`、`ToolRegistry`、`FuzzyMatcher`、`UsageStore`、`SettingsStore`、`CalculatorEngine`、`QuickOpenParser` |
 | Index | 应用索引与文件搜索 | `AppIndex`、`FileSearchService` |
-| Providers | 各类结果提供者，统一实现 `ToolProvider` | `AppProvider`、`FileProvider`、`TextToolsProvider`、`WebSearchProvider`、`TranslationProvider`、`CalculatorProvider`、`QuickOpenProvider`、`WebsiteShortcutProvider`、`KnowledgeProvider` |
+| Providers | 各类结果提供者，统一实现 `ToolProvider` | `AppProvider`、`FileProvider`、`TextToolsProvider`、`WebSearchProvider`、`TranslationProvider`、`CalculatorProvider`、`QuickOpenProvider`、`WebsiteShortcutProvider`、`NotesProvider` |
 | Tools | 独立工具窗口与文本处理 | `ToolDefinition`、`ToolSession`、`ToolWindowManager`、`JSONDocument` |
 | Notes | 本地便笺、离线富文本、自动保存与独立附件 | `LocalNoteStore`、`LocalNoteSession`、`LocalNoteEditorBridge`、`LocalNoteWindowManager` |
+| Sync | Cloudflare 多端增量同步与本地快照备份 | `CloudSyncCoordinator`、`CloudSyncClient`、`SyncStateStore`、`BackupArchiveService` |
 | Services | 外部 API、钥匙串、登录项、系统动作 | `RemoteTranslationService`、`SecretStore`、`LoginItemManager`、`SystemAppLauncher` |
 | Settings | 设置界面、网址配置、热键录制 | `SettingsWindowController`、`SettingsRootView` |
 
@@ -168,7 +169,7 @@ V1 没有运行时插件加载、插件市场或进程隔离。增加工具需�
 - 快速/慢速两阶段搜索，慢速请求可取消。
 - 限制每类结果数量，避免大列表布局开销。
 - 热路径上不做磁盘 I/O；使用统计延迟批量写入。
-- 原生启动器不加载 WebView；知识库插件和本地便笺在主动调用时按需加载系统 WKWebView。
+- 原生启动器不加载 WebView；本地便笺在主动调用时按需加载系统离线 WKWebView。
 
 ## 8. 权限、隐私与安全
 
@@ -176,11 +177,11 @@ V1 没有运行时插件加载、插件市场或进程隔离。增加工具需�
 - **文件搜索**：依赖 Spotlight 索引；部分目录可能需要“完全磁盘访问权限”，没有授权时返回部分结果，不影响其他功能。
 - **翻译**：用户主动执行翻译时，把文本发送到其配置的 OpenAI Responses 兼容接口；API 密钥存登录钥匙串，不写 UserDefaults，不做额外上报。
 - **开机启动**：通过 `SMAppService` 注册登录项。
-- **网络**：应用在用户主动执行网页搜索（交给默认浏览器）、翻译或连接知识库时联网。空启动器查询不会创建知识库 WebView；连接后的知识库页面沿用认证与同步生命周期，退出时停止。
+- **网络**：应用在用户主动执行网页搜索（交给默认浏览器）、翻译、检查更新，或开启 Cloudflare 多端同步后与自建同步服务通信时联网。
 - **剪贴板**：不监听；启动器搜索不读剪贴板。在工具窗口中显式粘贴或复制、动作面板复制，以及长按划词翻译时访问；划词翻译只读取本次复制后的内容，不清空或还原剪贴板。
 - **键盘**：仅在启用双击修饰键时订阅全局和本地修饰键变化；第二次短按松开后触发。只查询普通按键的计数和最近事件时间，不接收或记录按键内容；无轮询。
 - **进程调用**：仅以固定可执行文件 `/usr/bin/mdfind` 加参数数组的方式调用，不经过 shell。
-- **签名**：本地 ad-hoc 签名，非沙盒；不引入第三方二进制。双击监听不依赖输入监控授权。
+- **签名**：正式发布使用 Developer ID（`Q2K3CAKGG2`）签名、开启 Hardened Runtime 并经 Apple 公证，非沙盒（本地日常开发与测试构建使用 ad-hoc 签名，无需证书）；不引入第三方二进制。双击监听不依赖输入监控授权。
 
 ## 9. 目录结构
 
@@ -246,7 +247,14 @@ DontsTool/
 │       │   ├── CalculatorProvider.swift
 │       │   ├── QuickOpenProvider.swift
 │       │   ├── WebsiteShortcutProvider.swift
-│       │   └── KnowledgeProvider.swift
+│       │   └── NotesProvider.swift
+│       ├── Sync/
+│       │   ├── SyncModels.swift
+│       │   ├── CloudSyncClient.swift
+│       │   ├── BackupArchiveService.swift
+│       │   ├── CloudSyncCoordinator.swift
+│       │   ├── CloudSyncSnapshotBuilder.swift
+│       │   └── CloudSyncRemoteApplier.swift
 │       └── Services/
 │           ├── SystemServices.swift
 │           ├── RemoteTranslationService.swift
@@ -301,15 +309,6 @@ DontsTool/
 关闭保留最多10份草稿供本次运行恢复，退出后不保存文本。窗口恢复不自动重新发起翻译。翻译只在窗口中明确点击后请求现有配置的服务。
 
 
-## DontsKb 官方插件
-
-参考 [ADR0007](adr/0007-first-party-knowledge-web-plugin.md) 和 [协议与行为](superpowers/specs/2026-10-18-knowledge-plugin-design.md)。Core 的 `KnowledgeProvider`/`KnowledgeServing`/`KnowledgeOrigin` 不依赖 WebKit；Shell 的 `KnowledgeWindowManager` 管理独立窗口与隐藏搜索客户端，`KnowledgeWebBridge` 限定主框架来源、导航和协议。UI 设置只保存服务来源；凭据留在同源 Web 客户端。
-
-DontsKb `/tool` 使用精简外壳承载原有 DocumentPage 和 CaptureWorkbench/CaptureComposer，保留正式编辑与存储边界。原生 close/reload/quit 通过 RPC 运行真实 departure guards；退出中的已确认窗口冻结交互，拒绝后恢复。服务未发布插件路由时显示兼容/连接错误，不伪造搜索或保存成功。
-
-启动器仅在显式输入 `kb 关键词` 时请求文档搜索。没有现成连接时，页面加载与输入防抖并行，防抖结束后才发送关键词。同源且已就绪的知识库窗口可承接只读搜索；若页面会话失效，使用独立搜索页重新检查登录。再次打开相同目标时优先激活已就绪的窗口，保留原页的编辑状态。快速收集和显式「新窗口打开」继续创建独立窗口。
-
-
 ## 网址快捷入口
 
 `WebsiteShortcutConfiguration` 提供版本化 JSON、整份校验与规范化；`WebsiteShortcutStore` 持久保存独立 UserDefaults 数据。`WebsiteShortcutProvider` 通过现有 ToolProvider 协议动态注册自定义关键词，只做本机匹配，显式动作委托系统浏览器。自定义 gh 高于内置 GitHub 搜索，其他工具关键词在保存前拒绝冲突；未命中不回退公共搜索。独立 shortcut 结果分组不会被网页搜索的一条结果上限截断。
@@ -333,6 +332,13 @@ DontsKb `/tool` 使用精简外壳承载原有 DocumentPage 和 CaptureWorkbench
 Gemini 的 Core `GeminiConversationService` 在首次打开时等待应用完成激活；写入及发送前确认前台，用户切走会取消；发送已执行后的结果确认可在后台只读进行，仍绑定原窗口。随后验证草稿、新对话、精确问题和单次提交；Shell adapter 限定应用完整路径、PID与绑定窗口，后台 AX 遍历跳过历史列表，按已识别控件写入与提交。Esc监听仅在本次交接期间安装并清理；阶段等待和单次遍历分别有墙钟上限。用户输入只在明确执行时传递，不写URL、剪贴板或日志。
 
 IDEA Discovery actor 按当前安装版本解析最近项目 XML，缓存文件指纹，过滤不存在或远程目录；官方应用参数启动通过 NSWorkspace 完成。执行前和异步路径校验后重新检查禁用/取消状态。
+
+
+## 多端同步与备份
+
+`CloudSync/` 目录存放独立部署的 Cloudflare Worker（`SyncHub` SQLite Durable Object + `SYNC_BUCKET` R2 存储桶）。`SyncHub` 串行维护单调递增 `revision` 游标与小于 64 KiB 的内联载荷；图片附件与超大载荷按 `SHA-256` 存入 R2 并跨设备去重；在线设备通过 Durable Object WebSocket Hibernation API 接收新 `revision` 推送通知，鉴权采用 Bearer Token + 常量时间哈希比对。
+
+客户端 `CloudSyncCoordinator` 以本地为主（Local-First），通过 `SyncStateStore` 记录已同步基线与游标；离线并发修改同一便笺时，先将本地修改另存为「冲突副本」再应用远端版本，避免丢稿。`BackupArchiveService` 复用统一快照格式提供本地 `.zip` 导出与恢复（恢复前校验证书级 SHA-256 并在 `Application Support/DontsTool/Backups/` 自动留存安全快照）。翻译 API 密钥与同步密钥均保留在本机钥匙串，不进入云端或备份包。
 
 应用启动时将 `RemoteTranslationService` 直接交给独立翻译窗口和划词卡片；用户需在翻译设置中填写 Responses 兼容接口地址、模型和 API 密钥。配置不完整时提示设置且不发送请求，服务失败或取消后不切换后端。系统翻译及语言包准备代码暂留在源码中，当前应用未接入。
 

@@ -59,9 +59,17 @@ struct SearchEngineConfigurationTests {
         #expect(engine(template).searchURL(for: "hello") == nil)
     }
 
-    @Test(arguments: ["", "two words", "1find", "中文", String(repeating: "a", count: 33), "kb", "open", "idea", "gm", "file"])
+    @Test(arguments: ["", "two words", "1find", "中文", String(repeating: "a", count: 33), "json", "open", "idea", "gm", "file"])
     func invalidAndReservedKeywordsAreRejected(_ keyword: String) {
         #expect(throws: (any Error).self) { try configuration([engine(keyword: keyword)]).validated() }
+    }
+
+    @Test(arguments: ["kb", "collect", "inbox"])
+    func retiredKnowledgeKeywordsAreAvailableToCustomSearchAndWebsites(_ keyword: String) throws {
+        let searchConfig = try configuration([engine(keyword: keyword)]).validated()
+        #expect(searchConfig.engines.first?.keyword == keyword)
+        let websiteConfig = try WebsiteShortcutConfiguration(groups: [.init(keyword: keyword, name: "快捷入口")]).validated()
+        #expect(websiteConfig.groups.first?.keyword == keyword)
     }
 
     @Test func reservedKeywordsRejectEnabledEnginesAndPermitDisabledDrafts() throws {

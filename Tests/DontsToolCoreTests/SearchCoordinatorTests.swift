@@ -116,9 +116,9 @@ struct SearchCoordinatorTests {
     @Test func groupsAndCapsAreApplied() async {
         let apps = (0..<10).map { makeItem(group: .app, title: "App\($0)", score: Double(10 - $0), canonicalKey: "app\($0)") }
         let tools = (0..<10).map { makeItem(group: .tool, title: "Tool\($0)", score: Double(10 - $0), canonicalKey: "tool\($0)") }
-        let knowledge = (0..<10).map { makeItem(group: .knowledge, title: "Document\($0)", score: Double(10 - $0), canonicalKey: "knowledge\($0)") }
+        let shortcuts = (0..<10).map { makeItem(group: .shortcut, title: "Shortcut\($0)", score: Double(10 - $0), canonicalKey: "shortcut\($0)") }
         let files = [makeItem(group: .file, canonicalKey: "file")]
-        let provider = MockProvider(id: "p", searchHandler: { _ in apps + tools + knowledge + files })
+        let provider = MockProvider(id: "p", searchHandler: { _ in apps + tools + shortcuts + files })
         let coordinator = makeCoordinator([provider])
         let updates = collect(coordinator)
 
@@ -129,9 +129,9 @@ struct SearchCoordinatorTests {
         #expect(items.filter { $0.group == .app }.count == 8)
         #expect(items.filter { $0.group == .tool }.count == 8)
         #expect(items.first?.group == .app)
-        #expect(items.filter { $0.group == .knowledge }.count == 8)
-        #expect(items[16].group == .knowledge)
-        #expect(items.last?.group == .file)
+        #expect(items[16].group == .file)
+        #expect(items.filter { $0.group == .shortcut }.count == 8)
+        #expect(items.last?.group == .shortcut)
     }
 
     @Test func webFallbackIsRemovedWhenLocalResultsExist() async {
@@ -174,19 +174,19 @@ struct SearchCoordinatorTests {
     }
 
     @Test func scopedFastProviderNoticeIsPublishedWithoutSlowProviders() async {
-        let fast = MockProvider(id: "knowledge", keywords: ["kb"], statusNotice: "请先登录知识库")
+        let fast = MockProvider(id: "notes", keywords: ["note"], statusNotice: "便笺索引需要刷新")
         let coordinator = makeCoordinator([fast])
         let updates = collect(coordinator)
 
-        coordinator.submit("kb document")
+        coordinator.submit("note draft")
         await coordinator.waitForPendingSearch()
 
-        #expect(updates().last?.status == .message("请先登录知识库"))
+        #expect(updates().last?.status == .message("便笺索引需要刷新"))
     }
 
     @Test(arguments: [nil, "文件搜索失败"] as [String?])
     func slowPhaseKeepsFastNoticeUnlessSlowProviderHasItsOwn(_ slowNotice: String?) async {
-        let fast = MockProvider(id: "fast", statusNotice: "知识库连接失败")
+        let fast = MockProvider(id: "fast", statusNotice: "索引加载失败")
         let slow = MockProvider(id: "file", phase: .slow, statusNotice: slowNotice)
         let coordinator = makeCoordinator([fast, slow])
         let updates = collect(coordinator)
@@ -195,7 +195,7 @@ struct SearchCoordinatorTests {
         await coordinator.waitForPendingSearch()
 
         #expect(updates().first?.status == .searchingFiles)
-        #expect(updates().last?.status == .message(slowNotice ?? "知识库连接失败"))
+        #expect(updates().last?.status == .message(slowNotice ?? "索引加载失败"))
     }
 
     @Test func emptyQuerySkipsSlowProviders() async {

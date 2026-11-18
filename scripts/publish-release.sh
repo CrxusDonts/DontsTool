@@ -18,7 +18,7 @@ import json, sys
 from pathlib import Path
 m = json.loads(Path('dist/manifest.json').read_text())
 assert m['version'] == sys.argv[1] and m['commit'] == sys.argv[2]
-assert m['signing'] == 'ad-hoc' and m['notarized'] is False
+assert m['signing'] == 'developer-id' and m['teamId'] == 'Q2K3CAKGG2' and m['notarized'] is True
 PY
 (cd dist && shasum -a 256 -c SHA256SUMS)
 python3 scripts/update-feed.py verify --dist dist --repository "$GH_REPO"
@@ -30,10 +30,10 @@ $dt_marker
 原生 macOS 研发效率启动器。
 
 - 支持 macOS 26 或更新版本，Universal 包含 Apple Silicon 和 Intel 架构。
-- 本版本使用 ad-hoc 本地签名，未经 Apple 公证，不需要 Developer ID 证书。
-- 首次安装下载 ZIP，将 DontsTool.app 放入 Applications；之后可在应用内检查更新、安装并重启。
+- 本版本使用 Apple Developer ID（Q2K3CAKGG2）签名并已通过 Apple 官方公证，下载或脚本安装后可直接打开。
+- 首次安装下载 ZIP，将 DontsTool.app 放入 Applications；0.2.7+ 老用户可在应用内直接检查更新、安装并重启。
 - 更新包通过独立的 Ed25519 签名验证；appcast.xml 为应用自动更新源。
-- 安装及首次打开说明：[README](https://github.com/$GH_REPO/blob/$DT_RELEASE_TAG/README.md#安装)。
+- 安装说明：[README](https://github.com/$GH_REPO/blob/$DT_RELEASE_TAG/README.md#安装)。
 - 源码提交：$dt_commit
 NOTES
 if [[ -f "docs/releases/$DT_RELEASE_TAG.md" ]]; then

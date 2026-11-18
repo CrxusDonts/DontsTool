@@ -50,10 +50,10 @@ jobs:
       ref: ${{ needs.resolve.outputs.sha }}
 
   publish:
-    name: Build and publish ad-hoc Universal app
+    name: Build, sign, notarize and publish Universal app
     needs: [resolve, verify]
     runs-on: macos-26
-    timeout-minutes: 25
+    timeout-minutes: 60
     permissions:
       contents: write
     env:
@@ -75,10 +75,67 @@ jobs:
           xcodebuild -version
           brew list --versions xcodegen >/dev/null || brew install xcodegen
           xcodegen --version
+      - name: Import Developer ID signing certificate
+        env:
+          DEVELOPER_ID_APPLICATION_P12: ${{ secrets.DEVELOPER_ID_APPLICATION_P12 }}
+          DEVELOPER_ID_APPLICATION_P12_PASSWORD: ${{ secrets.DEVELOPER_ID_APPLICATION_P12_PASSWORD }}
+        run: |
+          if [[ -z "${DEVELOPER_ID_APPLICATION_P12:-}" || -z "${DEVELOPER_ID_APPLICATION_P12_PASSWORD:-}" ]]; then
+            echo 'DEVELOPER_ID_APPLICATION_P12 and DEVELOPER_ID_APPLICATION_P12_PASSWORD secrets are required.' >&2
+            exit 1
+          fi
+          dt_kc_pass="$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')"
+          dt_keychain="$RUNNER_TEMP/dontstool-signing.keychain-db"
+          dt_p12="$RUNNER_TEMP/developer-id.p12"
+          rm -f "$dt_keychain" "$dt_p12"
+          security create-keychain -p "$dt_kc_pass" "$dt_keychain"
+          security set-keychain-settings -lut 21600 "$dt_keychain"
+          security unlock-keychain -p "$dt_kc_pass" "$dt_keychain"
+          printf 'DT_SIGNING_KEYCHAIN=%s\n' "$dt_keychain" >> "$GITHUB_ENV"
+
+          dt_xcode_dev="$(xcode-select -p)"
+          dt_g2=''
+          for dt_candidate in \
+            "$dt_xcode_dev/../SharedFrameworks/DVTFoundation.framework/Versions/A/Resources/DeveloperIDCA-G2.cer" \
+            "$dt_xcode_dev/../SharedFrameworks/AssetRuntime/DVTFoundation.framework/Versions/A/Resources/DeveloperIDCA-G2.cer"; do
+            if [[ -f "$dt_candidate" ]]; then
+              dt_g2="$dt_candidate"
+              break
+            fi
+          done
+          if [[ -n "$dt_g2" ]]; then
+            dt_g2_sha="$(shasum -a 256 "$dt_g2")"
+            if [[ "${dt_g2_sha%% *}" != 'f16cd3c54c7f83cea4bf1a3e6a0819c8aaa8e4a1528fd144715f350643d2df3a' ]]; then
+              echo 'Unexpected DeveloperIDCA-G2.cer checksum.' >&2
+              exit 1
+            fi
+            security import "$dt_g2" -k "$dt_keychain"
+          elif ! security find-certificate -c 'Developer ID Certification Authority' /Library/Keychains/System.keychain >/dev/null 2>&1; then
+            echo 'Developer ID G2 intermediate certificate not found in Xcode or System keychain.' >&2
+            exit 1
+          fi
+
+          python3 -c 'import base64, os, pathlib, sys; pathlib.Path(sys.argv[1]).write_bytes(base64.b64decode(os.environ["DEVELOPER_ID_APPLICATION_P12"]))' "$dt_p12"
+          chmod 600 "$dt_p12"
+          security import "$dt_p12" -k "$dt_keychain" -P "$DEVELOPER_ID_APPLICATION_P12_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+          rm -f "$dt_p12"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$dt_kc_pass" "$dt_keychain" >/dev/null
+
+          dt_existing=()
+          while IFS= read -r dt_line; do
+            dt_line="${dt_line#"${dt_line%%[![:space:]]*}"}"
+            dt_line="${dt_line%\"}"
+            dt_line="${dt_line#\"}"
+            [[ -n "$dt_line" && "$dt_line" != "$dt_keychain" ]] && dt_existing+=("$dt_line")
+          done < <(security list-keychains -d user)
+          security list-keychains -d user -s "$dt_keychain" ${dt_existing[@]+"${dt_existing[@]}"}
+          security find-identity -v -p codesigning "$dt_keychain" | grep -q "(Q2K3CAKGG2)"
       - name: Package Universal release
         env:
           DT_BUILD_NUMBER: ${{ github.run_number }}
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
         run: |
           DT_SOURCE_COMMIT="$(git rev-parse HEAD)"
           export DT_SOURCE_COMMIT
@@ -88,3 +145,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: ./scripts/publish-release.sh
+      - name: Clean up signing keychain
+        if: always()
+        run: |
+          if [[ -n "${DT_SIGNING_KEYCHAIN:-}" ]]; then
+            security delete-keychain "$DT_SIGNING_KEYCHAIN" 2>/dev/null || true
+          fi
+          rm -f "$RUNNER_TEMP/developer-id.p12"

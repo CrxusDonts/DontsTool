@@ -46,8 +46,9 @@ prefix = 'https://github.com/CrxusDonts/DontsTool/releases/'
 if not url.startswith(prefix):
     raise SystemExit(2)
 relative = url[len(prefix):]
-if relative not in ('latest/download/manifest.json', 'download/v0.2.6/manifest.json',
-                    'download/v0.2.6/SHA256SUMS', 'download/v0.2.6/DontsTool-0.2.6-macos-universal.zip'):
+ver = os.environ.get('DT_TEST_VERSION', '0.2.6')
+if relative not in ('latest/download/manifest.json', f'download/v{ver}/manifest.json',
+                    f'download/v{ver}/SHA256SUMS', f'download/v{ver}/DontsTool-{ver}-macos-universal.zip'):
     raise SystemExit(3)
 with open(os.environ['DT_TEST_REQUESTS'], 'a') as log:
     log.write(relative + '\\n')
@@ -57,7 +58,8 @@ shutil.copy(pathlib.Path(os.environ['DT_TEST_RELEASE']) / relative.split('/')[-1
         self.mock('sw_vers', '#!/bin/bash\nprintf "%s\\n" "${DT_TEST_OS:-26.0}"\n')
         self.environment = dict(os.environ, PATH=f'{self.bin}:{os.environ["PATH"]}',
                                 DT_TEST_RELEASE=str(self.release),
-                                DT_TEST_REQUESTS=str(self.root / 'requests'))
+                                DT_TEST_REQUESTS=str(self.root / 'requests'),
+                                DT_TEST_VERSION='0.2.6')
 
     def mock(self, name, content):
         path = self.bin / name
@@ -76,14 +78,29 @@ shutil.copy(pathlib.Path(os.environ['DT_TEST_RELEASE']) / relative.split('/')[-1
         subprocess.run(['ditto', '-c', '-k', '--sequesterRsrc', '--keepParent', str(self.app), str(archive)], check=True)
         self.checksums()
 
-    def checksums(self):
+    def checksums(self, manifest_extra=None):
         digest = hashlib.sha256((self.release / self.archive_name).read_bytes()).hexdigest()
-        manifest = {'name': 'DontsTool', 'version': '0.2.6', 'platform': 'macOS',
+        manifest = {'name': 'DontsTool', 'version': self.info['CFBundleShortVersionString'], 'platform': 'macOS',
                     'minimumSystemVersion': '26.0', 'archive': self.archive_name, 'sha256': digest}
+        if manifest_extra:
+            manifest.update(manifest_extra)
         (self.release / 'manifest.json').write_text(json.dumps(manifest))
         (self.release / 'SHA256SUMS').write_text(''.join(
             f'{hashlib.sha256((self.release / name).read_bytes()).hexdigest()}  {name}\n'
             for name in (self.archive_name, 'manifest.json')))
+
+    def prepare_release(self, version, manifest_extra=None):
+        for old_file in self.release.iterdir():
+            old_file.unlink()
+        self.info['CFBundleShortVersionString'] = version
+        self.archive_name = f'DontsTool-{version}-macos-universal.zip'
+        self.environment['DT_TEST_VERSION'] = version
+        (self.app / 'Contents/Info.plist').write_bytes(plistlib.dumps(self.info))
+        subprocess.run(['codesign', '--force', '--sign', '-', '--timestamp=none', str(self.app)],
+                       check=True, capture_output=True)
+        archive = self.release / self.archive_name
+        subprocess.run(['ditto', '-c', '-k', '--sequesterRsrc', '--keepParent', str(self.app), str(archive)], check=True)
+        self.checksums(manifest_extra=manifest_extra)
 
     def run_install(self, *args, **environment):
         return subprocess.run(['bash', str(ROOT / 'install.sh'), '--dir', str(self.target), *args],
@@ -229,6 +246,60 @@ exec /bin/mv "$@"
         installed = self.target / 'DontsTool.app'
         self.assertFalse((installed / 'DontsTool.app').exists())
         subprocess.run(['codesign', '--verify', '--deep', '--strict', str(installed)], check=True, capture_output=True)
+
+    def test_notarized_release_rejects_signing_downgrade_in_manifest(self):
+        cases = [
+            {'signing': 'ad-hoc', 'teamId': 'Q2K3CAKGG2', 'notarized': True},
+            {'signing': 'developer-id', 'teamId': 'OTHERTEAM1', 'notarized': True},
+            {'signing': 'developer-id', 'teamId': 'Q2K3CAKGG2', 'notarized': False},
+            {},
+        ]
+        for extra in cases:
+            with self.subTest(extra=extra):
+                self.prepare_release('0.2.10', manifest_extra=extra)
+                self.assert_rejected(self.run_install('--version', 'v0.2.10'), '发布签名元数据无效')
+                self.assertFalse((self.target / 'DontsTool.app').exists())
+
+    def test_notarized_release_rejects_adhoc_signed_bundle(self):
+        self.prepare_release('0.2.10', manifest_extra={
+            'signing': 'developer-id', 'teamId': 'Q2K3CAKGG2', 'notarized': True
+        })
+        self.assert_rejected(self.run_install('--version', 'v0.2.10'), '应用签名完整性检查失败')
+        self.assertFalse((self.target / 'DontsTool.app').exists())
+
+    def test_notarized_release_verifies_developer_id_and_stapler(self):
+        self.prepare_release('0.2.10', manifest_extra={
+            'signing': 'developer-id', 'teamId': 'Q2K3CAKGG2', 'notarized': True
+        })
+        codesign_log = self.root / 'codesign.log'
+        xcrun_log = self.root / 'xcrun.log'
+        self.mock('codesign', '''#!/usr/bin/env python3
+import os, subprocess, sys
+args = sys.argv[1:]
+req_args = [a for a in args if a.startswith('-R=')]
+if req_args:
+    assert 'Q2K3CAKGG2' in req_args[0], f'Missing team ID in requirement: {req_args[0]}'
+    with open(os.environ['DT_TEST_CODESIGN_LOG'], 'a') as f:
+        f.write(req_args[0] + '\\n')
+    filtered = [a for a in args if not a.startswith('-R=')]
+    sys.exit(subprocess.call(['/usr/bin/codesign', *filtered]))
+sys.exit(subprocess.call(['/usr/bin/codesign', *args]))
+''')
+        self.mock('xcrun', '''#!/usr/bin/env python3
+import os, sys
+args = sys.argv[1:]
+assert len(args) == 3 and args[0] == 'stapler' and args[1] == 'validate', f'Unexpected xcrun args: {args}'
+with open(os.environ['DT_TEST_XCRUN_LOG'], 'a') as f:
+    f.write(args[2] + '\\n')
+''')
+        result = self.run_install('--version', 'v0.2.10',
+                                  DT_TEST_CODESIGN_LOG=str(codesign_log),
+                                  DT_TEST_XCRUN_LOG=str(xcrun_log))
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(len(codesign_log.read_text().splitlines()), 3)
+        self.assertEqual(len(xcrun_log.read_text().splitlines()), 3)
+        self.assertNotIn('未经 Apple 公证', result.stdout)
+        self.assertTrue((self.target / 'DontsTool.app').is_dir())
 
 
 if __name__ == '__main__':

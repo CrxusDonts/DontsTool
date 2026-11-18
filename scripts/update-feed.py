@@ -31,7 +31,12 @@ def metadata(dist):
     require(isinstance(value.get('build'), str) and re.fullmatch(r'[1-9][0-9]*', value['build']), 'A positive build number is required.')
     require(value.get('name') == 'DontsTool' and value.get('platform') == 'macOS', 'Unexpected application metadata.')
     require(value.get('architectures') == ['arm64', 'x86_64'], 'A Universal archive is required.')
-    require(value.get('signing') == 'ad-hoc' and value.get('notarized') is False, 'Unexpected application signing metadata.')
+    require(
+        value.get('signing') == 'developer-id'
+        and value.get('teamId') == 'Q2K3CAKGG2'
+        and value.get('notarized') is True,
+        'Unexpected application signing metadata.',
+    )
     require(isinstance(value.get('commit'), str) and re.fullmatch(r'[0-9a-f]{40}', value['commit']), 'A full source commit is required.')
     require(value.get('archive') == f"DontsTool-{value['version']}-macos-universal.zip", 'Unexpected archive name.')
     require(value.get('minimumSystemVersion') == '26.0', 'Unexpected minimum system version.')

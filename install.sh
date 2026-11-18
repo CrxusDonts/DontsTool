@@ -125,6 +125,10 @@ dt_check_hash() {
   [[ "${dt_actual%% *}" == "$dt_expected" ]] || dt_fail "SHA256 校验失败：$dt_file"
 }
 dt_check_hash manifest.json
+if dt_version_ge "$dt_version" 0.2.10; then
+  [[ "$(dt_json signing 2>/dev/null || true)" == 'developer-id' && "$(dt_json teamId 2>/dev/null || true)" == 'Q2K3CAKGG2' && "$(dt_json notarized 2>/dev/null || true)" == 'true' ]] \
+    || dt_fail '发布签名元数据无效'
+fi
 printf '正在下载 DontsTool %s…\n' "$dt_version"
 dt_fetch "$dt_base/download/$dt_tag/$dt_archive" "$dt_work/$dt_archive"
 dt_check_hash "$dt_archive"
@@ -141,17 +145,28 @@ dt_app="$dt_work/extracted/DontsTool.app"
 [[ -d "$dt_app" && ! -L "$dt_app" ]] || dt_fail '安装包缺少 DontsTool.app'
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$dt_app/Contents/Info.plist")" == 'com.donts.DontsTool' ]] || dt_fail '应用标识不匹配'
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$dt_app/Contents/Info.plist")" == "$dt_version" ]] || dt_fail '应用版本不匹配'
-codesign --verify --deep --strict "$dt_app" || dt_fail '应用签名完整性检查失败'
+dt_req='identifier "com.donts.DontsTool" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] and certificate leaf[field.1.2.840.113635.100.6.1.13] and certificate leaf[subject.OU] = "Q2K3CAKGG2"'
+dt_verify_app() {
+  if dt_version_ge "$dt_version" 0.2.10; then
+    codesign --verify --deep --strict -R="$dt_req" "$1" || dt_fail "$2"
+    xcrun stapler validate "$1" >/dev/null 2>&1 || dt_fail '应用公证票据校验失败'
+  else
+    codesign --verify --deep --strict "$1" || dt_fail "$2"
+  fi
+}
+dt_verify_app "$dt_app" '应用签名完整性检查失败'
 
 dt_stage="$(mktemp -d "$dt_install_dir/.DontsTool-install.XXXXXX")"
 ditto "$dt_app" "$dt_stage/DontsTool.app"
-codesign --verify --deep --strict "$dt_stage/DontsTool.app" || dt_fail '安装副本签名完整性检查失败'
+dt_verify_app "$dt_stage/DontsTool.app" '安装副本签名完整性检查失败'
 dt_check_stopped
 if [[ -e "$dt_target" ]]; then mv "$dt_target" "$dt_stage/previous.app"; fi
 [[ ! -e "$dt_target" && ! -L "$dt_target" ]] || dt_fail '安装位置被其他操作占用，请检查后重试'
 mv "$dt_stage/DontsTool.app" "$dt_target"
-codesign --verify --deep --strict "$dt_target" || dt_fail '安装后签名完整性检查失败'
+dt_verify_app "$dt_target" '安装后签名完整性检查失败'
 dt_installed=1
 printf '\n已安装 DontsTool %s：%s\n' "$dt_version" "$dt_target"
 printf '请在访达中打开应用，按 ⌥ Space 呼出启动器。\n'
-printf '当前发布使用本地签名，未经 Apple 公证。如被系统拦截，请在「系统设置 → 隐私与安全性」允许打开。\n'
+if ! dt_version_ge "$dt_version" 0.2.10; then
+  printf '当前发布使用本地签名，未经 Apple 公证。如被系统拦截，请在「系统设置 → 隐私与安全性」允许打开。\n'
+fi

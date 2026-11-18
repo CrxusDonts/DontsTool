@@ -7,6 +7,7 @@ struct ToolEditorPane<Actions: View>: View {
     var readOnly = false
     var json = false
     var wrap = true
+    var folding = false
     var selection: EditorSelection?
     var name: Binding<String>?
     var active = true
@@ -52,6 +53,7 @@ struct ToolEditorPane<Actions: View>: View {
                 readOnly: readOnly,
                 json: json,
                 wrap: wrap,
+                folding: folding,
                 selection: selection,
                 active: active,
                 editRevision: editRevision,

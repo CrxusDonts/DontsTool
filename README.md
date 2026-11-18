@@ -38,11 +38,11 @@ curl -fsSL https://raw.githubusercontent.com/CrxusDonts/DontsTool/main/install.s
 2. 解压后将 `DontsTool.app` 拖入「应用程序」目录。
 3. 从「应用程序」打开 DontsTool，按 `⌥ Space` 开始使用。更新时先保存草稿并正常退出旧版，再替换应用。
 
-### 首次打开：本地签名
+### 签名与公证说明
 
-当前发布包采用 **ad-hoc 本地签名**，未经 Apple 官方公证。签名完整性校验通过不代表已经过 Apple 审查。
+自 `0.2.10` 起，正式发布包使用 **Apple Developer ID（Team ID: `Q2K3CAKGG2`）** 签名并通过 Apple 官方公证，安装后可直接打开。
 
-如果首次打开被系统拦截，先尝试打开一次，再到 **系统设置 → 隐私与安全性**，找到 DontsTool 对应的提示并选择 **仍要打开**。
+如果安装的是 `0.2.9` 或更早的历史版本（采用 ad-hoc 本地签名），首次打开被系统拦截时，先尝试打开一次，再到 **系统设置 → 隐私与安全性**，找到 DontsTool 对应的提示并选择 **仍要打开**。
 
 ## 开始使用
 

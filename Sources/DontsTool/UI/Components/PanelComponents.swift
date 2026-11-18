@@ -101,8 +101,6 @@ struct GroupHeader: View {
             isDefaultList ? "常用" : "应用"
         case .tool:
             "工具"
-        case .knowledge:
-            "知识库"
         case .file:
             "文件"
         case .web:

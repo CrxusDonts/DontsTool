@@ -5,7 +5,7 @@ CONFIG ?= Debug
 DERIVED := build
 APP := $(DERIVED)/Build/Products/$(CONFIG)/$(APP_NAME).app
 
-.PHONY: project build app run test test-bridge test-updater test-installer editor test-editor release clean distclean
+.PHONY: project build app run test test-bridge test-updater test-installer editor test-editor test-sync-worker release clean distclean
 
 project:
 	xcodegen generate --spec project.yml
@@ -42,6 +42,9 @@ editor:
 
 test-editor:
 	cd Web/NotesEditor && npm ci && npm test && npm run build
+
+test-sync-worker:
+	cd CloudSync && npm ci && npm run check && npm test
 
 release:
 	DT_DERIVED_DATA="$(abspath $(DERIVED))" ./scripts/package-release.sh

@@ -38,7 +38,6 @@ struct SettingsStoreTests {
         #expect(store.translationTarget == "zh-Hans")
         #expect(!store.selectionTranslationEnabled)
         #expect(!store.hasCompletedOnboarding)
-        #expect(store.knowledgeBaseURL.isEmpty)
     }
 
     @Test func changesPersist() {
@@ -51,7 +50,6 @@ struct SettingsStoreTests {
         store.setFileSearchEnabled(false)
         store.setTranslationTarget("ja")
         store.setSelectionTranslationEnabled(true)
-        store.setKnowledgeBaseURL("https://kb.example.com")
         store.completeOnboarding()
 
         let reloaded = SettingsStore(defaults: defaults, systemLanguageCode: "en")
@@ -61,7 +59,6 @@ struct SettingsStoreTests {
         #expect(reloaded.translationTarget == "ja")
         #expect(reloaded.selectionTranslationEnabled)
         #expect(reloaded.hasCompletedOnboarding)
-        #expect(reloaded.knowledgeBaseURL == "https://kb.example.com")
     }
 
     @Test func doubleTapHotKeyPersists() {
@@ -94,12 +91,11 @@ struct SettingsStoreTests {
         defer { defaults.removePersistentDomain(forName: name) }
         defaults.set(oldEnabled, forKey: "dontstool.enabledProviders")
 
-        let newBuiltIns = ["knowledge", "calculator", "quickOpen", "gemini", "ideaProjects", "notes"]
+        let newBuiltIns = ["calculator", "quickOpen", "gemini", "ideaProjects", "notes"]
         let migrated = SettingsStore(defaults: defaults, systemLanguageCode: "en")
         #expect(migrated.enabledProviderIDs == Set(oldEnabled + newBuiltIns))
         #expect(Set(defaults.array(forKey: "dontstool.enabledProviders") as? [String] ?? []) == Set(oldEnabled + newBuiltIns))
 
-        migrated.setProviderEnabled("knowledge", to: false)
         migrated.setProviderEnabled("calculator", to: false)
         migrated.setProviderEnabled("gemini", to: false)
         migrated.setProviderEnabled("ideaProjects", to: false)
@@ -114,13 +110,30 @@ struct SettingsStoreTests {
         let (defaults, name) = makeDefaults()
         defer { defaults.removePersistentDomain(forName: name) }
         defaults.set(["app"], forKey: "dontstool.enabledProviders")
-        for key in ["knowledgeProviderMigrationCompleted", "builtInProviderDefaultsV2Completed", "applicationWorkflowsMigrationCompleted"] {
+        for key in ["builtInProviderDefaultsV2Completed", "applicationWorkflowsMigrationCompleted"] {
             defaults.set(true, forKey: "dontstool." + key)
         }
         let migrated = SettingsStore(defaults: defaults)
         #expect(migrated.enabledProviderIDs == ["app", "notes"])
         migrated.setProviderEnabled("notes", to: false)
         #expect(SettingsStore(defaults: defaults).enabledProviderIDs == ["app"])
+    }
+
+    @Test func legacyKnowledgePreferencesAreIgnoredAndCleanedOnLoad() {
+        let (defaults, name) = makeDefaults()
+        defer { defaults.removePersistentDomain(forName: name) }
+        defaults.set(["app", "knowledge", "notes"], forKey: "dontstool.enabledProviders")
+        defaults.set("https://kb.example.com", forKey: "dontstool.knowledgeBaseURL")
+        for key in [
+            "knowledgeProviderMigrationCompleted",
+            "builtInProviderDefaultsV2Completed",
+            "applicationWorkflowsMigrationCompleted",
+            "notesProviderMigrationCompleted"
+        ] {
+            defaults.set(true, forKey: "dontstool." + key)
+        }
+        let store = SettingsStore(defaults: defaults)
+        #expect(store.enabledProviderIDs == ["app", "notes"])
     }
 
     @Test func applicationSortDefaultsToRecentUse() {

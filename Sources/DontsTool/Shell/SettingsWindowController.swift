@@ -11,12 +11,16 @@ final class SettingsWindowController: NSWindowController {
         settings: SettingsStore,
         websites: WebsiteShortcutStore,
         searchEngines: SearchEngineStore,
+        notes: LocalNoteStore,
+        sync: CloudSyncCoordinator,
         login: LoginItemManager,
         secrets: SecretStoring,
         appIndex: AppIndex,
         selectionTranslation: SelectionTranslationController,
         onRescan: @escaping () -> Void,
-        onHotKeyRecordingChanged: @escaping (Bool) -> Void
+        onHotKeyRecordingChanged: @escaping (Bool) -> Void,
+        prepareBackup: @escaping @MainActor () async -> Void,
+        didRestoreBackup: @escaping @MainActor () -> Void
     ) {
         let window = NSWindow(
             contentRect: NSRect(origin: .zero, size: Metrics.settingsSize),
@@ -33,13 +37,17 @@ final class SettingsWindowController: NSWindowController {
             settings: settings,
             websites: websites,
             searchEngines: searchEngines,
+            notes: notes,
+            sync: sync,
             login: login,
             secrets: secrets,
             appIndex: appIndex,
             selectionTranslation: selectionTranslation,
             navigation: navigation,
             onRescan: onRescan,
-            onHotKeyRecordingChanged: onHotKeyRecordingChanged
+            onHotKeyRecordingChanged: onHotKeyRecordingChanged,
+            prepareBackup: prepareBackup,
+            didRestoreBackup: didRestoreBackup
         ))
         super.init(window: window)
     }

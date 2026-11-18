@@ -69,7 +69,7 @@ public struct SearchEngineConfiguration: Codable, Equatable, Sendable {
     public var engines: [SearchEngineDefinition]
     public static let maximumBytes = 1_048_576
     public static let reservedKeywords = Set(ToolKind.allCases.flatMap(\.keywords) + [
-        "kb", "collect", "inbox", "open", "idea", "calc", "=", "gm", "gemini", "file"
+        "open", "idea", "calc", "=", "gm", "gemini", "file"
     ])
 
     public init(version: Int = 1, defaultEngineID: String, engines: [SearchEngineDefinition]) {

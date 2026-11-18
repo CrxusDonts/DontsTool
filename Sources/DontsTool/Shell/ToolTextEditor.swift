@@ -13,6 +13,7 @@ struct ToolTextEditor: NSViewRepresentable {
     var readOnly = false
     var json = false
     var wrap = true
+    var folding = false
     var selection: EditorSelection?
     var active = true
     var editRevision = 0
@@ -48,6 +49,7 @@ struct ToolTextEditor: NSViewRepresentable {
         view.setAccessibilityLabel(label)
         scroll.documentView = view
         let ruler = LineNumberRuler(textView: view)
+        ruler.coordinator = context.coordinator
         scroll.verticalRulerView = ruler; scroll.hasVerticalRuler = true; scroll.rulersVisible = true
         context.coordinator.textView = view
         scroll.contentView.postsBoundsChangedNotifications = true
@@ -66,6 +68,7 @@ struct ToolTextEditor: NSViewRepresentable {
         // Hidden editors still need to apply native undo actions from the shared history.
         // Visibility and responder removal already prevent user input in the inactive mode.
         view.isEditable = !readOnly
+        (view as? WorkspaceTextView)?.formatsWholeJSONPaste = folding
         scroll.hasHorizontalScroller = !wrap
         view.isHorizontallyResizable = !wrap
         view.textContainer?.widthTracksTextView = wrap
@@ -90,6 +93,7 @@ struct ToolTextEditor: NSViewRepresentable {
         coordinator.editRevision = editRevision
         coordinator.initialized = true
         if let selection, coordinator.selectionID != selection.id {
+            coordinator.expandAll()
             coordinator.selectionID = selection.id
             let count = view.string.utf16.count
             let location = min(selection.range.location, count)
@@ -98,13 +102,18 @@ struct ToolTextEditor: NSViewRepresentable {
             // Selecting a diff must not steal keyboard focus from the difference list.
             view.showFindIndicator(for: range)
         }
+        view.layoutManager?.delegate = folding ? coordinator : nil
+        scroll.verticalRulerView?.ruleThickness = folding ? 54 : 46
+        scroll.verticalRulerView?.toolTip = folding ? "点击箭头折叠或展开 JSON；同一行有多个容器时可选择目标" : nil
+        coordinator.invalidateFoldsIfNeeded()
         coordinator.decorate()
     }
     static func dismantleNSView(_ view: NSScrollView, coordinator: Coordinator) {
         if let observer = coordinator.scrollObserver { NotificationCenter.default.removeObserver(observer) }
         coordinator.decoration?.cancel()
+        coordinator.cancelFoldScan()
     }
-    @MainActor final class Coordinator: NSObject, NSTextViewDelegate {
+    @MainActor final class Coordinator: NSObject, NSTextViewDelegate, @preconcurrency NSLayoutManagerDelegate {
         var parent: ToolTextEditor
         weak var textView: NSTextView?
         var updating = false
@@ -113,11 +122,110 @@ struct ToolTextEditor: NSViewRepresentable {
         var selectionID: UUID?
         var scrollObserver: NSObjectProtocol?
         var decoration: DispatchWorkItem?
+        var foldModel = JSONFoldModel("")
+        var foldScan: Task<JSONFoldModel, Never>?
+        var foldScanSource: String?
+        var foldScanRevision = 0
+        func cancelFoldScan() {
+            foldScanRevision += 1
+            foldScan?.cancel()
+            foldScan = nil
+            foldScanSource = nil
+        }
+        func scheduleFoldScan() {
+            guard let view = textView else { return }
+            let source = parent.folding ? view.string : ""
+            guard !foldModel.source.utf16.elementsEqual(source.utf16),
+                  foldScanSource.map({ !$0.utf16.elementsEqual(source.utf16) }) ?? true else { return }
+            cancelFoldScan()
+            foldScanSource = source
+            let revision = foldScanRevision
+            let scan = Task.detached(priority: .userInitiated) { JSONFoldModel(source) }
+            foldScan = scan
+            Task { @MainActor [weak self] in
+                let model = await scan.value
+                guard let self, !scan.isCancelled, self.foldScanRevision == revision,
+                      let view = self.textView, self.parent.folding,
+                      view.string.utf16.elementsEqual(source.utf16) else { return }
+                self.foldModel = model
+                self.foldScan = nil
+                self.foldScanSource = nil
+                view.enclosingScrollView?.verticalRulerView?.needsDisplay = true
+            }
+        }
+        var collapsed: Set<Int> = []
+        func invalidateFoldsIfNeeded() {
+            guard let view = textView else { return }
+            let source = parent.folding ? view.string : ""
+            let currentSource = foldScanSource ?? foldModel.source
+            guard !currentSource.utf16.elementsEqual(source.utf16) else { return }
+            cancelFoldScan()
+            let hadFolds = !collapsed.isEmpty
+            collapsed.removeAll()
+            foldModel = JSONFoldModel("")
+            if hadFolds {
+                let range = NSRange(location: 0, length: view.string.utf16.count)
+                view.layoutManager?.invalidateGlyphs(forCharacterRange: range, changeInLength: 0, actualCharacterRange: nil)
+                view.layoutManager?.invalidateLayout(forCharacterRange: range, actualCharacterRange: nil)
+            }
+        }
+        func isHidden(_ index: Int) -> Bool {
+            let location = foldModel.ranges[index].location
+            return collapsed.contains { other in other != index && location > foldModel.ranges[other].location && location < NSMaxRange(foldModel.ranges[other]) - 1 }
+        }
+        func expandAll() {
+            guard !collapsed.isEmpty, let view = textView else { return }
+            collapsed.removeAll()
+            let range = NSRange(location: 0, length: view.string.utf16.count)
+            view.layoutManager?.invalidateGlyphs(forCharacterRange: range, changeInLength: 0, actualCharacterRange: nil)
+            view.layoutManager?.invalidateLayout(forCharacterRange: range, actualCharacterRange: nil)
+            view.enclosingScrollView?.verticalRulerView?.needsDisplay = true
+        }
+        func toggleFold(_ index: Int) {
+            guard let view = textView, foldModel.ranges.indices.contains(index) else { return }
+            if collapsed.contains(index) { collapsed.remove(index) } else { collapsed.insert(index) }
+            let range = foldModel.ranges[index]
+            if view.selectedRange().location > range.location && view.selectedRange().location < NSMaxRange(range) - 1 { view.setSelectedRange(NSRange(location: range.location, length: 0)) }
+            // Glyph and layout caches are independent; both must reflect the new visibility.
+            view.layoutManager?.invalidateGlyphs(forCharacterRange: range, changeInLength: 0, actualCharacterRange: nil)
+            view.layoutManager?.invalidateLayout(forCharacterRange: range, actualCharacterRange: nil)
+            view.needsDisplay = true
+            view.enclosingScrollView?.verticalRulerView?.needsDisplay = true
+        }
+        func layoutManager(_ layoutManager: NSLayoutManager, shouldSetLineFragmentRect rect: UnsafeMutablePointer<NSRect>, lineFragmentUsedRect used: UnsafeMutablePointer<NSRect>, baselineOffset: UnsafeMutablePointer<CGFloat>, in textContainer: NSTextContainer, forGlyphRange glyphRange: NSRange) -> Bool {
+            guard !collapsed.isEmpty, glyphRange.length > 0 else { return false }
+            let first = layoutManager.characterIndexForGlyph(at: glyphRange.location)
+            let last = layoutManager.characterIndexForGlyph(at: NSMaxRange(glyphRange) - 1)
+            guard collapsed.contains(where: { index in let range = foldModel.ranges[index]; return first > range.location && last < NSMaxRange(range) - 1 }) else { return false }
+            rect.pointee.size.height = 0; used.pointee.size.height = 0; baselineOffset.pointee = 0
+            return true
+        }
+        func layoutManager(_ layoutManager: NSLayoutManager, shouldGenerateGlyphs glyphs: UnsafePointer<CGGlyph>, properties: UnsafePointer<NSLayoutManager.GlyphProperty>, characterIndexes: UnsafePointer<Int>, font: NSFont, forGlyphRange glyphRange: NSRange) -> Int {
+            guard !collapsed.isEmpty else { return 0 }
+            var newGlyphs = Array(UnsafeBufferPointer(start: glyphs, count: glyphRange.length))
+            var newProperties = Array(UnsafeBufferPointer(start: properties, count: glyphRange.length))
+            var changed = false
+            for i in 0..<glyphRange.length {
+                let position = characterIndexes[i]
+                // Keep newline control glyphs so TextKit can lay out and collapse their line fragments.
+                if collapsed.contains(where: { index in let range = foldModel.ranges[index]; return position > range.location && position < NSMaxRange(range) - 1 }) && !newProperties[i].contains(.controlCharacter) {
+                    newGlyphs[i] = 0; newProperties[i] = .null; changed = true
+                }
+            }
+            guard changed else { return 0 }
+            layoutManager.setGlyphs(&newGlyphs, properties: &newProperties, characterIndexes: characterIndexes, font: font, forGlyphRange: glyphRange)
+            return glyphRange.length
+        }
         init(_ parent: ToolTextEditor) { self.parent = parent }
         func undoManager(for view: NSTextView) -> UndoManager? { parent.sharedUndoManager }
+        func textView(_ textView: NSTextView, shouldChangeTextIn affectedCharRange: NSRange, replacementString: String?) -> Bool {
+            expandAll()
+            return true
+        }
         func textDidChange(_ notification: Notification) {
             guard !updating, let textView else { return }
             parent.text = textView.string
+            invalidateFoldsIfNeeded()
             decorate()
         }
         func decorate() {
@@ -128,6 +236,7 @@ struct ToolTextEditor: NSViewRepresentable {
         }
         private func applyDecoration() {
             guard let view = textView, !view.hasMarkedText(), let layout = view.layoutManager else { return }
+            scheduleFoldScan()
             if let ruler = view.enclosingScrollView?.verticalRulerView as? LineNumberRuler { ruler.updateLines(view.string) }
             view.enclosingScrollView?.verticalRulerView?.needsDisplay = true
             let count = view.string.utf16.count
@@ -153,7 +262,24 @@ struct ToolTextEditor: NSViewRepresentable {
     }
 }
 
-private final class WorkspaceTextView: NSTextView {
+final class WorkspaceTextView: NSTextView {
+    var formatsWholeJSONPaste = false
+    func pasteWholeJSONIfNeeded(from pasteboard: NSPasteboard) -> Bool {
+        let range = selectedRange()
+        guard formatsWholeJSONPaste, isEditable, !hasMarkedText(), range.location == 0,
+              range.length == string.utf16.count,
+              let pasted = pasteboard.string(forType: .string) else { return false }
+        insertText(JSONPaste.formatted(pasted), replacementRange: range)
+        return true
+    }
+    override func paste(_ sender: Any?) {
+        if pasteWholeJSONIfNeeded(from: .general) { return }
+        super.paste(sender)
+    }
+    override func pasteAsPlainText(_ sender: Any?) {
+        if pasteWholeJSONIfNeeded(from: .general) { return }
+        super.pasteAsPlainText(sender)
+    }
     var onFocusChange: ((Bool) -> Void)?
     override func becomeFirstResponder() -> Bool {
         let became = super.becomeFirstResponder()
@@ -185,6 +311,7 @@ private final class WorkspaceTextView: NSTextView {
 }
 private final class LineNumberRuler: NSRulerView {
     weak var textView: NSTextView?
+    weak var coordinator: ToolTextEditor.Coordinator?
     private var cachedText = ""
     private var lineIndex = TextLineIndex("")
     func updateLines(_ text: String) {
@@ -198,6 +325,28 @@ private final class LineNumberRuler: NSRulerView {
         ruleThickness = 46; clientView = textView
     }
     required init(coder: NSCoder) { fatalError() }
+    override func mouseDown(with event: NSEvent) {
+        guard let text = textView, let layout = text.layoutManager, let container = text.textContainer, let coordinator else { return }
+        let point = convert(event.locationInWindow, from: nil)
+        guard point.x >= ruleThickness - 18 else { return }
+        let y = point.y + text.visibleRect.minY - text.textContainerInset.height
+        layout.ensureLayout(for: container)
+        guard y >= 0, y < layout.usedRect(for: container).maxY, layout.numberOfGlyphs > 0 else { return }
+        let glyph = layout.glyphIndex(for: NSPoint(x: 0, y: y), in: container)
+        let line = lineIndex.lineNumber(atUTF16Offset: layout.characterIndexForGlyph(at: glyph))
+        let candidates = (coordinator.foldModel.byLine[line] ?? []).filter { !coordinator.isHidden($0) }
+        if candidates.count == 1 { coordinator.toggleFold(candidates[0]); return }
+        guard !candidates.isEmpty else { return }
+        let menu = NSMenu()
+        for index in candidates {
+            let range = coordinator.foldModel.ranges[index]
+            let snippet = (coordinator.foldModel.source as NSString).substring(with: NSRange(location: range.location, length: min(range.length, 35))).replacingOccurrences(of: "\n", with: " ").replacingOccurrences(of: "\r", with: " ")
+            let item = NSMenuItem(title: (coordinator.collapsed.contains(index) ? "展开 " : "折叠 ") + snippet, action: #selector(toggleMenuItem(_:)), keyEquivalent: "")
+            item.target = self; item.tag = index; menu.addItem(item)
+        }
+        NSMenu.popUpContextMenu(menu, with: event, for: self)
+    }
+    @objc private func toggleMenuItem(_ item: NSMenuItem) { coordinator?.toggleFold(item.tag) }
     override func drawHashMarksAndLabels(in rect: NSRect) {
         ToolTheme.gutterNS.setFill(); bounds.fill()
         guard let text = textView, let layout = text.layoutManager, let container = text.textContainer else { return }
@@ -205,6 +354,7 @@ private final class LineNumberRuler: NSRulerView {
         let glyphRange = layout.glyphRange(forBoundingRect: text.visibleRect, in: container)
         var previousLine = -1
         layout.enumerateLineFragments(forGlyphRange: glyphRange) { [self] _, used, _, glyphs, _ in
+            guard used.height > 0 else { return }
             let chars = layout.characterRange(forGlyphRange: glyphs, actualGlyphRange: nil)
             let line = lineIndex.lineNumber(atUTF16Offset: min(chars.location, source.length))
             guard line != previousLine else { return }
@@ -212,7 +362,46 @@ private final class LineNumberRuler: NSRulerView {
             let y = used.minY + text.textContainerInset.height - text.visibleRect.minY
             let label = "\(line)" as NSString
             let attributes: [NSAttributedString.Key: Any] = [.font: NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .regular), .foregroundColor: ToolTheme.secondaryNS]
-            label.draw(at: NSPoint(x: ruleThickness - label.size(withAttributes: attributes).width - 10, y: y), withAttributes: attributes)
+            let inset: CGFloat = coordinator?.parent.folding == true ? 18 : 10
+            label.draw(at: NSPoint(x: ruleThickness - label.size(withAttributes: attributes).width - inset, y: y), withAttributes: attributes)
+            if let coordinator {
+                let candidates = (coordinator.foldModel.byLine[line] ?? []).filter { !coordinator.isHidden($0) }
+                if !candidates.isEmpty {
+                    let icon = (candidates.contains(where: { coordinator.collapsed.contains($0) }) ? "▸" : "▾") as NSString
+                    icon.draw(at: NSPoint(x: ruleThickness - 14, y: y), withAttributes: attributes)
+                }
+            }
         }
+    }
+}
+
+struct JSONFoldModel: Sendable {
+    let source: String
+    let ranges: [NSRange]
+    let byLine: [Int: [Int]]
+    init(_ source: String) {
+        self.source = source
+        guard let document = try? JSONDocument.parse(source) else { ranges = []; byLine = [:]; return }
+        var found: [NSRange] = [], pending = [document.root]
+        while let node = pending.popLast() {
+            switch node.value {
+            case .object(let members) where !members.isEmpty:
+                found.append(node.range); pending.append(contentsOf: members.reversed().map(\.value))
+            case .array(let items) where !items.isEmpty:
+                found.append(node.range); pending.append(contentsOf: items.reversed())
+            default: break
+            }
+        }
+        ranges = found
+        let lines = TextLineIndex(source)
+        var index: [Int: [Int]] = [:]
+        for (i, range) in found.enumerated() { index[lines.lineNumber(atUTF16Offset: range.location), default: []].append(i) }
+        byLine = index
+    }
+}
+
+enum JSONPaste {
+    static func formatted(_ pasted: String) -> String {
+        (try? JSONDocument.parse(pasted).formatted(pretty: true)) ?? pasted
     }
 }
