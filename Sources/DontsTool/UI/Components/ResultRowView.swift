@@ -223,3 +223,72 @@ struct AppDockTileView: View {
         }
     }
 }
+
+/// 空搜索态下的紧凑工具网格卡片：单色图标 + 简短标题，大幅减少工具区纵向占用。
+struct ToolGridTileView: View {
+    let item: SearchItem
+    let isSelected: Bool
+    let onExecute: () -> Void
+    @State private var isHovered = false
+
+    private var compactTitle: String {
+        switch item.title {
+        case "JSON 工具", "JSON 工作台": return "JSON"
+        case "Base64 编解码": return "Base64"
+        case "URL 编解码": return "URL"
+        case "时间戳转换": return "时间戳"
+        case "UUID 生成器": return "UUID"
+        default: return item.title
+        }
+    }
+
+    var body: some View {
+        Button(action: onExecute) {
+            HStack(spacing: 8) {
+                tileIcon
+                    .frame(width: 18, height: 18)
+                Text(compactTitle)
+                    .font(.system(size: 12.5, weight: isSelected ? .medium : .regular))
+                    .foregroundStyle(Theme.ink)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                Spacer(minLength: 0)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 36)
+            .padding(.horizontal, 10)
+            .background(
+                RoundedRectangle(cornerRadius: Metrics.rowCornerRadius)
+                    .fill(isSelected ? Color.clear : (isHovered ? Theme.rowHover : Theme.controlFill.opacity(0.45)))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: Metrics.rowCornerRadius)
+                    .strokeBorder(isSelected ? Color.clear : Theme.separator, lineWidth: 0.5)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: Metrics.rowCornerRadius))
+        }
+        .buttonStyle(LauncherPressStyle())
+        .onHover { isHovered = $0 }
+        .animation(Motion.hoverEasing, value: isHovered)
+        .accessibilityLabel("\(item.title)，\(item.primaryAction?.title ?? "打开")")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    @ViewBuilder
+    private var tileIcon: some View {
+        switch item.icon {
+        case .application(let path), .file(let path):
+            Image(nsImage: FileIconImage.image(for: path))
+                .resizable()
+                .scaledToFit()
+        case .symbol(let name, _):
+            Image(systemName: name)
+                .font(.system(size: 15, weight: .regular))
+                .foregroundStyle(Theme.secondary)
+        case .glyph(let text, _):
+            Text(text)
+                .font(.system(size: 11.5, weight: .semibold, design: .monospaced))
+                .foregroundStyle(Theme.secondary)
+        }
+    }
+}

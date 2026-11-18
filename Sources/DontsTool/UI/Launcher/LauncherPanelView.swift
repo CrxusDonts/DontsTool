@@ -101,6 +101,23 @@ struct LauncherPanelView: View {
                                 }
                                 .padding(.horizontal, 2)
                                 .padding(.bottom, 6)
+                            } else if model.isDefaultList && section.group == .tool {
+                                LazyVGrid(
+                                    columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 4),
+                                    spacing: 6
+                                ) {
+                                    ForEach(Array(section.items.enumerated()), id: \.element.id) { offset, item in
+                                        let index = section.startIndex + offset
+                                        ToolGridTileView(
+                                            item: item,
+                                            isSelected: index == model.selectedIndex,
+                                            onExecute: { onExecute(index, false) }
+                                        )
+                                        .id(item.id)
+                                        .anchorPreference(key: SelectionBoundsKey.self, value: .bounds) { [item.id: $0] }
+                                    }
+                                }
+                                .padding(.horizontal, 2)
                             } else {
                                 ForEach(Array(section.items.enumerated()), id: \.element.id) { offset, item in
                                     let index = section.startIndex + offset
@@ -155,8 +172,6 @@ struct LauncherPanelView: View {
     private func sectionHeader(_ section: LauncherPanelModel.Section) -> some View {
         if section.group == .app, model.isDefaultList {
             HStack {
-                Text(settings.applicationSortOrder.displayName).font(Theme.groupCaptionFont)
-                Spacer()
                 Menu {
                     ForEach(SettingsStore.ApplicationSortOrder.allCases) { order in
                         Button {
@@ -168,13 +183,20 @@ struct LauncherPanelView: View {
                         }
                     }
                 } label: {
-                    Label("排序", systemImage: "arrow.up.arrow.down")
-                        .font(.system(size: 10.5)).foregroundStyle(Theme.secondary)
+                    HStack(spacing: 4) {
+                        Text(settings.applicationSortOrder.displayName)
+                            .font(Theme.groupCaptionFont)
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 8.5, weight: .semibold))
+                    }
+                    .foregroundStyle(Theme.tertiary)
                 }
-                .menuStyle(.borderlessButton).fixedSize()
+                .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
+                .fixedSize()
                 .accessibilityLabel("应用排序：\(settings.applicationSortOrder.displayName)")
+                Spacer()
             }
-            .foregroundStyle(Theme.tertiary)
             .padding(.horizontal, Metrics.captionHorizontalInset)
             .padding(.vertical, Metrics.captionVerticalInset + 1)
         } else if model.attachedContent != nil {

@@ -226,4 +226,73 @@ struct LocalNoteEditorTests {
             #expect(throws: (any Error).self) { try handler.resource(for: URL(string: text)!) }
         }
     }
+
+    @Test func workspaceSwitchesNotesInPlaceDecouplesPinFromFloatingAndRendersModes() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("note-workspace-\(UUID())")
+        let store = LocalNoteStore(rootURL: root)
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let pinnedNote = try store.create(title: "发版检查清单", content: LocalNoteContent.plainText("- 备份线上配置\n- 核对 Redis 连接池"))
+        _ = try store.setPinned(pinnedNote.id, pinned: true)
+        let activeNote = try store.create(title: "排查线上 Redis 连接池超时", content: LocalNoteContent.plainText("先核对连接池上限与超时时间。"))
+        let quick = try store.appendQuickCapture("确认灰度节点日志")
+
+        let manager = LocalNoteWindowManager(store: store, resourcesURL: resources)
+        defer { manager.shutdown(); Array(manager.controllers.values).forEach { $0.window?.close() } }
+
+        manager.openNote(activeNote.id)
+        let controller = try #require(manager.controllers[activeNote.id])
+        let window = try #require(controller.window)
+        try await until { controller.session.bridge.state == .ready }
+
+        // List pin stays decoupled from floating window level.
+        #expect(window.level == .normal)
+        controller.session.togglePin()
+        #expect(store.note(activeNote.id)?.isPinned == true)
+        #expect(window.level == .normal)
+        controller.state.isWindowFloating = true
+        #expect(window.level == .floating)
+        controller.state.isWindowFloating = false
+        #expect(window.level == .normal)
+
+        // Switching notes in the sidebar flushes current edits and reuses the single workspace window.
+        try await enterMarkdown(controller.session.bridge, "# 排查线上 Redis 连接池超时\n\n- [x] 检查连接池上限\n- [ ] 验证超时重试\n\n```sh\nredis-cli info clients\n```")
+        await manager.selectNote(pinnedNote.id, in: controller)
+        #expect(manager.controllers.count == 1)
+        #expect(manager.controllers[pinnedNote.id] === controller)
+        #expect(store.note(activeNote.id)?.content.plainText.contains("检查连接池上限") == true)
+        try await until { controller.session.bridge.state == .ready }
+
+        // Capture full workspace preview (dark) and collapsed floating sticky preview (light).
+        await manager.selectNote(activeNote.id, in: controller)
+        try await until { controller.session.bridge.state == .ready }
+        window.appearance = NSAppearance(named: .darkAqua)
+        window.setContentSize(NSSize(width: 880, height: 580))
+        try await Task.sleep(for: .milliseconds(150))
+        let output = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("build/local-notes")
+        try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
+        if let contentView = window.contentView {
+            contentView.layoutSubtreeIfNeeded()
+            let bitmap = try #require(contentView.bitmapImageRepForCachingDisplay(in: contentView.bounds))
+            contentView.cacheDisplay(in: contentView.bounds, to: bitmap)
+            try #require(bitmap.representation(using: .png, properties: [:])).write(to: output.appendingPathComponent("workspace-dark.png"))
+        }
+
+        // Collapse sidebar + enable floating mode -> compact sticky scratchpad.
+        controller.toggleSidebar()
+        controller.state.isWindowFloating = true
+        #expect(!controller.state.isSidebarVisible)
+        #expect(window.contentMinSize == NSSize(width: 340, height: 380))
+        #expect(window.level == .floating)
+        window.appearance = NSAppearance(named: .aqua)
+        window.setContentSize(NSSize(width: 360, height: 440))
+        try await Task.sleep(for: .milliseconds(150))
+        if let contentView = window.contentView {
+            contentView.layoutSubtreeIfNeeded()
+            let bitmap = try #require(contentView.bitmapImageRepForCachingDisplay(in: contentView.bounds))
+            contentView.cacheDisplay(in: contentView.bounds, to: bitmap)
+            try #require(bitmap.representation(using: .png, properties: [:])).write(to: output.appendingPathComponent("sticky-light.png"))
+        }
+        #expect(store.note(quick.id)?.title.hasPrefix("速记 · ") == true)
+    }
 }

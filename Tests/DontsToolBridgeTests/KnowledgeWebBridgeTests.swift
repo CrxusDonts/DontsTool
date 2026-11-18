@@ -162,6 +162,82 @@ struct KnowledgeWebBridgeTests {
         #expect(bridge.hasBeenReady)
     }
 
+    @Test func launcherSearchUsesTheAlreadyLoadedEditor() async throws {
+        let server = try KnowledgeFixtureServer()
+        defer { server.stop() }
+        let origin = try KnowledgeOrigin("http://127.0.0.1:\(server.port)")
+        let settings = SettingsStore(defaults: UserDefaults(suiteName: UUID().uuidString)!)
+        settings.setKnowledgeBaseURL(origin.baseURL.absoluteString)
+        let manager = KnowledgeWindowManager(settings: settings)
+        defer {
+            windows(for: origin).forEach { $0.close() }
+            manager.shutdown()
+        }
+        manager.openKnowledge(.init(surface: .editor, documentID: "fixture-document"))
+        try await until { windows(for: origin).first?.bridge.isReady == true }
+
+        let results = try await manager.searchKnowledge("find-editor")
+        #expect(results.first?.title == "editor")
+        #expect(results.first?.excerpt == "find-editor")
+    }
+
+    @Test func oldSessionWindowFallsBackToASeparateSearchPage() async throws {
+        let server = try KnowledgeFixtureServer()
+        defer { server.stop() }
+        let origin = try KnowledgeOrigin("http://127.0.0.1:\(server.port)")
+        let settings = SettingsStore(defaults: UserDefaults(suiteName: UUID().uuidString)!)
+        settings.setKnowledgeBaseURL(origin.baseURL.absoluteString)
+        let manager = KnowledgeWindowManager(settings: settings)
+        defer {
+            windows(for: origin).forEach { $0.close() }
+            manager.shutdown()
+        }
+        manager.openKnowledge(.init(surface: .editor, documentID: "old-session"))
+        try await until { windows(for: origin).first?.bridge.isReady == true }
+        let original = try #require(windows(for: origin).first)
+        var searchReady = false
+        manager.onSearchChanged = { searchReady = true }
+
+        await #expect(throws: KnowledgeBridgeError.self) {
+            try await manager.searchKnowledge("current session")
+        }
+        try await until { searchReady }
+        let results = try await manager.searchKnowledge("current session")
+        #expect(results.first?.excerpt == "current session")
+        #expect(windows(for: origin).map(\.id) == [original.id])
+    }
+
+    @Test func reopeningSameArticleKeepsExistingPageButExplicitNewWindowStillWorks() async throws {
+        let server = try KnowledgeFixtureServer()
+        defer { server.stop() }
+        let origin = try KnowledgeOrigin("http://127.0.0.1:\(server.port)")
+        let settings = SettingsStore(defaults: UserDefaults(suiteName: UUID().uuidString)!)
+        settings.setKnowledgeBaseURL(origin.baseURL.absoluteString)
+        let manager = KnowledgeWindowManager(settings: settings)
+        defer {
+            windows(for: origin).forEach { $0.close() }
+            manager.shutdown()
+        }
+        let article = KnowledgeOpenRequest(surface: .editor, documentID: "fixture-document")
+        manager.openKnowledge(article)
+        try await until { windows(for: origin).first?.bridge.isReady == true }
+        let original = try #require(windows(for: origin).first)
+        _ = try await original.bridge.request(["type": "setDraft"])
+
+        manager.openKnowledge(article)
+        #expect(windows(for: origin).map(\.id) == [original.id])
+        let draft = try await original.bridge.request(["type": "readDraft"])
+        #expect(draft.contains("unsaved fixture text"))
+
+        _ = try await original.bridge.request(["type": "openExplicitWindow"])
+        try await until { windows(for: origin).count == 2 }
+    }
+
+    private func windows(for origin: KnowledgeOrigin) -> [KnowledgeWindowController] {
+        NSApp.windows.compactMap { $0.windowController as? KnowledgeWindowController }
+            .filter { $0.bridge.origin == origin }
+    }
+
     private func makeBridge(_ server: KnowledgeFixtureServer, documentID: String? = nil) throws -> KnowledgeWebBridge {
         KnowledgeWebBridge(origin: try KnowledgeOrigin("http://127.0.0.1:\(server.port)"), request: .init(surface: .editor, documentID: documentID))
     }
@@ -266,8 +342,18 @@ class Fixture(http.server.BaseHTTPRequestHandler):
             version = '999' if document == 'wrong-protocol' else '1'
             html = '''<!doctype html><meta charset="utf-8"><title>Fixture</title><script>
             const post = data => window.webkit.messageHandlers.dontsTool.postMessage(data);
+            let draft = '';
             window.dontsToolPlugin = {request: async object => {
+              if (object.type === 'search' && new URLSearchParams(location.search).get('documentId') === 'old-session') {
+                return {authenticated:false, items:[]};
+              }
+              if (object.type === 'search' && object.query === 'find-editor') {
+                return {authenticated:true, items:[{id:'fixture-document', title:new URLSearchParams(location.search).get('mode'), excerpt:object.query}]};
+              }
               if (object.type === 'search') return {authenticated:true, items:[{id:'fixture-document', title:'Fixture document', excerpt:object.query}]};
+              if (object.type === 'setDraft') { draft = 'unsaved fixture text'; return {accepted:true}; }
+              if (object.type === 'readDraft') return {draft};
+              if (object.type === 'openExplicitWindow') { post({type:'openDocument', documentId:'fixture-document'}); return {accepted:true}; }
               if (object.type === 'prepareClose') return {canClose:false};
               if (object.type === 'reportAppearance') { post({type:'appearance', scheme:object.scheme}); return {accepted:true}; }
               if (object.type === 'tryNonPluginRedirect') { location.assign('/workspace'); return {accepted:true}; }

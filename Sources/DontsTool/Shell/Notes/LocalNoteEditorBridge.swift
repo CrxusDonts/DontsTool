@@ -71,6 +71,25 @@ final class LocalNoteEditorBridge: NSObject, ObservableObject, WKNavigationDeleg
         run("window.dontsNote.setAppearance(value)", arguments: ["value": value])
     }
     func focus() { if state == .ready { run("window.dontsNote.focus()") } }
+    func reloadContent(_ next: LocalNoteContent) {
+        content = next
+        guard state == .ready, editable else { return }
+        let payload: [String: Any] = [
+            "noteID": noteID.uuidString.lowercased(),
+            "content": ["json": next.json, "markdown": next.markdown, "plainText": next.plainText],
+            "appearance": appearance
+        ]
+        webView.callAsyncJavaScript(
+            "window.dontsNote.load(payload); window.dontsNote.setEditable(editable);",
+            arguments: ["payload": payload, "editable": editable],
+            in: nil,
+            in: .page
+        ) { [weak self] result in
+            if case .failure = result {
+                self?.onError?("正文刷新未完成，已保留最新草稿。")
+            }
+        }
+    }
     func snapshot(freeze: Bool = false) async throws -> LocalNoteContent {
         guard state == .ready else {
             if !hasBeenReady { return content }

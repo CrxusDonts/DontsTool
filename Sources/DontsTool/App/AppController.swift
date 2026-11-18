@@ -74,10 +74,17 @@ final class AppController {
         let knowledgeProvider = KnowledgeProvider(settings: settings, service: knowledgeWindows)
         let noteWindows = LocalNoteWindowManager(store: notes)
         self.noteWindows = noteWindows
-        let notesProvider = NotesProvider(settings: settings, store: notes, opener: noteWindows, unavailableKeywords: { [weak self] in
-            guard let self else { return [] }
-            return Set(self.websites.configuration.groups.map(\.keyword) + self.searchEngines.configuration.engines.map(\.keyword))
-        })
+        let notesProvider = NotesProvider(
+            settings: settings,
+            store: notes,
+            opener: noteWindows,
+            clipboard: clipboard,
+            feedback: toast,
+            unavailableKeywords: { [weak self] in
+                guard let self else { return [] }
+                return Set(self.websites.configuration.groups.map(\.keyword) + self.searchEngines.configuration.engines.map(\.keyword))
+            }
+        )
         let textProvider = TextToolsProvider(settings: settings, toolOpener: toolWindows)
         let webProvider = WebSearchProvider(
             settings: settings,
@@ -115,8 +122,13 @@ final class AppController {
             knowledgeProvider, notesProvider, websiteProvider, calculatorProvider, quickOpenProvider, geminiProvider, ideaProvider
         ])
         let coordinator = SearchCoordinator(registry: registry, usage: usage)
-        let contentProvider = ContentActionProvider(settings: settings, toolOpener: toolWindows,
-            urlOpener: SystemURLOpener(), feedback: toast)
+        let contentProvider = ContentActionProvider(
+            settings: settings,
+            toolOpener: toolWindows,
+            urlOpener: SystemURLOpener(),
+            feedback: toast,
+            noteOpener: noteWindows
+        )
         let panel = LauncherPanelController(
             registry: registry,
             coordinator: coordinator,

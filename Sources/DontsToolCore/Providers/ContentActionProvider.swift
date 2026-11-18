@@ -7,12 +7,20 @@ public final class ContentActionProvider {
     private let toolOpener: ToolOpening
     private let urlOpener: URLOpening
     private let feedback: FeedbackProviding
+    private let noteOpener: (any LocalNoteOpening)?
 
-    public init(settings: SettingsStore, toolOpener: ToolOpening, urlOpener: URLOpening, feedback: FeedbackProviding) {
+    public init(
+        settings: SettingsStore,
+        toolOpener: ToolOpening,
+        urlOpener: URLOpening,
+        feedback: FeedbackProviding,
+        noteOpener: (any LocalNoteOpening)? = nil
+    ) {
         self.settings = settings
         self.toolOpener = toolOpener
         self.urlOpener = urlOpener
         self.feedback = feedback
+        self.noteOpener = noteOpener
     }
 
     public func items(for text: String, matching query: String = "") -> [SearchItem] {
@@ -45,12 +53,60 @@ public final class ContentActionProvider {
             appendTool(.base64, mode: "decode", title: "打开 Base64 解码", keyword: "b64d", input: text, into: &candidates)
             appendTool(.translation, mode: "translation", title: "打开翻译", keyword: "tr", input: text, into: &candidates)
         }
+        appendNoteActions(for: text, into: &candidates)
         let normalized = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         return candidates.filter { item, aliases in
             normalized.isEmpty || ([item.title, item.keyword ?? ""] + aliases).contains {
                 $0.lowercased().contains(normalized)
             }
         }.map(\.0)
+    }
+
+    private func appendNoteActions(for text: String, into candidates: inout [(SearchItem, [String])]) {
+        guard let noteOpener, settings.isProviderEnabled(ProviderID.notes.rawValue) else { return }
+        let dailyTitle = LocalNoteStore.dailyNoteTitle()
+        let captureKey = "content:notes.capture"
+        let captureItem = SearchItem(
+            id: captureKey,
+            providerID: "content",
+            group: .tool,
+            title: "追加到今日速记",
+            subtitle: "直接写入「\(dailyTitle)」，不打断当前窗口",
+            icon: .symbol(name: "text.append", tint: .amber),
+            score: 990 - Double(candidates.count),
+            canonicalKey: captureKey,
+            actions: [ItemAction(id: captureKey, title: "追加速记", symbol: "text.append") { [settings, noteOpener, feedback] in
+                guard settings.isProviderEnabled(ProviderID.notes.rawValue) else {
+                    feedback.show("便笺已停用，请先在设置中启用")
+                    return
+                }
+                let record = try noteOpener.quickCapture(text)
+                feedback.show("已记入「\(record.title)」")
+            }],
+            keyword: "note"
+        )
+        candidates.append((captureItem, ["note", "notes", "便笺", "笔记", "速记", "capture"]))
+
+        let createKey = "content:notes.create"
+        let createItem = SearchItem(
+            id: createKey,
+            providerID: "content",
+            group: .tool,
+            title: "存为新便笺",
+            subtitle: "带入原文并打开便笺窗口",
+            icon: .symbol(name: "note.text.badge.plus", tint: .amber),
+            score: 990 - Double(candidates.count),
+            canonicalKey: createKey,
+            actions: [ItemAction(id: createKey, title: "存为便笺", presentation: .openWindow, symbol: "note.text.badge.plus") { [settings, noteOpener, feedback] in
+                guard settings.isProviderEnabled(ProviderID.notes.rawValue) else {
+                    feedback.show("便笺已停用，请先在设置中启用")
+                    return
+                }
+                noteOpener.createNote(with: text)
+            }],
+            keyword: "note"
+        )
+        candidates.append((createItem, ["note", "notes", "便笺", "笔记", "新建"]))
     }
 
     private func appendTool(

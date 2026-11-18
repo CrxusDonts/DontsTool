@@ -249,4 +249,58 @@ struct LocalNoteStoreTests {
             #expect(throws: (any Error).self) { try store.exportMarkdown(note.id, to: export) }
         }
     }
+
+    @Test func plainTextAndAppendingPreserveValidProseMirrorStructureAndImages() throws {
+        try withRoot { root in
+            let store = LocalNoteStore(rootURL: root)
+            let created = try store.create(title: "工作日志")
+            let asset = try store.importImage(png(), for: created.id)
+            let base = content("初始段落", image: asset.relativePath)
+            _ = try store.updateContent(created.id, content: base)
+
+            let single = base.appending(entry: "补充一行", timestamp: "09:15")
+            let multi = single.appending(entry: "第一行\n\n第三行", timestamp: "10:30")
+            let saved = try store.updateContent(created.id, content: multi)
+            #expect(saved.content.plainText.contains("[09:15] 补充一行"))
+            #expect(saved.content.plainText.contains("[10:30]\n第一行\n\n第三行"))
+            #expect(saved.content.json.contains(asset.relativePath))
+
+            let standalone = LocalNoteContent.plainText("首行\r\n\r\n尾行")
+            let createdFromText = try store.create(content: standalone)
+            #expect(createdFromText.title == "首行")
+            #expect(createdFromText.titleIsAutomatic)
+            #expect(createdFromText.content.plainText == "首行\n\n尾行")
+        }
+    }
+
+    @Test func quickCaptureAppendsToSameDayNoteAndRotatesAcrossDaysAndPermanentDelete() throws {
+        try withRoot { root in
+            let store = LocalNoteStore(rootURL: root)
+            var calendar = Calendar(identifier: .gregorian)
+            calendar.timeZone = TimeZone(secondsFromGMT: 8 * 3600)!
+            let day1Morning = calendar.date(from: DateComponents(year: 2026, month: 11, day: 18, hour: 9, minute: 5))!
+            let day1Afternoon = calendar.date(from: DateComponents(year: 2026, month: 11, day: 18, hour: 14, minute: 30))!
+            let day2 = calendar.date(from: DateComponents(year: 2026, month: 11, day: 19, hour: 8, minute: 0))!
+
+            let first = try store.appendQuickCapture("排查 Redis 超时", now: day1Morning, calendar: calendar)
+            #expect(first.title == "速记 · 2026-11-18")
+            #expect(!first.titleIsAutomatic)
+            #expect(first.content.plainText == "[09:05] 排查 Redis 超时")
+
+            let second = try store.appendQuickCapture("确认连接池上限", now: day1Afternoon, calendar: calendar)
+            #expect(second.id == first.id)
+            #expect(second.content.plainText == "[09:05] 排查 Redis 超时\n\n[14:30] 确认连接池上限")
+
+            let nextDay = try store.appendQuickCapture("次日待办", now: day2, calendar: calendar)
+            #expect(nextDay.id != first.id)
+            #expect(nextDay.title == "速记 · 2026-11-19")
+            #expect(store.notes.count == 2)
+
+            try store.trash(first.id)
+            #expect(store.trashedNotes.map(\.id) == [first.id])
+            try store.deletePermanently(first.id)
+            #expect(store.trashedNotes.isEmpty)
+            #expect(!FileManager.default.fileExists(atPath: root.appendingPathComponent("Trash").appendingPathComponent(first.id.uuidString).path))
+        }
+    }
 }

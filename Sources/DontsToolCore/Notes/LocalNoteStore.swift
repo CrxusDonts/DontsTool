@@ -56,14 +56,18 @@ public final class LocalNoteStore: ObservableObject {
     }
 
     @discardableResult
-    public func create(title: String? = nil) throws -> LocalNoteRecord {
+    public func create(title: String? = nil, content: LocalNoteContent = .empty) throws -> LocalNoteRecord {
         try validateDirectory(rootURL)
         let trimmed = title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let record = LocalNoteRecord(title: trimmed.isEmpty ? "未命名便笺" : String(trimmed.prefix(80)), titleIsAutomatic: trimmed.isEmpty)
+        let initialTitle = trimmed.isEmpty
+            ? (content == .empty ? "未命名便笺" : automaticTitle(content.plainText))
+            : String(trimmed.prefix(80))
+        let record = LocalNoteRecord(title: initialTitle, titleIsAutomatic: trimmed.isEmpty, content: content)
         let directory = rootURL.appendingPathComponent(record.id.uuidString, isDirectory: true)
         guard !pathExists(directory) else { throw LocalNoteError.unsafePath }
         try fileManager.createDirectory(at: directory, withIntermediateDirectories: false)
         do {
+            _ = try validateContent(content, in: directory)
             try writeRecord(record, in: directory)
         } catch {
             try? fileManager.removeItem(at: directory)
@@ -72,6 +76,29 @@ public final class LocalNoteStore: ObservableObject {
         notes.append(record)
         sortRecords()
         return record
+    }
+
+    public static func dailyNoteTitle(for date: Date = Date(), calendar: Calendar = .current) -> String {
+        let components = calendar.dateComponents([.year, .month, .day], from: date)
+        let year = components.year ?? 1970
+        let month = components.month ?? 1
+        let day = components.day ?? 1
+        return String(format: "速记 · %04d-%02d-%02d", year, month, day)
+    }
+
+    @discardableResult
+    public func appendQuickCapture(_ text: String, now: Date = Date(), calendar: Calendar = .current) throws -> LocalNoteRecord {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { throw LocalNoteError.invalidContent }
+        let components = calendar.dateComponents([.hour, .minute], from: now)
+        let timeString = String(format: "%02d:%02d", components.hour ?? 0, components.minute ?? 0)
+        let dailyTitle = Self.dailyNoteTitle(for: now, calendar: calendar)
+        if let existing = notes.first(where: { !$0.titleIsAutomatic && $0.title == dailyTitle }) {
+            let updated = existing.content.appending(entry: trimmed, timestamp: timeString)
+            return try updateContent(existing.id, content: updated)
+        }
+        let initial = LocalNoteContent.empty.appending(entry: trimmed, timestamp: timeString)
+        return try create(title: dailyTitle, content: initial)
     }
 
     public func note(_ id: UUID) -> LocalNoteRecord? { notes.first { $0.id == id } }
@@ -119,6 +146,15 @@ public final class LocalNoteStore: ObservableObject {
         notes.removeAll { $0.id == id }
         trashedNotes.append(record)
         sortRecords()
+    }
+
+    public func deletePermanently(_ id: UUID) throws {
+        guard trashedNotes.contains(where: { $0.id == id }) else { throw LocalNoteError.missingNote }
+        try validateDirectory(trashURL)
+        let target = trashURL.appendingPathComponent(id.uuidString, isDirectory: true)
+        try validateDirectory(target)
+        try fileManager.removeItem(at: target)
+        trashedNotes.removeAll { $0.id == id }
     }
 
     @discardableResult

@@ -22,6 +22,12 @@ final class KnowledgeWindowController: NSWindowController, NSWindowDelegate, NST
     private var checkingDeparture = false
     private var initialCaptureText: String?
 
+    var acceptsLauncherRequests: Bool {
+        guard !viewState.locked, !checkingClose, !checkingDeparture, bridge.isReady,
+              let url = bridge.webView.url else { return false }
+        return url.path == "/tool" && bridge.origin.contains(url)
+    }
+
     init(origin: KnowledgeOrigin, request: KnowledgeOpenRequest, onSettings: @escaping () -> Void) {
         self.request = request
         self.onSettings = onSettings

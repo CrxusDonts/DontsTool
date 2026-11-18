@@ -101,4 +101,40 @@ struct ContentActionProviderTests {
         #expect(provider.items(for: "https://example.com").isEmpty)
         #expect(urls.opened.isEmpty)
     }
+
+    @Test func noteCaptureAndCreateActionsAppearWhenNotesProviderEnabled() async throws {
+        let settings = SettingsStore(defaults: UserDefaults(suiteName: UUID().uuidString)!)
+        let tools = MockToolOpener()
+        let urls = MockURLOpener()
+        let feedback = MockFeedback()
+        let notes = MockContentNoteOpener()
+        let provider = ContentActionProvider(settings: settings, toolOpener: tools, urlOpener: urls, feedback: feedback, noteOpener: notes)
+
+        let items = provider.items(for: "需要保留的排查笔记", matching: "速记")
+        #expect(items.map(\.id) == ["content:notes.capture"])
+        try await items[0].primaryAction?.run()
+        #expect(notes.captured == ["需要保留的排查笔记"])
+        #expect(feedback.messages.last?.contains("速记") == true)
+
+        let createItems = provider.items(for: "https://example.com", matching: "便笺")
+        #expect(createItems.map(\.id) == ["content:notes.capture", "content:notes.create"])
+        try await createItems[1].primaryAction?.run()
+        #expect(notes.created == ["https://example.com"])
+
+        settings.setProviderEnabled("notes", to: false)
+        #expect(provider.items(for: "需要保留的排查笔记", matching: "便笺").isEmpty)
+    }
+}
+
+@MainActor
+private final class MockContentNoteOpener: LocalNoteOpening {
+    var captured: [String] = []
+    var created: [String] = []
+    func createNote() {}
+    func createNote(with text: String) { created.append(text) }
+    func quickCapture(_ text: String) throws -> LocalNoteRecord {
+        captured.append(text)
+        return LocalNoteRecord(title: LocalNoteStore.dailyNoteTitle(), titleIsAutomatic: false)
+    }
+    func openNote(_ id: UUID) {}
 }
