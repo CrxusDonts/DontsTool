@@ -89,6 +89,27 @@ final class PanelTransitionDriver {
         }
     }
 
+    /// 面板高度自适应调整且顶部边缘固定时，同步平移缓存原点与进行中的转场起止点。
+    func adjustOrigin(deltaY: CGFloat) {
+        guard deltaY != 0 else { return }
+        if var origin = restingOrigin {
+            origin.y += deltaY
+            restingOrigin = origin
+        }
+        if let active = transition {
+            transition = Transition(
+                origin: NSPoint(x: active.origin.x, y: active.origin.y + deltaY),
+                destination: NSPoint(x: active.destination.x, y: active.destination.y + deltaY),
+                alpha: active.alpha,
+                targetAlpha: active.targetAlpha,
+                startedAt: active.startedAt,
+                duration: active.duration,
+                isDismissing: active.isDismissing,
+                completion: active.completion
+            )
+        }
+    }
+
     private func begin(
         panel: NSPanel,
         destination: NSPoint,

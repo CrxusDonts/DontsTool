@@ -40,7 +40,8 @@ struct LauncherPanelView: View {
                 selectedItem: model.selectedItem
             )
         }
-        .frame(width: Metrics.panelSize.width, height: Metrics.panelSize.height)
+        .frame(width: Metrics.panelSize.width)
+        .frame(maxHeight: .infinity)
         .background(panelBackground)
         .clipShape(RoundedRectangle(cornerRadius: Metrics.panelCornerRadius))
         .overlay(
@@ -103,8 +104,8 @@ struct LauncherPanelView: View {
                                 .padding(.bottom, 6)
                             } else if model.isDefaultList && section.group == .tool {
                                 LazyVGrid(
-                                    columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 4),
-                                    spacing: 6
+                                    columns: Array(repeating: GridItem(.flexible(), spacing: Metrics.toolGridSpacing), count: 4),
+                                    spacing: Metrics.toolGridSpacing
                                 ) {
                                     ForEach(Array(section.items.enumerated()), id: \.element.id) { offset, item in
                                         let index = section.startIndex + offset
@@ -118,6 +119,7 @@ struct LauncherPanelView: View {
                                     }
                                 }
                                 .padding(.horizontal, 2)
+                                .padding(.bottom, 4)
                             } else {
                                 ForEach(Array(section.items.enumerated()), id: \.element.id) { offset, item in
                                     let index = section.startIndex + offset
@@ -219,7 +221,7 @@ struct LauncherPanelView: View {
                 .font(.system(size: 11.5))
                 .foregroundStyle(Theme.secondary)
         }
-        .frame(maxWidth: .infinity).frame(minHeight: 240).padding(20)
+        .frame(maxWidth: .infinity).frame(minHeight: Metrics.emptyStateHeight).padding(20)
     }
 
     private var isBareFileQuery: Bool {
@@ -361,4 +363,67 @@ struct SearchFieldRepresentable: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: SearchField, context: Context) {}
+}
+
+/// 根据当前展示的分组与状态计算启动器面板理想高度，保持顶部边缘固定、消除多余空白。
+@MainActor
+enum LauncherPanelLayout {
+    static func preferredHeight(
+        for model: LauncherPanelModel,
+        currentHeight: CGFloat = Metrics.panelSize.height
+    ) -> CGFloat {
+        // 中文输入法组词期间保持窗口高度稳定，避免随 marked text 上下抖动。
+        if model.isComposing {
+            return clamped(currentHeight)
+        }
+
+        let chromeHeight = Metrics.headerHeight
+            + Metrics.footerHeight
+            + (model.attachedContent != nil ? Metrics.attachmentBarHeight : 0)
+
+        let bodyHeight: CGFloat
+        if model.showsEmptyState || model.sections.isEmpty {
+            bodyHeight = Metrics.emptyStateHeight
+        } else {
+            var total = Metrics.listVerticalInset * 2 + 4
+            var childCount = 0
+            for section in model.sections {
+                let headerHeight = Metrics.sectionHeaderHeight + ((section.group == .app && model.isDefaultList) || model.attachedContent != nil ? 2 : 0)
+                total += headerHeight
+                childCount += 1
+
+                if model.isDefaultList && section.group == .app {
+                    total += Metrics.appDockTileHeight + 6
+                    childCount += 1
+                } else if model.isDefaultList && section.group == .tool {
+                    let rows = max(1, (section.items.count + 3) / 4)
+                    total += CGFloat(rows) * Metrics.toolGridTileHeight
+                        + CGFloat(max(0, rows - 1)) * Metrics.toolGridSpacing
+                        + 4
+                    childCount += 1
+                } else {
+                    total += CGFloat(section.items.count) * Metrics.rowHeight
+                    childCount += section.items.count
+                }
+            }
+            if childCount > 1 {
+                total += CGFloat(childCount - 1) * Metrics.listSpacing
+            }
+            bodyHeight = total
+        }
+
+        var requiredHeight = chromeHeight + bodyHeight
+
+        if model.isActionPanelOpen && !model.actionItems.isEmpty {
+            let paletteHeight = 42 + CGFloat(model.actionItems.count) * 30
+            let minForPalette = Metrics.headerHeight + 12 + paletteHeight + Metrics.footerHeight + 8
+            requiredHeight = max(requiredHeight, minForPalette)
+        }
+
+        return clamped(ceil(requiredHeight))
+    }
+
+    private static func clamped(_ height: CGFloat) -> CGFloat {
+        min(Metrics.panelSize.height, max(Metrics.minPanelHeight, height))
+    }
 }

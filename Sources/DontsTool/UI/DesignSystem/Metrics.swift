@@ -4,9 +4,12 @@ import CoreGraphics
 enum Metrics {
     // 启动器面板
     static let panelSize = CGSize(width: 660, height: 420)
+    static let minPanelHeight: CGFloat = 160
     static let panelCornerRadius: CGFloat = 14
     static let headerHeight: CGFloat = 52
+    static let attachmentBarHeight: CGFloat = 44
     static let footerHeight: CGFloat = 30
+    static let emptyStateHeight: CGFloat = 156
     static let panelHorizontalInset: CGFloat = 14
     static let listHorizontalInset: CGFloat = 8
     static let listVerticalInset: CGFloat = 6
@@ -14,6 +17,10 @@ enum Metrics {
 
     // 结果行
     static let rowHeight: CGFloat = 38
+    static let appDockTileHeight: CGFloat = 36
+    static let toolGridTileHeight: CGFloat = 38
+    static let toolGridSpacing: CGFloat = 6
+    static let sectionHeaderHeight: CGFloat = 22
     static let rowCornerRadius: CGFloat = 7
     static let rowHorizontalInset: CGFloat = 10
     static let rowIconSpacing: CGFloat = 10

@@ -156,6 +156,62 @@ struct LauncherPresentationTests {
         #expect(source == nil)
     }
 
+    @Test func adaptivePanelHeightFitsDefaultHomePreservesCompositionAndExpandsForActions() async throws {
+        _ = NSApplication.shared
+        let defaultsName = "dontstool.launcher.height.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: defaultsName)!
+        defer { defaults.removePersistentDomain(forName: defaultsName) }
+        let settings = SettingsStore(defaults: defaults)
+        let provider = HomeHeightPreviewProvider()
+        let coordinator = SearchCoordinator(registry: ToolRegistry(providers: [provider]), slowDelay: .zero)
+        let model = LauncherPanelModel(coordinator: coordinator, hotKeyDisplay: "⌥⌥")
+        let field = SearchField()
+
+        model.submit("")
+        try await until { model.items.count == 12 }
+        let homeHeight = LauncherPanelLayout.preferredHeight(for: model)
+        #expect(homeHeight >= Metrics.minPanelHeight)
+        #expect(homeHeight < 300)
+
+        try capture(model, field: field, settings: settings, name: "launcher-home-compact-light", appearance: .aqua, height: homeHeight)
+        try capture(model, field: field, settings: settings, name: "launcher-home-compact-dark", appearance: .darkAqua, height: homeHeight)
+
+        // Composing Chinese IME keeps current height instead of bouncing.
+        model.suspendSearchForComposition()
+        #expect(LauncherPanelLayout.preferredHeight(for: model, currentHeight: homeHeight) == homeHeight)
+
+        // Restoring query and opening Action Palette with many actions ensures enough vertical room.
+        model.submit("")
+        try await until { model.items.count == 12 }
+        model.openActionPanel()
+        let paletteHeight = LauncherPanelLayout.preferredHeight(for: model, currentHeight: homeHeight)
+        #expect(paletteHeight >= homeHeight)
+        #expect(paletteHeight <= Metrics.panelSize.height)
+        model.closeActionPanel()
+
+        // Large search result lists cap cleanly at Metrics.panelSize.height.
+        model.submit("many")
+        try await until { model.items.count == 10 }
+        #expect(LauncherPanelLayout.preferredHeight(for: model) == Metrics.panelSize.height)
+    }
+
+    @Test func transitionDriverAdjustOriginShiftsDestinationWhileInFlight() async throws {
+        _ = NSApplication.shared
+        let panel = NSPanel(contentRect: NSRect(x: 100, y: 100, width: 660, height: 420),
+            styleMask: .borderless, backing: .buffered, defer: false)
+        panel.isReleasedWhenClosed = false
+        let driver = PanelTransitionDriver()
+        defer { driver.cancel(); panel.close() }
+        let initialOrigin = NSPoint(x: 180, y: 200)
+        driver.show(panel: panel, at: initialOrigin)
+        let deltaY: CGFloat = 140
+        driver.adjustOrigin(deltaY: deltaY)
+        panel.setFrame(NSRect(x: initialOrigin.x, y: panel.frame.origin.y + deltaY, width: 660, height: 280), display: false)
+        try await until { panel.alphaValue == 1 && !driver.isDisplayLinked }
+        #expect(panel.frame.origin == NSPoint(x: initialOrigin.x, y: initialOrigin.y + deltaY))
+        #expect(panel.frame.maxY == initialOrigin.y + 420)
+    }
+
     private func until(_ condition: @MainActor () -> Bool) async throws {
         let deadline = ContinuousClock.now.advanced(by: .seconds(5))
         while !condition() {
@@ -165,11 +221,12 @@ struct LauncherPresentationTests {
     }
 
     private func capture(_ model: LauncherPanelModel, field: SearchField, settings: SettingsStore,
-                         name: String, appearance: NSAppearance.Name) throws {
+                         name: String, appearance: NSAppearance.Name, height: CGFloat = Metrics.panelSize.height) throws {
         let folder = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
             .deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("build/launcher-previews")
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let window = NSWindow(contentRect: NSRect(origin: .zero, size: Metrics.panelSize),
+        let size = NSSize(width: Metrics.panelSize.width, height: height)
+        let window = NSWindow(contentRect: NSRect(origin: .zero, size: size),
             styleMask: .borderless, backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
         defer { window.close() }
@@ -178,7 +235,7 @@ struct LauncherPresentationTests {
             onClearContent: {}, onShowActions: {}, onCopyFilePath: { _ in }))
         window.contentView = view
         window.appearance = NSAppearance(named: appearance)
-        view.frame = NSRect(origin: .zero, size: Metrics.panelSize)
+        view.frame = NSRect(origin: .zero, size: size)
         view.layoutSubtreeIfNeeded()
         let bitmap = try #require(view.bitmapImageRepForCachingDisplay(in: view.bounds))
         view.cacheDisplay(in: view.bounds, to: bitmap)
@@ -186,6 +243,58 @@ struct LauncherPresentationTests {
         try png.write(to: folder.appendingPathComponent(name + ".png"))
         // A field editor cannot belong to multiple hosting hierarchies at once.
         window.contentView = nil
+    }
+}
+
+@MainActor private final class HomeHeightPreviewProvider: ToolProvider {
+    let id = "home-preview"
+    let displayName = "HomePreview"
+    let keywords: [String] = []
+    let priority = 1
+    var isEnabled = true
+
+    func search(_ context: SearchContext) async -> [SearchItem] {
+        if context.query == "many" {
+            return (1...10).map { i in
+                SearchItem(providerID: id, group: .file, title: "Result \(i)", subtitle: "/tmp/file-\(i)",
+                    icon: .symbol(name: "doc", tint: .gray), score: Double(100 - i), canonicalKey: "many:\(i)",
+                    actions: [ItemAction(id: "open.\(i)", title: "打开") {}])
+            }
+        }
+        let apps: [(String, String)] = [
+            ("Antigravity", "/Applications/Safari.app"),
+            ("Devin", "/System/Applications/Utilities/Terminal.app"),
+            ("Developer", "/Applications/Xcode.app"),
+            ("信息", "/System/Applications/Messages.app")
+        ]
+        let appItems = apps.enumerated().map { idx, entry in
+            SearchItem(providerID: id, group: .app, title: entry.0, subtitle: entry.1,
+                icon: .application(path: entry.1), score: Double(200 - idx), canonicalKey: "app:\(idx)",
+                actions: [
+                    ItemAction(id: "open", title: "打开", symbol: "arrow.up.forward.app") {},
+                    ItemAction(id: "reveal", title: "在访达中显示", symbol: "folder") {},
+                    ItemAction(id: "quit", title: "退出应用", symbol: "xmark.circle") {},
+                    ItemAction(id: "copy", title: "复制路径", symbol: "doc.on.doc") {},
+                    ItemAction(id: "extra1", title: "更多操作 1", symbol: "ellipsis") {},
+                    ItemAction(id: "extra2", title: "更多操作 2", symbol: "ellipsis") {}
+                ])
+        }
+        let tools: [(String, ItemIcon, String)] = [
+            ("便笺", .symbol(name: "note.text", tint: .amber), "note"),
+            ("JSON 工具", .glyph(text: "{}", tint: .amber), "json"),
+            ("Base64 编解码", .glyph(text: "64", tint: .purple), "b64"),
+            ("URL 编解码", .symbol(name: "link", tint: .teal), "url"),
+            ("时间戳转换", .symbol(name: "clock", tint: .indigo), "ts"),
+            ("UUID 生成器", .symbol(name: "tag", tint: .indigo), "uuid"),
+            ("哈希计算", .symbol(name: "number.square", tint: .gray), "md5"),
+            ("翻译", .symbol(name: "character.bubble", tint: .teal), "tr")
+        ]
+        let toolItems = tools.enumerated().map { idx, entry in
+            SearchItem(providerID: id, group: .tool, title: entry.0, subtitle: entry.0,
+                icon: entry.1, score: Double(100 - idx), canonicalKey: "tool:\(idx)",
+                actions: [ItemAction(id: "tool.\(idx)", title: "打开") {}], keyword: entry.2)
+        }
+        return appItems + toolItems
     }
 }
 

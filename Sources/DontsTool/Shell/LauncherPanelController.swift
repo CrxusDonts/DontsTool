@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import DontsToolCore
 import SwiftUI
 
@@ -21,6 +22,8 @@ final class LauncherPanelController: NSObject, NSWindowDelegate, OperationProgre
     private var isVisible = false
     private var globalClickMonitor: Any?
     private var localClickMonitor: Any?
+    private var layoutCancellable: AnyCancellable?
+    private var heightUpdateScheduled = false
 
     isolated deinit {
         if let globalClickMonitor { NSEvent.removeMonitor(globalClickMonitor) }
@@ -54,6 +57,7 @@ final class LauncherPanelController: NSObject, NSWindowDelegate, OperationProgre
         }
         installContent()
         wireSearchField()
+        observeLayoutChanges()
     }
 
     func updateHotKeyDisplay(_ display: String) {
@@ -72,11 +76,12 @@ final class LauncherPanelController: NSObject, NSWindowDelegate, OperationProgre
             previousApp = frontmost
         }
         let interval = Performance.begin("panel.show")
-        let origin = panelOrigin()
-
         model.clearContent()
         searchField.stringValue = ""
         searchField.setContentMode(false)
+        updatePanelHeight()
+        let origin = panelOrigin()
+
         refreshSearch()
         isVisible = true
         transitionDriver.show(panel: panel, at: origin)
@@ -197,8 +202,40 @@ final class LauncherPanelController: NSObject, NSWindowDelegate, OperationProgre
             onCopyFilePath: { [weak self] index in _ = self?.copyFilePath(at: index) }
         )
         let hosting = NSHostingView(rootView: view)
-        hosting.frame = NSRect(origin: .zero, size: Metrics.panelSize)
+        hosting.sizingOptions = []
+        hosting.autoresizingMask = [.width, .height]
+        hosting.frame = NSRect(origin: .zero, size: panel.frame.size)
         panel.contentView = hosting
+    }
+
+    private func observeLayoutChanges() {
+        layoutCancellable = model.objectWillChange.sink { [weak self] _ in
+            guard let self, !self.heightUpdateScheduled else { return }
+            self.heightUpdateScheduled = true
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.heightUpdateScheduled = false
+                self.updatePanelHeight()
+            }
+        }
+    }
+
+    private func updatePanelHeight() {
+        let targetHeight = LauncherPanelLayout.preferredHeight(for: model, currentHeight: panel.frame.height)
+        let currentFrame = panel.frame
+        let deltaHeight = targetHeight - currentFrame.height
+        guard abs(deltaHeight) >= 1 else { return }
+        // 保持顶部边缘（maxY）固定，面板仅向下伸缩，避免搜索框上下跳动。
+        let deltaY = -deltaHeight
+        let nextFrame = NSRect(
+            x: currentFrame.origin.x,
+            y: currentFrame.origin.y + deltaY,
+            width: Metrics.panelSize.width,
+            height: targetHeight
+        )
+        transitionDriver.adjustOrigin(deltaY: deltaY)
+        panel.setFrame(nextFrame, display: true, animate: false)
+        panel.contentView?.frame = NSRect(origin: .zero, size: nextFrame.size)
     }
 
     private func wireSearchField() {

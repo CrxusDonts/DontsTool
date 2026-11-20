@@ -185,7 +185,7 @@ struct AppDockTileView: View {
                 Spacer(minLength: 0)
             }
             .frame(maxWidth: .infinity)
-            .frame(height: 36)
+            .frame(height: Metrics.appDockTileHeight)
             .padding(.horizontal, 10)
             .background(
                 RoundedRectangle(cornerRadius: Metrics.rowCornerRadius)
@@ -244,7 +244,7 @@ struct ToolGridTileView: View {
 
     var body: some View {
         Button(action: onExecute) {
-            HStack(spacing: 8) {
+            HStack(spacing: 7) {
                 tileIcon
                     .frame(width: 18, height: 18)
                 Text(compactTitle)
@@ -252,10 +252,17 @@ struct ToolGridTileView: View {
                     .foregroundStyle(Theme.ink)
                     .lineLimit(1)
                     .truncationMode(.tail)
-                Spacer(minLength: 0)
+                Spacer(minLength: 4)
+                if let keyword = item.keyword, !keyword.isEmpty {
+                    Text(keyword)
+                        .font(Theme.keycapFont)
+                        .foregroundStyle(isSelected ? Theme.secondary : Theme.tertiary)
+                        .lineLimit(1)
+                        .fixedSize()
+                }
             }
             .frame(maxWidth: .infinity)
-            .frame(height: 36)
+            .frame(height: Metrics.toolGridTileHeight)
             .padding(.horizontal, 10)
             .background(
                 RoundedRectangle(cornerRadius: Metrics.rowCornerRadius)
@@ -270,6 +277,7 @@ struct ToolGridTileView: View {
         .buttonStyle(LauncherPressStyle())
         .onHover { isHovered = $0 }
         .animation(Motion.hoverEasing, value: isHovered)
+        .help(item.subtitle.map { "\(item.title)\n\($0)" } ?? item.title)
         .accessibilityLabel("\(item.title)，\(item.primaryAction?.title ?? "打开")")
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }

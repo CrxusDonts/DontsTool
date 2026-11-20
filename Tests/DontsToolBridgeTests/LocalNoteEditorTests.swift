@@ -117,6 +117,7 @@ struct LocalNoteEditorTests {
         defer { session.stop() }
         try await until { session.bridge.state == .ready }
         try await enterMarkdown(session.bridge, "有效草稿")
+        try await until { session.draft.plainText == "有效草稿" }
         try await enterMarkdown(session.bridge, "![远程](https://example.com/private.png)")
         try await until { session.errorMessage != nil }
         try await Task.sleep(for: .milliseconds(450))
