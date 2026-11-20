@@ -90,7 +90,12 @@ public final class ToolSession: ObservableObject {
     }
     private func apply(_ request: ToolOpenRequest) {
         if let mode = request.mode { self.mode = mode }
-        if let text = request.input { input = text }
+        guard let text = request.input else { return }
+        if kind == .json && mode == "format" && !comparing {
+            input = (try? TextTransformers.formatJSON(text, pretty: true)) ?? text
+        } else {
+            input = text
+        }
     }
     public func resolvePending(useNew: Bool) {
         let request = pendingRequest; pendingRequest = nil

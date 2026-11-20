@@ -31,9 +31,9 @@ struct ContentActionProviderTests {
         #expect(ContentDescriptor(text: String(repeating: "a", count: ToolOperations.textByteLimit + 1)) == nil)
     }
 
-    @Test func JSONOffersOnlyEditorAndPreservesOriginalInput() async throws {
+    @Test func JSONOffersOnlyEditorAndOpensWithFormattedInput() async throws {
         let (provider, _, tools, urls, _) = makeProvider()
-        let input = " \n{\"a\": 1} \n"
+        let input = " \n{\"a\":[9007199254740993,true]} \n"
         let items = provider.items(for: input)
         #expect(items.map(\.keyword) == ["json"])
         #expect(tools.requests.isEmpty)
@@ -42,6 +42,9 @@ struct ContentActionProviderTests {
         #expect(item.primaryAction?.presentation == .openWindow)
         try await item.primaryAction?.run()
         #expect(tools.requests == [ToolOpenRequest(kind: .json, mode: "format", input: input)])
+        let request = try #require(tools.requests.first)
+        let document = ToolDocumentStore().create(request)
+        #expect(document.session.input == "{\n  \"a\": [\n    9007199254740993,\n    true\n  ]\n}")
     }
 
     @Test func URLProvidesBrowserAndBothCodecModesOnly() async throws {
