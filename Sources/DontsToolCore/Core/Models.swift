@@ -11,6 +11,8 @@ public enum ProviderID: String, CaseIterable, Identifiable, Sendable {
     case gemini
     case ideaProjects
     case notes
+    case killProcess
+    case chrome
 
     public var id: String { rawValue }
 }

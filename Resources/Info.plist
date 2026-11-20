@@ -19,7 +19,7 @@
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>0.2.11</string>
+    <string>0.2.12</string>
     <key>CFBundleVersion</key>
     <string>$(CURRENT_PROJECT_VERSION)</string>
     <key>LSMinimumSystemVersion</key>
@@ -32,6 +32,8 @@
     <string>NSApplication</string>
     <key>LSApplicationCategoryType</key>
     <string>public.app-category.productivity</string>
+    <key>NSAppleEventsUsageDescription</key>
+    <string>用于读取、切换和关闭 Google Chrome 标签页，以及打开新标签页或无痕窗口。</string>
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 donts</string>
     <key>SUFeedURL</key>

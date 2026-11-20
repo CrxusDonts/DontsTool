@@ -165,7 +165,13 @@ public final class SearchCoordinator {
             return $0.title.localizedStandardCompare($1.title) == .orderedAscending
         }
 
-        let caps: [ResultGroup: Int] = [.app: 8, .tool: 8, .file: 12, .web: 1, .shortcut: context.mode == .global ? 8 : 5000]
+        let caps: [ResultGroup: Int] = [
+            .app: 8,
+            .tool: context.mode == .global ? 8 : 30,
+            .file: 12,
+            .web: 1,
+            .shortcut: context.mode == .global ? 8 : 5000
+        ]
         var counts: [ResultGroup: Int] = [:]
         return merged.filter { item in
             let count = counts[item.group, default: 0]

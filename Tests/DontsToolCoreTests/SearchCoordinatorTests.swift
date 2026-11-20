@@ -134,6 +134,18 @@ struct SearchCoordinatorTests {
         #expect(items.last?.group == .shortcut)
     }
 
+    @Test func keywordModeAllowsUpToThirtyToolItems() async {
+        let tools = (0..<35).map { makeItem(providerID: "killProcess", group: .tool, title: "Proc\($0)", score: Double(100 - $0), canonicalKey: "proc:\($0)") }
+        let provider = MockProvider(id: "killProcess", keywords: ["kill"], searchHandler: { _ in tools })
+        let coordinator = makeCoordinator([provider])
+        let updates = collect(coordinator)
+
+        coordinator.submit("kill")
+        await coordinator.waitForPendingSearch()
+
+        #expect(updates().last?.items.count == 30)
+    }
+
     @Test func webFallbackIsRemovedWhenLocalResultsExist() async {
         let local = MockProvider(id: "local", searchHandler: { _ in [makeItem(group: .app, canonicalKey: "app")] })
         let web = MockProvider(id: "web", searchHandler: { _ in [makeItem(group: .web, canonicalKey: "web")] })

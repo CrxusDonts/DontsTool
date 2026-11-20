@@ -91,7 +91,7 @@ struct SettingsStoreTests {
         defer { defaults.removePersistentDomain(forName: name) }
         defaults.set(oldEnabled, forKey: "dontstool.enabledProviders")
 
-        let newBuiltIns = ["calculator", "quickOpen", "gemini", "ideaProjects", "notes"]
+        let newBuiltIns = ["calculator", "quickOpen", "gemini", "ideaProjects", "notes", "killProcess", "chrome"]
         let migrated = SettingsStore(defaults: defaults, systemLanguageCode: "en")
         #expect(migrated.enabledProviderIDs == Set(oldEnabled + newBuiltIns))
         #expect(Set(defaults.array(forKey: "dontstool.enabledProviders") as? [String] ?? []) == Set(oldEnabled + newBuiltIns))
@@ -100,6 +100,8 @@ struct SettingsStoreTests {
         migrated.setProviderEnabled("gemini", to: false)
         migrated.setProviderEnabled("ideaProjects", to: false)
         migrated.setProviderEnabled("notes", to: false)
+        migrated.setProviderEnabled("killProcess", to: false)
+        migrated.setProviderEnabled("chrome", to: false)
         let reloaded = SettingsStore(defaults: defaults, systemLanguageCode: "en")
         #expect(reloaded.enabledProviderIDs == Set(oldEnabled + ["quickOpen"]))
         let reloadedAgain = SettingsStore(defaults: defaults, systemLanguageCode: "en")
@@ -110,12 +112,53 @@ struct SettingsStoreTests {
         let (defaults, name) = makeDefaults()
         defer { defaults.removePersistentDomain(forName: name) }
         defaults.set(["app"], forKey: "dontstool.enabledProviders")
-        for key in ["builtInProviderDefaultsV2Completed", "applicationWorkflowsMigrationCompleted"] {
+        for key in [
+            "builtInProviderDefaultsV2Completed",
+            "applicationWorkflowsMigrationCompleted",
+            "killProcessProviderMigrationCompleted",
+            "chromeProviderMigrationCompleted"
+        ] {
             defaults.set(true, forKey: "dontstool." + key)
         }
         let migrated = SettingsStore(defaults: defaults)
         #expect(migrated.enabledProviderIDs == ["app", "notes"])
         migrated.setProviderEnabled("notes", to: false)
+        #expect(SettingsStore(defaults: defaults).enabledProviderIDs == ["app"])
+    }
+
+    @Test func killProcessMigrationEnablesOnlyKillProcessAndRespectsLaterDisable() {
+        let (defaults, name) = makeDefaults()
+        defer { defaults.removePersistentDomain(forName: name) }
+        defaults.set(["app"], forKey: "dontstool.enabledProviders")
+        for key in [
+            "builtInProviderDefaultsV2Completed",
+            "applicationWorkflowsMigrationCompleted",
+            "notesProviderMigrationCompleted",
+            "chromeProviderMigrationCompleted"
+        ] {
+            defaults.set(true, forKey: "dontstool." + key)
+        }
+        let migrated = SettingsStore(defaults: defaults)
+        #expect(migrated.enabledProviderIDs == ["app", "killProcess"])
+        migrated.setProviderEnabled("killProcess", to: false)
+        #expect(SettingsStore(defaults: defaults).enabledProviderIDs == ["app"])
+    }
+
+    @Test func chromeMigrationEnablesOnlyChromeAndRespectsLaterDisable() {
+        let (defaults, name) = makeDefaults()
+        defer { defaults.removePersistentDomain(forName: name) }
+        defaults.set(["app"], forKey: "dontstool.enabledProviders")
+        for key in [
+            "builtInProviderDefaultsV2Completed",
+            "applicationWorkflowsMigrationCompleted",
+            "notesProviderMigrationCompleted",
+            "killProcessProviderMigrationCompleted"
+        ] {
+            defaults.set(true, forKey: "dontstool." + key)
+        }
+        let migrated = SettingsStore(defaults: defaults)
+        #expect(migrated.enabledProviderIDs == ["app", "chrome"])
+        migrated.setProviderEnabled("chrome", to: false)
         #expect(SettingsStore(defaults: defaults).enabledProviderIDs == ["app"])
     }
 
@@ -128,7 +171,9 @@ struct SettingsStoreTests {
             "knowledgeProviderMigrationCompleted",
             "builtInProviderDefaultsV2Completed",
             "applicationWorkflowsMigrationCompleted",
-            "notesProviderMigrationCompleted"
+            "notesProviderMigrationCompleted",
+            "killProcessProviderMigrationCompleted",
+            "chromeProviderMigrationCompleted"
         ] {
             defaults.set(true, forKey: "dontstool." + key)
         }

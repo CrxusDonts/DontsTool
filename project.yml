@@ -51,6 +51,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.donts.DontsTool
         INFOPLIST_FILE: Resources/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Resources/DontsTool.entitlements
         GENERATE_INFOPLIST_FILE: NO
         LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/../Frameworks"
       configs:

@@ -113,9 +113,32 @@ final class AppController {
         let geminiService = GeminiConversationService(controller: SystemGeminiAppController())
         let geminiProvider = GeminiProvider(index: appIndex, settings: settings, service: geminiService, feedback: toast)
         let ideaProvider = IDEProjectProvider(index: appIndex, settings: settings, usage: usage, feedback: toast)
+        let appLauncher = SystemAppLauncher()
+        let killProcessProvider = KillProcessProvider(
+            settings: settings,
+            prefill: prefiller,
+            clipboard: clipboard,
+            feedback: toast,
+            revealInFinder: { appLauncher.revealInFinder($0) },
+            unavailableKeywords: { [weak self] in
+                guard let self else { return [] }
+                return Set(self.websites.configuration.groups.map(\.keyword) + self.searchEngines.configuration.engines.map(\.keyword))
+            }
+        )
+        let chromeProvider = ChromeProvider(
+            settings: settings,
+            prefill: prefiller,
+            clipboard: clipboard,
+            feedback: toast,
+            unavailableKeywords: { [weak self] in
+                guard let self else { return [] }
+                return Set(self.websites.configuration.groups.map(\.keyword) + self.searchEngines.configuration.engines.map(\.keyword))
+            }
+        )
         let registry = ToolRegistry(providers: [
             appProvider, fileProvider, textProvider, webProvider, translationProvider,
-            notesProvider, websiteProvider, calculatorProvider, quickOpenProvider, geminiProvider, ideaProvider
+            notesProvider, websiteProvider, calculatorProvider, quickOpenProvider,
+            geminiProvider, ideaProvider, killProcessProvider, chromeProvider
         ])
         let coordinator = SearchCoordinator(registry: registry, usage: usage)
         let contentProvider = ContentActionProvider(
@@ -134,6 +157,12 @@ final class AppController {
             contentProvider: contentProvider
         )
         prefiller.panel = panel
+        killProcessProvider.onProcessesChanged = { [weak panel] in
+            panel?.refreshSearch()
+        }
+        chromeProvider.onTabsChanged = { [weak panel] in
+            panel?.refreshSearch()
+        }
         selectionTranslation.onSuppressedMouseDown = { [weak panel] in
             panel?.hide(restorePreviousApp: false)
         }

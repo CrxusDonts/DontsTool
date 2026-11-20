@@ -54,7 +54,9 @@ struct ToolsSettingsTabView: View {
             (ProviderID.calculator.rawValue, "计算器", "算式与单位换算，回车复制结果"),
             (ProviderID.quickOpen.rawValue, "快速打开", "直接打开网址或已存在的绝对路径"),
             (ProviderID.gemini.rawValue, "Gemini 提问", "gm 加问题，新建对话并发送；自动输入需要辅助功能授权"),
-            (ProviderID.ideaProjects.rawValue, "IDEA 项目", "idea 列出最近项目，idea 加名称筛选并打开")
+            (ProviderID.ideaProjects.rawValue, "IDEA 项目", "idea 列出最近项目，idea 加名称筛选并打开"),
+            (ProviderID.killProcess.rawValue, "结束进程", "kill / kp 按名称、PID 或 :端口 列出并结束进程"),
+            (ProviderID.chrome.rawValue, "Google Chrome", "chrome / tab / bm 搜索标签页、书签和历史记录")
         ]
     }
 

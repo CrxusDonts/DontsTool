@@ -91,11 +91,16 @@ done
 [[ -d "$dt_app/Contents/Frameworks/Sparkle.framework" ]]
 
 dt_sign() {
+  local dt_target="$1"
+  shift
   local dt_sign_args=(--force --options runtime --timestamp --sign "$dt_identity")
   if [[ -n "${DT_SIGNING_KEYCHAIN:-}" ]]; then
     dt_sign_args+=(--keychain "$DT_SIGNING_KEYCHAIN")
   fi
-  codesign "${dt_sign_args[@]}" "$1"
+  if [[ $# -gt 0 ]]; then
+    dt_sign_args+=("$@")
+  fi
+  codesign "${dt_sign_args[@]}" "$dt_target"
 }
 
 dt_sparkle="$dt_app/Contents/Frameworks/Sparkle.framework"
@@ -104,7 +109,7 @@ dt_sign "$dt_sparkle/Versions/B/XPCServices/Installer.xpc"
 dt_sign "$dt_sparkle/Versions/B/Autoupdate"
 dt_sign "$dt_sparkle/Versions/B/Updater.app"
 dt_sign "$dt_sparkle"
-dt_sign "$dt_app"
+dt_sign "$dt_app" --entitlements "$dt_root/Resources/DontsTool.entitlements"
 
 codesign --verify --deep --strict -R="$dt_req" "$dt_app"
 dt_signature="$(codesign -dv --verbose=4 "$dt_app" 2>&1)"

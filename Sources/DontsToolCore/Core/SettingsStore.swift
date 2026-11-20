@@ -87,6 +87,8 @@ public final class SettingsStore: ObservableObject {
         static let builtInProviderDefaultsV2Completed = "dontstool.builtInProviderDefaultsV2Completed"
         static let applicationWorkflowsMigrationCompleted = "dontstool.applicationWorkflowsMigrationCompleted"
         static let notesProviderMigrationCompleted = "dontstool.notesProviderMigrationCompleted"
+        static let killProcessProviderMigrationCompleted = "dontstool.killProcessProviderMigrationCompleted"
+        static let chromeProviderMigrationCompleted = "dontstool.chromeProviderMigrationCompleted"
         static let hasCompletedOnboarding = "dontstool.hasCompletedOnboarding"
         static let cloudSyncEnabled = "dontstool.cloudSync.enabled"
         static let cloudSyncServerURL = "dontstool.cloudSync.serverURL"
@@ -192,6 +194,20 @@ public final class SettingsStore: ObservableObject {
                 defaults.set(Array(enabledProviders).sorted(), forKey: Key.enabledProviders)
             }
             defaults.set(true, forKey: Key.notesProviderMigrationCompleted)
+        }
+        if !defaults.bool(forKey: Key.killProcessProviderMigrationCompleted) {
+            enabledProviders.insert(ProviderID.killProcess.rawValue)
+            if storedProviders != nil {
+                defaults.set(Array(enabledProviders).sorted(), forKey: Key.enabledProviders)
+            }
+            defaults.set(true, forKey: Key.killProcessProviderMigrationCompleted)
+        }
+        if !defaults.bool(forKey: Key.chromeProviderMigrationCompleted) {
+            enabledProviders.insert(ProviderID.chrome.rawValue)
+            if storedProviders != nil {
+                defaults.set(Array(enabledProviders).sorted(), forKey: Key.enabledProviders)
+            }
+            defaults.set(true, forKey: Key.chromeProviderMigrationCompleted)
         }
         enabledProviders.remove("knowledge")
         enabledProviderIDs = enabledProviders
