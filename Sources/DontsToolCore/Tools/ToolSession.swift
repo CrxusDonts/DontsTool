@@ -91,7 +91,7 @@ public final class ToolSession: ObservableObject {
     private func apply(_ request: ToolOpenRequest) {
         if let mode = request.mode { self.mode = mode }
         guard let text = request.input else { return }
-        if kind == .json && mode == "format" && !comparing {
+        if kind == .json && request.mode == "format" && !comparing {
             input = (try? TextTransformers.formatJSON(text, pretty: true)) ?? text
         } else {
             input = text
