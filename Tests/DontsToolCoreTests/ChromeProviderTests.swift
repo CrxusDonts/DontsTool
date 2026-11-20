@@ -328,13 +328,16 @@ struct ChromeProviderTests {
 
         let clipboard = SpyClipboard()
         let feedback = SpyFeedback()
+        let usage = UsageStore(defaults: defaults)
         let provider = ChromeProvider(
             settings: settings,
             service: service,
             clipboard: clipboard,
             feedback: feedback,
+            usage: usage,
             tabCacheTTL: 60
         )
+        #expect(provider.homeToolEntry()?.canonicalKey == ChromeProvider.entryCanonicalKey)
         var refreshCount = 0
         provider.onTabsChanged = { refreshCount += 1 }
 
@@ -373,6 +376,7 @@ struct ChromeProviderTests {
         #expect(snapshot.openedURLs[0].1 == false)
         #expect(snapshot.openedURLs[1].1 == true)
         #expect(snapshot.openedNewTabs == [false, true])
+        #expect(usage.record(for: ChromeProvider.entryCanonicalKey)?.count == 8)
 
         // Closing a tab invalidates the tab cache, so a subsequent query re-fetches from the service.
         _ = await provider.search(SearchContext(

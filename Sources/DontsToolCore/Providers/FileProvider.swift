@@ -16,6 +16,7 @@ public final class FileProvider: ToolProvider {
     private let feedback: FeedbackProviding
     private let service: FileSearchService
     private let clipboard: ClipboardProviding
+    private let openInTerminal: (@MainActor (URL) async throws -> Void)?
 
     public var isEnabled: Bool {
         get { settings.isProviderEnabled(id) && settings.fileSearchEnabled }
@@ -28,7 +29,8 @@ public final class FileProvider: ToolProvider {
         launcher: AppLaunching,
         feedback: FeedbackProviding,
         service: FileSearchService = FileSearchService(),
-        clipboard: ClipboardProviding = SystemClipboard()
+        clipboard: ClipboardProviding = SystemClipboard(),
+        openInTerminal: (@MainActor (URL) async throws -> Void)? = nil
     ) {
         self.settings = settings
         self.usage = usage
@@ -36,6 +38,7 @@ public final class FileProvider: ToolProvider {
         self.feedback = feedback
         self.service = service
         self.clipboard = clipboard
+        self.openInTerminal = openInTerminal
     }
 
     public func search(_ context: SearchContext) async -> [SearchItem] {
@@ -70,8 +73,36 @@ public final class FileProvider: ToolProvider {
         let usage = self.usage
         let feedback = self.feedback
         let clipboard = self.clipboard
+        let openInTerminal = self.openInTerminal
         let key = hit.url.path
         let score = hit.score + usage.boost(for: key)
+
+        var actions: [ItemAction] = [
+            ItemAction(id: "file.open", title: "打开", symbol: "arrow.up.forward.app") {
+                do {
+                    try launcher.openFile(at: hit.url)
+                    usage.recordUse(of: key)
+                } catch {
+                    feedback.show(error.localizedDescription)
+                }
+            },
+            ItemAction(id: "file.reveal", title: "在访达中显示", symbol: "folder", fileAction: .reveal) {
+                launcher.revealInFinder(hit.url)
+            },
+            ItemAction(id: "file.copyPath", title: "复制路径", symbol: "doc.on.doc", fileAction: .copyPath) {
+                clipboard.writeString(hit.url.path)
+                feedback.show("已复制 \(hit.url.lastPathComponent) 的路径")
+            }
+        ]
+        if let openInTerminal {
+            actions.append(ItemAction(id: "file.openInTerminal", title: "在终端中打开", presentation: .openWindow, symbol: "terminal") {
+                do {
+                    try await openInTerminal(hit.url)
+                } catch {
+                    feedback.show(error.localizedDescription)
+                }
+            })
+        }
 
         return SearchItem(
             providerID: id,
@@ -81,23 +112,7 @@ public final class FileProvider: ToolProvider {
             icon: .file(path: hit.url.path),
             score: score,
             canonicalKey: key,
-            actions: [
-                ItemAction(id: "file.open", title: "打开", symbol: "arrow.up.forward.app") {
-                    do {
-                        try launcher.openFile(at: hit.url)
-                        usage.recordUse(of: key)
-                    } catch {
-                        feedback.show(error.localizedDescription)
-                    }
-                },
-                ItemAction(id: "file.reveal", title: "在访达中显示", symbol: "folder", fileAction: .reveal) {
-                    launcher.revealInFinder(hit.url)
-                },
-                ItemAction(id: "file.copyPath", title: "复制路径", symbol: "doc.on.doc", fileAction: .copyPath) {
-                    clipboard.writeString(hit.url.path)
-                    feedback.show("已复制 \(hit.url.lastPathComponent) 的路径")
-                }
-            ]
+            actions: actions
         )
     }
 }

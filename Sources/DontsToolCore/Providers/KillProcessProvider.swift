@@ -2,6 +2,8 @@ import Foundation
 
 @MainActor
 public final class KillProcessProvider: ToolProvider {
+    public static let entryCanonicalKey = "process:entry"
+
     public let id = ProviderID.killProcess.rawValue
     public let displayName = "结束进程"
     public let priority = 200
@@ -24,6 +26,7 @@ public final class KillProcessProvider: ToolProvider {
     private let prefill: (any QueryPrefilling)?
     private let clipboard: (any ClipboardProviding)?
     private let feedback: (any FeedbackProviding)?
+    private let usage: UsageStore?
     private let revealInFinder: (@MainActor (URL) -> Void)?
     private let unavailableKeywords: @MainActor () -> Set<String>
     private let cacheTTL: TimeInterval
@@ -38,6 +41,7 @@ public final class KillProcessProvider: ToolProvider {
         prefill: (any QueryPrefilling)? = nil,
         clipboard: (any ClipboardProviding)? = nil,
         feedback: (any FeedbackProviding)? = nil,
+        usage: UsageStore? = nil,
         revealInFinder: (@MainActor (URL) -> Void)? = nil,
         unavailableKeywords: @escaping @MainActor () -> Set<String> = { [] },
         cacheTTL: TimeInterval = 1.5,
@@ -48,10 +52,16 @@ public final class KillProcessProvider: ToolProvider {
         self.prefill = prefill
         self.clipboard = clipboard
         self.feedback = feedback
+        self.usage = usage
         self.revealInFinder = revealInFinder
         self.unavailableKeywords = unavailableKeywords
         self.cacheTTL = cacheTTL
         self.nowProvider = nowProvider
+    }
+
+    public func homeToolEntry() -> SearchItem? {
+        guard isEnabled else { return nil }
+        return discoveryEntry(score: 899)
     }
 
     public func invalidateCache() {
@@ -245,6 +255,7 @@ public final class KillProcessProvider: ToolProvider {
         let service = self.service
         let feedback = self.feedback
         let clipboard = self.clipboard
+        let usage = self.usage
         let revealInFinder = self.revealInFinder
 
         var actions: [ItemAction] = [
@@ -252,6 +263,7 @@ public final class KillProcessProvider: ToolProvider {
                 guard settings.isProviderEnabled(providerID), !Task.isCancelled else { return }
                 do {
                     try await service.terminate(pid: process.pid, signal: .terminate)
+                    usage?.recordUse(of: Self.entryCanonicalKey)
                     self?.invalidateCache()
                     feedback?.show("已结束 \(process.name)（PID \(process.pid)）")
                     try? await Task.sleep(for: .milliseconds(100))
@@ -264,6 +276,7 @@ public final class KillProcessProvider: ToolProvider {
                 guard settings.isProviderEnabled(providerID), !Task.isCancelled else { return }
                 do {
                     try await service.terminate(pid: process.pid, signal: .forceKill)
+                    usage?.recordUse(of: Self.entryCanonicalKey)
                     self?.invalidateCache()
                     feedback?.show("已强制结束 \(process.name)（PID \(process.pid)）")
                     try? await Task.sleep(for: .milliseconds(100))
@@ -288,6 +301,7 @@ public final class KillProcessProvider: ToolProvider {
                         excludingPID: ProcessInfo.processInfo.processIdentifier,
                         signal: .terminate
                     )
+                    usage?.recordUse(of: Self.entryCanonicalKey)
                     self?.invalidateCache()
                     feedback?.show("已结束 \(count) 个 \(process.name) 进程")
                     try? await Task.sleep(for: .milliseconds(120))
@@ -309,6 +323,7 @@ public final class KillProcessProvider: ToolProvider {
                         excludingPID: ProcessInfo.processInfo.processIdentifier,
                         signal: .forceKill
                     )
+                    usage?.recordUse(of: Self.entryCanonicalKey)
                     self?.invalidateCache()
                     feedback?.show("已强制结束 \(count) 个 \(process.name) 进程")
                     try? await Task.sleep(for: .milliseconds(120))
@@ -323,11 +338,13 @@ public final class KillProcessProvider: ToolProvider {
             actions.append(ItemAction(id: "process.copyPID", title: "复制 PID", presentation: .dismissThenRun, symbol: "number") {
                 guard settings.isProviderEnabled(providerID), !Task.isCancelled else { return }
                 clipboard.writeString(String(process.pid))
+                usage?.recordUse(of: Self.entryCanonicalKey)
                 feedback?.show("已复制 PID \(process.pid)")
             })
             actions.append(ItemAction(id: "process.copyCommand", title: "复制启动命令", presentation: .dismissThenRun, symbol: "doc.on.doc") {
                 guard settings.isProviderEnabled(providerID), !Task.isCancelled else { return }
                 clipboard.writeString(process.commandLine)
+                usage?.recordUse(of: Self.entryCanonicalKey)
                 feedback?.show("已复制启动命令")
             })
         }
@@ -337,6 +354,7 @@ public final class KillProcessProvider: ToolProvider {
             actions.append(ItemAction(id: "process.reveal", title: "在访达中显示", presentation: .dismissThenRun, symbol: "folder") {
                 guard settings.isProviderEnabled(providerID), !Task.isCancelled else { return }
                 revealInFinder(URL(fileURLWithPath: revealPath))
+                usage?.recordUse(of: Self.entryCanonicalKey)
             })
         }
 
@@ -353,7 +371,7 @@ public final class KillProcessProvider: ToolProvider {
         )
     }
 
-    private func discoveryEntry() -> SearchItem {
+    private func discoveryEntry(score: Double = 1800) -> SearchItem {
         let keyword = keywords.first ?? "kill"
         let prefill = self.prefill
         return SearchItem(
@@ -362,8 +380,8 @@ public final class KillProcessProvider: ToolProvider {
             title: "结束进程",
             subtitle: "输入 \(keyword) 进程名、PID 或 :端口号，列出并结束运行中的进程",
             icon: .symbol(name: "xmark.octagon", tint: .red),
-            score: 1800,
-            canonicalKey: "process:entry",
+            score: score,
+            canonicalKey: Self.entryCanonicalKey,
             actions: [ItemAction(id: "process.enter", title: "查看进程", presentation: .keepPanelOpen, symbol: "xmark.octagon") {
                 prefill?.prefill(keyword + " ")
             }],

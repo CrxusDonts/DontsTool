@@ -4,6 +4,7 @@ import AppKit
 final class MenuBarController: NSObject {
     weak var updates: AppUpdateController?
     var onOpenLauncher: (() -> Void)?
+    var onOpenGuide: (() -> Void)?
     var onQuit: (() -> Void)?
     var hotKeyDisplay = "⌥Space" {
         didSet { statusItem?.button?.toolTip = "DontsTool（\(hotKeyDisplay)）" }
@@ -23,6 +24,9 @@ final class MenuBarController: NSObject {
         let open = NSMenuItem(title: "打开启动器", action: #selector(openLauncher), keyEquivalent: "")
         open.target = self
         menu.addItem(open)
+        let guide = NSMenuItem(title: "使用指南", action: #selector(openGuide), keyEquivalent: "")
+        guide.target = self
+        menu.addItem(guide)
         let update = NSMenuItem(title: "检查更新…", action: #selector(AppUpdateController.checkForUpdates(_:)), keyEquivalent: "")
         update.target = updates
         menu.addItem(update)
@@ -36,5 +40,6 @@ final class MenuBarController: NSObject {
     }
 
     @objc private func openLauncher() { onOpenLauncher?() }
+    @objc private func openGuide() { onOpenGuide?() }
     @objc private func quit() { onQuit?() }
 }

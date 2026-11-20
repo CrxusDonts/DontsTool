@@ -18,7 +18,7 @@ extension ToolWorkspaceView {
             Button("粘贴") {
                 guard let value = NSPasteboard.general.string(forType: .string) else { return }
                 if session.kind == .json {
-                    draftEditor.replaceInput(JSONPaste.formatted(value), actionName: "粘贴")
+                    draftEditor.replaceInput(JSONPaste.formatted(value) ?? value, actionName: "粘贴")
                 } else {
                     session.input = value
                 }

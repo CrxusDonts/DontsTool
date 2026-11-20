@@ -238,6 +238,10 @@ struct ToolGridTileView: View {
         case "URL 编解码": return "URL"
         case "时间戳转换": return "时间戳"
         case "UUID 生成器": return "UUID"
+        case "Google Chrome": return "Chrome"
+        case "IDEA 项目": return "IDEA"
+        case "Gemini 提问": return "Gemini"
+        case "终端与访达": return "终端访达"
         default: return item.title
         }
     }

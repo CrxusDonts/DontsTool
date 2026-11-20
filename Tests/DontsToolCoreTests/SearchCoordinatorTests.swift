@@ -46,6 +46,61 @@ struct SearchCoordinatorTests {
         #expect(updates().last?.items.map(\.canonicalKey) == ["tool:base64", "tool:url"])
     }
 
+    @MainActor
+    private final class CoordinatorNoteOpener: LocalNoteOpening {
+        func createNote() {}
+        func openNote(_ id: UUID) {}
+        @discardableResult func quickCapture(_ text: String) throws -> LocalNoteRecord {
+            LocalNoteRecord(content: .plainText(text))
+        }
+    }
+
+    @Test func defaultToolsOrderByMostRecentAndPromoteHomeEntries() async throws {
+        let suite = "dontstool.tool-recent.\(UUID())"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let notesDir = FileManager.default.temporaryDirectory.appendingPathComponent("notes-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: notesDir) }
+        let settings = SettingsStore(defaults: defaults)
+        let opener = MockToolOpener()
+        let usage = UsageStore(defaults: defaults)
+        let notesStore = LocalNoteStore(rootURL: notesDir)
+        let notesOpener = CoordinatorNoteOpener()
+        let killProvider = KillProcessProvider(settings: settings, usage: usage)
+        let providers: [ToolProvider] = [
+            NotesProvider(settings: settings, store: notesStore, opener: notesOpener, usage: usage),
+            TextToolsProvider(settings: settings, toolOpener: opener),
+            TranslationProvider(settings: settings, toolOpener: opener),
+            killProvider
+        ]
+
+        let coordinator = SearchCoordinator(registry: ToolRegistry(providers: providers), usage: usage)
+        let updates = collect(coordinator)
+
+        // 未使用任何工具时，默认 8 个工具填满网格，未用过的 homeToolEntry 不挤占默认工具。
+        coordinator.submit("")
+        await coordinator.waitForPendingSearch()
+        let initialKeys = updates().last?.items.map(\.canonicalKey) ?? []
+        #expect(initialKeys.count == 8)
+        #expect(!initialKeys.contains(KillProcessProvider.entryCanonicalKey))
+
+        // 按时间先后使用：先高频用 url，再较新用 base64，最后刚用结束进程。
+        let now = Date()
+        for _ in 0..<5 { usage.recordUse(of: "tool:url", at: now.addingTimeInterval(-300)) }
+        usage.recordUse(of: "tool:base64", at: now.addingTimeInterval(-60))
+        usage.recordUse(of: KillProcessProvider.entryCanonicalKey, at: now.addingTimeInterval(-10))
+
+        coordinator.submit("")
+        await coordinator.waitForPendingSearch()
+        let recentKeys = updates().last?.items.map(\.canonicalKey) ?? []
+        #expect(recentKeys.count == 8)
+        #expect(Array(recentKeys.prefix(3)) == [
+            KillProcessProvider.entryCanonicalKey,
+            "tool:base64",
+            "tool:url"
+        ])
+    }
+
     @Test func keywordModeQueriesOnlyTargetProvider() async {
         let app = MockProvider(id: "app")
         let text = MockProvider(

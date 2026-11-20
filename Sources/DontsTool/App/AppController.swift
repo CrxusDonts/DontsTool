@@ -76,6 +76,7 @@ final class AppController {
             opener: noteWindows,
             clipboard: clipboard,
             feedback: toast,
+            usage: usage,
             unavailableKeywords: { [weak self] in
                 guard let self else { return [] }
                 return Set(self.websites.configuration.groups.map(\.keyword) + self.searchEngines.configuration.engines.map(\.keyword))
@@ -92,12 +93,28 @@ final class AppController {
             clipboard: clipboard,
             unavailableKeywords: { [weak websites] in Set(websites?.configuration.groups.map(\.keyword) ?? []) }
         )
+        let terminalFinderProvider = TerminalFinderProvider(
+            settings: settings,
+            prefill: prefiller,
+            clipboard: clipboard,
+            feedback: toast,
+            usage: usage,
+            unavailableKeywords: { [weak self] in
+                guard let self else { return [] }
+                return Set(self.websites.configuration.groups.map(\.keyword) + self.searchEngines.configuration.engines.map(\.keyword))
+            }
+        )
+        let openInTerminal: @MainActor (URL) async throws -> Void = { [weak terminalFinderProvider] url in
+            guard let terminalFinderProvider else { return }
+            try await terminalFinderProvider.openPathInPreferredTerminal(url)
+        }
         let fileProvider = FileProvider(
             settings: settings,
             usage: usage,
             launcher: SystemAppLauncher(),
             feedback: toast,
-            clipboard: clipboard
+            clipboard: clipboard,
+            openInTerminal: openInTerminal
         )
         let translationProvider = TranslationProvider(settings: settings, toolOpener: toolWindows)
         let calculatorProvider = CalculatorProvider(settings: settings, clipboard: clipboard, feedback: toast)
@@ -107,18 +124,34 @@ final class AppController {
             launcher: SystemAppLauncher(),
             opener: SystemURLOpener(),
             clipboard: clipboard,
-            feedback: toast
+            feedback: toast,
+            openInTerminal: openInTerminal
         )
         let websiteProvider = WebsiteShortcutProvider(store: websites, opener: SystemURLOpener(), feedback: toast, prefill: prefiller)
         let geminiService = GeminiConversationService(controller: SystemGeminiAppController())
-        let geminiProvider = GeminiProvider(index: appIndex, settings: settings, service: geminiService, feedback: toast)
-        let ideaProvider = IDEProjectProvider(index: appIndex, settings: settings, usage: usage, feedback: toast)
+        let geminiProvider = GeminiProvider(
+            index: appIndex,
+            settings: settings,
+            service: geminiService,
+            feedback: toast,
+            usage: usage,
+            prefill: prefiller
+        )
+        let ideaProvider = IDEProjectProvider(
+            index: appIndex,
+            settings: settings,
+            usage: usage,
+            feedback: toast,
+            prefill: prefiller,
+            openInTerminal: openInTerminal
+        )
         let appLauncher = SystemAppLauncher()
         let killProcessProvider = KillProcessProvider(
             settings: settings,
             prefill: prefiller,
             clipboard: clipboard,
             feedback: toast,
+            usage: usage,
             revealInFinder: { appLauncher.revealInFinder($0) },
             unavailableKeywords: { [weak self] in
                 guard let self else { return [] }
@@ -130,6 +163,17 @@ final class AppController {
             prefill: prefiller,
             clipboard: clipboard,
             feedback: toast,
+            usage: usage,
+            unavailableKeywords: { [weak self] in
+                guard let self else { return [] }
+                return Set(self.websites.configuration.groups.map(\.keyword) + self.searchEngines.configuration.engines.map(\.keyword))
+            }
+        )
+        let helpGuideProvider = HelpGuideProvider(
+            openGuide: { [weak self] query in
+                self?.settingsWindow?.showGuide(query: query)
+            },
+            prefill: prefiller,
             unavailableKeywords: { [weak self] in
                 guard let self else { return [] }
                 return Set(self.websites.configuration.groups.map(\.keyword) + self.searchEngines.configuration.engines.map(\.keyword))
@@ -138,7 +182,8 @@ final class AppController {
         let registry = ToolRegistry(providers: [
             appProvider, fileProvider, textProvider, webProvider, translationProvider,
             notesProvider, websiteProvider, calculatorProvider, quickOpenProvider,
-            geminiProvider, ideaProvider, killProcessProvider, chromeProvider
+            geminiProvider, ideaProvider, killProcessProvider, chromeProvider,
+            terminalFinderProvider, helpGuideProvider
         ])
         let coordinator = SearchCoordinator(registry: registry, usage: usage)
         let contentProvider = ContentActionProvider(
@@ -188,6 +233,9 @@ final class AppController {
             onHotKeyRecordingChanged: { [weak hotKeyCoordinator] isRecording in
                 hotKeyCoordinator?.setRecording(isRecording)
             },
+            onTryGuideQuery: { [weak panel] query in
+                panel?.showAndPrefill(query)
+            },
             prepareBackup: { [weak noteWindows] in
                 await noteWindows?.flushOpenNotes()
             },
@@ -226,6 +274,7 @@ final class AppController {
         let menuBar = MenuBarController()
         menuBar.updates = updateController
         menuBar.onOpenLauncher = { [weak panel] in panel?.toggle() }
+        menuBar.onOpenGuide = { [weak settingsWindow] in settingsWindow?.showGuide() }
         menuBar.onQuit = { NSApp.terminate(nil) }
         menuBar.hotKeyDisplay = HotKeyFormatter.displayString(for: settings.hotKey)
         menuBar.install()

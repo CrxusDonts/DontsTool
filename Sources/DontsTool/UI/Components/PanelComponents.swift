@@ -100,7 +100,7 @@ struct GroupHeader: View {
         case .app:
             isDefaultList ? "常用" : "应用"
         case .tool:
-            "工具"
+            isDefaultList ? "最近工具" : "工具"
         case .file:
             "文件"
         case .web:

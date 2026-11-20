@@ -2,6 +2,8 @@ import Foundation
 
 @MainActor
 public final class ChromeProvider: ToolProvider {
+    public static let entryCanonicalKey = "chrome:entry"
+
     public let id = ProviderID.chrome.rawValue
     public let displayName = "Google Chrome"
     public let priority = 200
@@ -28,6 +30,7 @@ public final class ChromeProvider: ToolProvider {
     private let prefill: (any QueryPrefilling)?
     private let clipboard: (any ClipboardProviding)?
     private let feedback: (any FeedbackProviding)?
+    private let usage: UsageStore?
     private let unavailableKeywords: @MainActor () -> Set<String>
     private let tabCacheTTL: TimeInterval
     private let nowProvider: @Sendable () -> Date
@@ -42,6 +45,7 @@ public final class ChromeProvider: ToolProvider {
         prefill: (any QueryPrefilling)? = nil,
         clipboard: (any ClipboardProviding)? = nil,
         feedback: (any FeedbackProviding)? = nil,
+        usage: UsageStore? = nil,
         unavailableKeywords: @escaping @MainActor () -> Set<String> = { [] },
         tabCacheTTL: TimeInterval = 1.5,
         nowProvider: @escaping @Sendable () -> Date = Date.init
@@ -51,9 +55,15 @@ public final class ChromeProvider: ToolProvider {
         self.prefill = prefill
         self.clipboard = clipboard
         self.feedback = feedback
+        self.usage = usage
         self.unavailableKeywords = unavailableKeywords
         self.tabCacheTTL = tabCacheTTL
         self.nowProvider = nowProvider
+    }
+
+    public func homeToolEntry() -> SearchItem? {
+        guard isEnabled, service.applicationPath != nil else { return nil }
+        return discoveryEntry(score: 900)
     }
 
     public func invalidateTabCache() {
@@ -268,6 +278,7 @@ public final class ChromeProvider: ToolProvider {
         let service = self.service
         let clipboard = self.clipboard
         let feedback = self.feedback
+        let usage = self.usage
         let providerID = id
 
         var actions: [ItemAction] = [
@@ -275,6 +286,7 @@ public final class ChromeProvider: ToolProvider {
                 guard settings.isProviderEnabled(providerID), !Task.isCancelled else { return }
                 do {
                     try await service.switchToTab(windowIndex: tab.windowIndex, tabIndex: tab.tabIndex)
+                    usage?.recordUse(of: Self.entryCanonicalKey)
                 } catch {
                     feedback?.show(error.localizedDescription)
                 }
@@ -283,6 +295,7 @@ public final class ChromeProvider: ToolProvider {
                 guard settings.isProviderEnabled(providerID), !Task.isCancelled else { return }
                 do {
                     try await service.closeTab(windowIndex: tab.windowIndex, tabIndex: tab.tabIndex)
+                    usage?.recordUse(of: Self.entryCanonicalKey)
                     self?.invalidateTabCache()
                     feedback?.show("已关闭标签页：\(tab.title)")
                     self?.onTabsChanged?()
@@ -339,6 +352,7 @@ public final class ChromeProvider: ToolProvider {
         let settings = self.settings
         let service = self.service
         let feedback = self.feedback
+        let usage = self.usage
         let providerID = id
 
         var result: [SearchItem] = []
@@ -356,6 +370,7 @@ public final class ChromeProvider: ToolProvider {
                     guard settings.isProviderEnabled(providerID), !Task.isCancelled else { return }
                     do {
                         try await service.openNewTab(incognito: false)
+                        usage?.recordUse(of: Self.entryCanonicalKey)
                         self?.invalidateTabCache()
                     } catch {
                         feedback?.show(error.localizedDescription)
@@ -378,6 +393,7 @@ public final class ChromeProvider: ToolProvider {
                     guard settings.isProviderEnabled(providerID), !Task.isCancelled else { return }
                     do {
                         try await service.openNewTab(incognito: true)
+                        usage?.recordUse(of: Self.entryCanonicalKey)
                     } catch {
                         feedback?.show(error.localizedDescription)
                     }
@@ -392,6 +408,7 @@ public final class ChromeProvider: ToolProvider {
         let service = self.service
         let clipboard = self.clipboard
         let feedback = self.feedback
+        let usage = self.usage
         let providerID = id
 
         var actions: [ItemAction] = [
@@ -403,6 +420,7 @@ public final class ChromeProvider: ToolProvider {
                 }
                 do {
                     try await service.openURL(url, incognito: false)
+                    usage?.recordUse(of: Self.entryCanonicalKey)
                 } catch {
                     feedback?.show(error.localizedDescription)
                 }
@@ -412,6 +430,7 @@ public final class ChromeProvider: ToolProvider {
             actions.append(ItemAction(id: "chrome.copyURL", title: "复制网址", presentation: .dismissThenRun, symbol: "link") {
                 guard settings.isProviderEnabled(providerID), !Task.isCancelled else { return }
                 clipboard.writeString(urlString)
+                usage?.recordUse(of: Self.entryCanonicalKey)
                 feedback?.show("已复制网址")
             })
         }
@@ -423,6 +442,7 @@ public final class ChromeProvider: ToolProvider {
             }
             do {
                 try await service.openURL(url, incognito: true)
+                usage?.recordUse(of: Self.entryCanonicalKey)
             } catch {
                 feedback?.show(error.localizedDescription)
             }
@@ -431,6 +451,7 @@ public final class ChromeProvider: ToolProvider {
             actions.append(ItemAction(id: "chrome.copyMarkdown", title: "复制 Markdown 链接", presentation: .dismissThenRun, symbol: "number") {
                 guard settings.isProviderEnabled(providerID), !Task.isCancelled else { return }
                 clipboard.writeString("[\(title)](\(urlString))")
+                usage?.recordUse(of: Self.entryCanonicalKey)
                 feedback?.show("已复制 Markdown 链接")
             })
         }
@@ -445,22 +466,25 @@ public final class ChromeProvider: ToolProvider {
     ) -> [ItemAction] {
         guard let clipboard else { return [] }
         let settings = self.settings
+        let usage = self.usage
         let providerID = id
         return [
             ItemAction(id: "chrome.copyURL", title: "复制网址", presentation: .dismissThenRun, symbol: "link") {
                 guard settings.isProviderEnabled(providerID), !Task.isCancelled else { return }
                 clipboard.writeString(url)
+                usage?.recordUse(of: Self.entryCanonicalKey)
                 feedback?.show("已复制网址")
             },
             ItemAction(id: "chrome.copyMarkdown", title: "复制 Markdown 链接", presentation: .dismissThenRun, symbol: "number") {
                 guard settings.isProviderEnabled(providerID), !Task.isCancelled else { return }
                 clipboard.writeString("[\(title)](\(url))")
+                usage?.recordUse(of: Self.entryCanonicalKey)
                 feedback?.show("已复制 Markdown 链接")
             }
         ]
     }
 
-    private func discoveryEntry() -> SearchItem {
+    private func discoveryEntry(score: Double = 1800) -> SearchItem {
         let keyword = keywords.first ?? "chrome"
         let prefill = self.prefill
         return SearchItem(
@@ -469,8 +493,8 @@ public final class ChromeProvider: ToolProvider {
             title: "Google Chrome",
             subtitle: "输入 \(keyword) 搜索标签页、书签和历史（tab 只搜标签页，bm 只搜书签）",
             icon: chromeIcon,
-            score: 1800,
-            canonicalKey: "chrome:entry",
+            score: score,
+            canonicalKey: Self.entryCanonicalKey,
             actions: [ItemAction(id: "chrome.enter", title: "进入 Chrome 搜索", presentation: .keepPanelOpen, symbol: "globe") {
                 prefill?.prefill(keyword + " ")
             }],

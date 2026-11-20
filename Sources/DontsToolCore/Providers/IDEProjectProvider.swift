@@ -2,6 +2,8 @@ import Foundation
 
 @MainActor
 public final class IDEProjectProvider: ToolProvider {
+    public static let entryCanonicalKey = "idea-project:entry"
+
     public let id = "ideaProjects"
     public let displayName = "IDEA 项目"
     public let keywords = ["idea"]
@@ -17,15 +19,49 @@ public final class IDEProjectProvider: ToolProvider {
     private let feedback: any FeedbackProviding
     private let clipboard: any ClipboardProviding
     private let discovery: any IDEProjectDiscovering
+    private let prefill: (any QueryPrefilling)?
+    private let openInTerminal: (@MainActor (URL) async throws -> Void)?
 
     public var isEnabled: Bool {
         get { settings.isProviderEnabled(id) }
         set { settings.setProviderEnabled(id, to: newValue) }
     }
 
-    public init(index: AppIndex, settings: SettingsStore, usage: UsageStore, launcher: any IDEProjectOpening = SystemIDEProjectLauncher(), feedback: any FeedbackProviding, clipboard: any ClipboardProviding = SystemClipboard(), discovery: any IDEProjectDiscovering = IDEProjectDiscovery()) {
+    public init(
+        index: AppIndex,
+        settings: SettingsStore,
+        usage: UsageStore,
+        launcher: any IDEProjectOpening = SystemIDEProjectLauncher(),
+        feedback: any FeedbackProviding,
+        clipboard: any ClipboardProviding = SystemClipboard(),
+        discovery: any IDEProjectDiscovering = IDEProjectDiscovery(),
+        prefill: (any QueryPrefilling)? = nil,
+        openInTerminal: (@MainActor (URL) async throws -> Void)? = nil
+    ) {
         self.index = index; self.settings = settings; self.usage = usage
-        self.launcher = launcher; self.feedback = feedback; self.clipboard = clipboard; self.discovery = discovery
+        self.launcher = launcher; self.feedback = feedback; self.clipboard = clipboard
+        self.discovery = discovery; self.prefill = prefill; self.openInTerminal = openInTerminal
+    }
+
+    public func homeToolEntry() -> SearchItem? {
+        guard isEnabled,
+              let app = index.apps.first(where: { $0.bundleID == "com.jetbrains.intellij" || $0.bundleID == "com.jetbrains.intellij.ce" }) else {
+            return nil
+        }
+        let prefill = self.prefill
+        return SearchItem(
+            providerID: id,
+            group: .tool,
+            title: "IDEA 项目",
+            subtitle: "输入 idea 列出或筛选最近的 IntelliJ IDEA 项目",
+            icon: .application(path: app.url.path),
+            score: 898,
+            canonicalKey: Self.entryCanonicalKey,
+            actions: [ItemAction(id: "idea.project.enter", title: "查看 IDEA 项目", presentation: .keepPanelOpen, symbol: "folder") {
+                prefill?.prefill("idea ")
+            }],
+            keyword: "idea"
+        )
     }
 
     public func search(_ context: SearchContext) async -> [SearchItem] {
@@ -59,9 +95,9 @@ public final class IDEProjectProvider: ToolProvider {
     private func item(_ project: IDERecentProject, application: IDEApplication, score: Double) -> SearchItem {
         let launcher = self.launcher; let discovery = self.discovery
         let feedback = self.feedback; let clipboard = self.clipboard; let usage = self.usage
-        let settings = self.settings; let providerID = id
+        let settings = self.settings; let openInTerminal = self.openInTerminal; let providerID = id
         let key = "idea-project:\(project.url.path)"
-        return SearchItem(providerID: id, group: .tool, title: project.name, subtitle: "\(project.url.path) · \(application.name) \(application.version)", icon: .application(path: application.url.path), score: score, canonicalKey: key, actions: [
+        var actions: [ItemAction] = [
             ItemAction(id: "idea.project.open", title: "用 IDEA 打开", symbol: "arrow.up.forward.app") {
                 guard settings.isProviderEnabled(providerID), !Task.isCancelled else { return }
                 let isLocalDirectory = await discovery.isLocalDirectory(project.url)
@@ -70,18 +106,33 @@ public final class IDEProjectProvider: ToolProvider {
                 do {
                     try await launcher.openProject(at: project.url, using: application.url)
                     usage.recordUse(of: key)
+                    usage.recordUse(of: Self.entryCanonicalKey)
                 } catch { feedback.show("无法用 IDEA 打开项目：\(error.localizedDescription)") }
             },
             ItemAction(id: "idea.project.reveal", title: "在访达中显示", symbol: "folder") {
                 guard settings.isProviderEnabled(providerID), !Task.isCancelled else { return }
                 launcher.revealInFinder(project.url)
+                usage.recordUse(of: Self.entryCanonicalKey)
             },
             ItemAction(id: "idea.project.copyPath", title: "复制路径", symbol: "doc.on.doc") {
                 guard settings.isProviderEnabled(providerID), !Task.isCancelled else { return }
                 clipboard.writeString(project.url.path)
+                usage.recordUse(of: Self.entryCanonicalKey)
                 feedback.show("已复制路径")
             }
-        ])
+        ]
+        if let openInTerminal {
+            actions.append(ItemAction(id: "idea.project.openInTerminal", title: "在终端中打开", presentation: .openWindow, symbol: "terminal") {
+                guard settings.isProviderEnabled(providerID), !Task.isCancelled else { return }
+                do {
+                    try await openInTerminal(project.url)
+                    usage.recordUse(of: Self.entryCanonicalKey)
+                } catch {
+                    feedback.show(error.localizedDescription)
+                }
+            })
+        }
+        return SearchItem(providerID: id, group: .tool, title: project.name, subtitle: "\(project.url.path) · \(application.name) \(application.version)", icon: .application(path: application.url.path), score: score, canonicalKey: key, actions: actions)
     }
 
     private func hint(_ message: String) -> SearchItem {

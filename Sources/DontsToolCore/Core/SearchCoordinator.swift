@@ -81,6 +81,9 @@ public final class SearchCoordinator {
             fastItems.append(contentsOf: items)
             if let providerNotice = provider.statusNotice { fastNotice = providerNotice }
         }
+        if context.mode == .global, context.query.isEmpty {
+            fastItems.append(contentsOf: enabled.compactMap { $0.homeToolEntry() })
+        }
 
         let fastMerged = merge(fastItems, context: context, allowWeb: slowProviders.isEmpty)
         publish(
@@ -137,30 +140,32 @@ public final class SearchCoordinator {
             }
         }
 
-        var toolRanks: [String: Double] = [:]
-        var latestTool: String?
+        var recentTools: [String: UsageStore.Record] = [:]
         if context.mode == .global, context.query.isEmpty, let usage {
-            let rankedAt = Date()
-            var latestUse = Date.distantPast
             for item in merged where item.group == .tool {
                 let key = item.canonicalKey
-                guard let record = usage.record(for: key), record.count > 0 else { continue }
-                toolRanks[key] = usage.boost(for: key, now: rankedAt)
-                if record.lastUsed > latestUse {
-                    latestUse = record.lastUsed
-                    latestTool = key
-                }
+                guard let record = usage.record(for: key),
+                      record.count > 0,
+                      record.lastUsed > .distantPast else { continue }
+                recentTools[key] = record
             }
         }
 
         merged.sort {
             if $0.group != $1.group { return $0.group < $1.group }
-            let lhsIsLatest = $0.canonicalKey == latestTool
-            let rhsIsLatest = $1.canonicalKey == latestTool
-            if lhsIsLatest != rhsIsLatest { return lhsIsLatest }
-            let lhsRank = toolRanks[$0.canonicalKey, default: 0]
-            let rhsRank = toolRanks[$1.canonicalKey, default: 0]
-            if lhsRank != rhsRank { return lhsRank > rhsRank }
+            let lhsRecord = recentTools[$0.canonicalKey]
+            let rhsRecord = recentTools[$1.canonicalKey]
+            switch (lhsRecord, rhsRecord) {
+            case let (lhs?, rhs?):
+                if lhs.lastUsed != rhs.lastUsed { return lhs.lastUsed > rhs.lastUsed }
+                if lhs.count != rhs.count { return lhs.count > rhs.count }
+            case (_?, nil):
+                return true
+            case (nil, _?):
+                return false
+            case (nil, nil):
+                break
+            }
             if $0.score != $1.score { return $0.score > $1.score }
             return $0.title.localizedStandardCompare($1.title) == .orderedAscending
         }

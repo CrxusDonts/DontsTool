@@ -91,7 +91,7 @@ struct SettingsStoreTests {
         defer { defaults.removePersistentDomain(forName: name) }
         defaults.set(oldEnabled, forKey: "dontstool.enabledProviders")
 
-        let newBuiltIns = ["calculator", "quickOpen", "gemini", "ideaProjects", "notes", "killProcess", "chrome"]
+        let newBuiltIns = ["calculator", "quickOpen", "gemini", "ideaProjects", "notes", "killProcess", "chrome", "terminalFinder"]
         let migrated = SettingsStore(defaults: defaults, systemLanguageCode: "en")
         #expect(migrated.enabledProviderIDs == Set(oldEnabled + newBuiltIns))
         #expect(Set(defaults.array(forKey: "dontstool.enabledProviders") as? [String] ?? []) == Set(oldEnabled + newBuiltIns))
@@ -102,6 +102,7 @@ struct SettingsStoreTests {
         migrated.setProviderEnabled("notes", to: false)
         migrated.setProviderEnabled("killProcess", to: false)
         migrated.setProviderEnabled("chrome", to: false)
+        migrated.setProviderEnabled("terminalFinder", to: false)
         let reloaded = SettingsStore(defaults: defaults, systemLanguageCode: "en")
         #expect(reloaded.enabledProviderIDs == Set(oldEnabled + ["quickOpen"]))
         let reloadedAgain = SettingsStore(defaults: defaults, systemLanguageCode: "en")
@@ -116,7 +117,8 @@ struct SettingsStoreTests {
             "builtInProviderDefaultsV2Completed",
             "applicationWorkflowsMigrationCompleted",
             "killProcessProviderMigrationCompleted",
-            "chromeProviderMigrationCompleted"
+            "chromeProviderMigrationCompleted",
+            "terminalFinderProviderMigrationCompleted"
         ] {
             defaults.set(true, forKey: "dontstool." + key)
         }
@@ -134,7 +136,8 @@ struct SettingsStoreTests {
             "builtInProviderDefaultsV2Completed",
             "applicationWorkflowsMigrationCompleted",
             "notesProviderMigrationCompleted",
-            "chromeProviderMigrationCompleted"
+            "chromeProviderMigrationCompleted",
+            "terminalFinderProviderMigrationCompleted"
         ] {
             defaults.set(true, forKey: "dontstool." + key)
         }
@@ -152,7 +155,8 @@ struct SettingsStoreTests {
             "builtInProviderDefaultsV2Completed",
             "applicationWorkflowsMigrationCompleted",
             "notesProviderMigrationCompleted",
-            "killProcessProviderMigrationCompleted"
+            "killProcessProviderMigrationCompleted",
+            "terminalFinderProviderMigrationCompleted"
         ] {
             defaults.set(true, forKey: "dontstool." + key)
         }
@@ -160,6 +164,28 @@ struct SettingsStoreTests {
         #expect(migrated.enabledProviderIDs == ["app", "chrome"])
         migrated.setProviderEnabled("chrome", to: false)
         #expect(SettingsStore(defaults: defaults).enabledProviderIDs == ["app"])
+    }
+
+    @Test func terminalFinderMigrationEnablesOnlyTerminalFinderAndPersistsPreferredTerminal() {
+        let (defaults, name) = makeDefaults()
+        defer { defaults.removePersistentDomain(forName: name) }
+        defaults.set(["app"], forKey: "dontstool.enabledProviders")
+        for key in [
+            "builtInProviderDefaultsV2Completed",
+            "applicationWorkflowsMigrationCompleted",
+            "notesProviderMigrationCompleted",
+            "killProcessProviderMigrationCompleted",
+            "chromeProviderMigrationCompleted"
+        ] {
+            defaults.set(true, forKey: "dontstool." + key)
+        }
+        let migrated = SettingsStore(defaults: defaults)
+        #expect(migrated.enabledProviderIDs == ["app", "terminalFinder"])
+        migrated.setProviderEnabled("terminalFinder", to: false)
+        migrated.setPreferredTerminalBundleID(TerminalAppCatalog.ghosttyBundleID)
+        let reloaded = SettingsStore(defaults: defaults)
+        #expect(reloaded.enabledProviderIDs == ["app"])
+        #expect(reloaded.preferredTerminalBundleID == TerminalAppCatalog.ghosttyBundleID)
     }
 
     @Test func legacyKnowledgePreferencesAreIgnoredAndCleanedOnLoad() {
@@ -173,7 +199,8 @@ struct SettingsStoreTests {
             "applicationWorkflowsMigrationCompleted",
             "notesProviderMigrationCompleted",
             "killProcessProviderMigrationCompleted",
-            "chromeProviderMigrationCompleted"
+            "chromeProviderMigrationCompleted",
+            "terminalFinderProviderMigrationCompleted"
         ] {
             defaults.set(true, forKey: "dontstool." + key)
         }

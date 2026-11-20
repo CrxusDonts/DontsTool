@@ -19,6 +19,7 @@ final class SettingsWindowController: NSWindowController {
         selectionTranslation: SelectionTranslationController,
         onRescan: @escaping () -> Void,
         onHotKeyRecordingChanged: @escaping (Bool) -> Void,
+        onTryGuideQuery: @escaping (String) -> Void,
         prepareBackup: @escaping @MainActor () async -> Void,
         didRestoreBackup: @escaping @MainActor () -> Void
     ) {
@@ -46,6 +47,7 @@ final class SettingsWindowController: NSWindowController {
             navigation: navigation,
             onRescan: onRescan,
             onHotKeyRecordingChanged: onHotKeyRecordingChanged,
+            onTryGuideQuery: onTryGuideQuery,
             prepareBackup: prepareBackup,
             didRestoreBackup: didRestoreBackup
         ))
@@ -64,6 +66,12 @@ final class SettingsWindowController: NSWindowController {
 
     func showTranslation() {
         navigation.tab = .translation
+        show()
+    }
+
+    func showGuide(query: String = "") {
+        navigation.guideSearchQuery = query
+        navigation.tab = .guide
         show()
     }
 }

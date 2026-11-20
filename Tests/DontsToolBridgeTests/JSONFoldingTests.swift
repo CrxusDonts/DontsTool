@@ -62,23 +62,30 @@ import Testing
         #expect(coordinator.foldModel.ranges.count == 2)
     }
     @Test func pasteFormattingPreservesInvalidInput() {
-        #expect(JSONPaste.formatted("{invalid") == "{invalid")
+        #expect(JSONPaste.formatted("{invalid") == nil)
+        let fenced = "```json\n{invalid\n```"
+        #expect(JSONPaste.formatted(fenced) == nil)
     }
-    @Test func nativeWholePasteIsOneUndo() {
+    @Test(arguments: ["", " \n\t"], [false, true])
+    func nativeWholePasteIsOneUndo(_ previous: String, _ fenced: Bool) throws {
+        let sample = #"{"project":"DontsTool","settings":{"theme":"dark","editor":{"autoFormat":true,"tabSize":2}},"tools":[{"name":"JSON","actions":["格式化","压缩","折叠"]},{"name":"便笺","actions":["新建","搜索"]}],"tags":["macOS","效率工具"],"archived":false}"#
+        let expected = try JSONDocument.parse(sample).formatted(pretty: true)
         let manager = UndoManager()
         let view = WorkspaceTextView(frame: NSRect(x: 0, y: 0, width: 500, height: 500))
-        let coordinator = ToolTextEditor.Coordinator(ToolTextEditor(text: .constant(""), folding: true, sharedUndoManager: manager))
+        view.string = previous
+        view.setSelectedRange(NSRange(location: previous.utf16.count, length: 0))
+        let coordinator = ToolTextEditor.Coordinator(ToolTextEditor(text: .constant(previous), folding: true, sharedUndoManager: manager))
         view.delegate = coordinator; coordinator.textView = view
         view.allowsUndo = true; view.formatsWholeJSONPaste = true
         let pasteboard = NSPasteboard.withUniqueName()
         defer { pasteboard.releaseGlobally() }
-        pasteboard.setString(#"{"x":[1,2]}"#, forType: .string)
+        pasteboard.setString(fenced ? "```json\r\n" + sample + "\r\n```" : sample, forType: .string)
         #expect(view.pasteWholeJSONIfNeeded(from: pasteboard))
-        #expect(view.string == "{\n  \"x\": [\n    1,\n    2\n  ]\n}")
+        #expect(view.string == expected)
         manager.undo()
-        #expect(view.string == "")
+        #expect(view.string == previous)
         manager.redo()
-        #expect(view.string.contains("\n"))
+        #expect(view.string == expected)
         view.setSelectedRange(NSRange(location: 1, length: 0))
         #expect(!view.pasteWholeJSONIfNeeded(from: pasteboard))
     }

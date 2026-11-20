@@ -4,6 +4,7 @@ import SwiftUI
 @MainActor
 final class SettingsNavigationState: ObservableObject {
     @Published var tab: SettingsRootView.Tab = .general
+    @Published var guideSearchQuery = ""
 }
 
 /// 设置窗口内容：172pt 侧边栏 + 分组表单（design/05-settings.html）。
@@ -16,6 +17,7 @@ struct SettingsRootView: View {
         case translation = "翻译"
         case sync = "同步与备份"
         case index = "索引"
+        case guide = "使用指南"
         case about = "关于"
 
         var id: String { rawValue }
@@ -29,6 +31,7 @@ struct SettingsRootView: View {
             case .translation: "character.bubble"
             case .sync: "icloud"
             case .index: "folder"
+            case .guide: "book.closed"
             case .about: "info.circle"
             }
         }
@@ -47,6 +50,7 @@ struct SettingsRootView: View {
     @ObservedObject var navigation: SettingsNavigationState
     let onRescan: () -> Void
     let onHotKeyRecordingChanged: (Bool) -> Void
+    let onTryGuideQuery: (String) -> Void
     let prepareBackup: @MainActor () async -> Void
     let didRestoreBackup: @MainActor () -> Void
 
@@ -180,6 +184,12 @@ struct SettingsRootView: View {
                         appIndex: appIndex,
                         settings: settings,
                         onRescan: onRescan
+                    )
+                case .guide:
+                    GuideSettingsTabView(
+                        settings: settings,
+                        searchQuery: $navigation.guideSearchQuery,
+                        onTryQuery: onTryGuideQuery
                     )
                 case .about:
                     AboutSettingsTabView(updates: updates)

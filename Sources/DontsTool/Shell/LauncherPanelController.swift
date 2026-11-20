@@ -397,4 +397,14 @@ extension LauncherPanelController: QueryPrefilling {
         }
         refreshSearch()
     }
+
+    func showAndPrefill(_ query: String) {
+        if !isVisible {
+            show()
+        } else {
+            NSApp.activate()
+            panel.makeKeyAndOrderFront(nil)
+        }
+        prefill(query)
+    }
 }

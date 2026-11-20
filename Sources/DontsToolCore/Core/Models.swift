@@ -13,6 +13,7 @@ public enum ProviderID: String, CaseIterable, Identifiable, Sendable {
     case notes
     case killProcess
     case chrome
+    case terminalFinder
 
     public var id: String { rawValue }
 }
@@ -198,10 +199,13 @@ public protocol ToolProvider: AnyObject {
     var statusNotice: String? { get }
 
     func search(_ context: SearchContext) async -> [SearchItem]
+    /// 空查询首页展示的轻量工具入口（不得触发磁盘扫描或外部进程）；默认返回 nil。
+    func homeToolEntry() -> SearchItem?
 }
 
 extension ToolProvider {
     public var phase: SearchPhase { .fast }
     public var supportsGlobalSearch: Bool { true }
     public var statusNotice: String? { nil }
+    public func homeToolEntry() -> SearchItem? { nil }
 }

@@ -23,6 +23,28 @@ struct ToolsSettingsTabView: View {
                     }
                 }
             }
+            SettingsGroup(caption: "终端与访达") {
+                SettingsRow(
+                    title: "默认终端",
+                    subtitle: "用于 tf 跳转以及文件搜索、快速打开、IDEA 项目的「在终端中打开」"
+                ) {
+                    Picker("", selection: Binding(
+                        get: { settings.preferredTerminalBundleID },
+                        set: { settings.setPreferredTerminalBundleID($0) }
+                    )) {
+                        Text("自动（优先当前运行终端）").tag("")
+                        ForEach(installedTerminals) { terminal in
+                            Text(terminal.displayName).tag(terminal.bundleID)
+                        }
+                        if let unavailablePreferredTerminal {
+                            Text("\(unavailablePreferredTerminal.displayName)（未安装）").tag(unavailablePreferredTerminal.bundleID)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .frame(maxWidth: 210)
+                }
+            }
             SettingsGroup(caption: "Gemini 自动提问") {
                 SettingsRow(title: "Gemini Mac 版", subtitle: geminiInstalled ? "已在本机应用索引中找到 Gemini"
                             : (appIndex.isScanning ? "正在检测本机应用…" : "安装 Gemini Mac 版后，此功能才可使用")) {
@@ -56,8 +78,23 @@ struct ToolsSettingsTabView: View {
             (ProviderID.gemini.rawValue, "Gemini 提问", "gm 加问题，新建对话并发送；自动输入需要辅助功能授权"),
             (ProviderID.ideaProjects.rawValue, "IDEA 项目", "idea 列出最近项目，idea 加名称筛选并打开"),
             (ProviderID.killProcess.rawValue, "结束进程", "kill / kp 按名称、PID 或 :端口 列出并结束进程"),
-            (ProviderID.chrome.rawValue, "Google Chrome", "chrome / tab / bm 搜索标签页、书签和历史记录")
+            (ProviderID.chrome.rawValue, "Google Chrome", "chrome / tab / bm 搜索标签页、书签和历史记录"),
+            (ProviderID.terminalFinder.rawValue, "终端与访达", "tf / ft / term 访达与 Ghostty、Warp、iTerm2 等终端双向跳转")
         ]
+    }
+
+    private var installedTerminals: [TerminalAppDescriptor] {
+        SystemTerminalFinderService().installedTerminals()
+    }
+
+    private var unavailablePreferredTerminal: TerminalAppDescriptor? {
+        let configured = settings.preferredTerminalBundleID
+        guard !configured.isEmpty,
+              !installedTerminals.contains(where: { $0.matches(bundleID: configured) }) else {
+            return nil
+        }
+        return TerminalAppCatalog.descriptor(forBundleID: configured)
+            ?? TerminalAppDescriptor(bundleID: configured, displayName: configured)
     }
 
     private var geminiInstalled: Bool {

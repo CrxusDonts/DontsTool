@@ -16,6 +16,7 @@ public final class QuickOpenProvider: ToolProvider {
     private let opener: any URLOpening
     private let clipboard: any ClipboardProviding
     private let feedback: any FeedbackProviding
+    private let openInTerminal: (@MainActor (URL) async throws -> Void)?
     private let fileExists: (String) -> Bool
 
     public var isEnabled: Bool {
@@ -30,6 +31,7 @@ public final class QuickOpenProvider: ToolProvider {
         opener: any URLOpening,
         clipboard: any ClipboardProviding,
         feedback: any FeedbackProviding,
+        openInTerminal: (@MainActor (URL) async throws -> Void)? = nil,
         fileExists: @escaping (String) -> Bool = { FileManager.default.fileExists(atPath: $0) }
     ) {
         self.settings = settings
@@ -38,6 +40,7 @@ public final class QuickOpenProvider: ToolProvider {
         self.opener = opener
         self.clipboard = clipboard
         self.feedback = feedback
+        self.openInTerminal = openInTerminal
         self.fileExists = fileExists
     }
 
@@ -104,7 +107,34 @@ public final class QuickOpenProvider: ToolProvider {
         let usage = self.usage
         let clipboard = self.clipboard
         let feedback = self.feedback
+        let openInTerminal = self.openInTerminal
         let key = "quickopen:file:\(url.path)"
+        var actions: [ItemAction] = [
+            ItemAction(id: "quickopen.file.open", title: "打开", symbol: "arrow.up.forward.app") {
+                do {
+                    try launcher.openFile(at: url)
+                    usage.recordUse(of: key)
+                } catch {
+                    feedback.show(error.localizedDescription)
+                }
+            },
+            ItemAction(id: "quickopen.file.reveal", title: "在访达中显示", symbol: "folder", fileAction: .reveal) {
+                launcher.revealInFinder(url)
+            },
+            ItemAction(id: "quickopen.file.copy", title: "复制路径", symbol: "doc.on.doc", fileAction: .copyPath) {
+                clipboard.writeString(url.path)
+                feedback.show("已复制 \(url.lastPathComponent) 的路径")
+            }
+        ]
+        if let openInTerminal {
+            actions.append(ItemAction(id: "quickopen.file.openInTerminal", title: "在终端中打开", presentation: .openWindow, symbol: "terminal") {
+                do {
+                    try await openInTerminal(url)
+                } catch {
+                    feedback.show(error.localizedDescription)
+                }
+            })
+        }
         return SearchItem(
             providerID: id,
             group: .tool,
@@ -113,23 +143,7 @@ public final class QuickOpenProvider: ToolProvider {
             icon: .file(path: url.path),
             score: 2600,
             canonicalKey: key,
-            actions: [
-                ItemAction(id: "quickopen.file.open", title: "打开", symbol: "arrow.up.forward.app") {
-                    do {
-                        try launcher.openFile(at: url)
-                        usage.recordUse(of: key)
-                    } catch {
-                        feedback.show(error.localizedDescription)
-                    }
-                },
-                ItemAction(id: "quickopen.file.reveal", title: "在访达中显示", symbol: "folder", fileAction: .reveal) {
-                    launcher.revealInFinder(url)
-                },
-                ItemAction(id: "quickopen.file.copy", title: "复制路径", symbol: "doc.on.doc", fileAction: .copyPath) {
-                    clipboard.writeString(url.path)
-                    feedback.show("已复制 \(url.lastPathComponent) 的路径")
-                }
-            ]
+            actions: actions
         )
     }
 

@@ -2,6 +2,8 @@ import Foundation
 
 @MainActor
 public final class NotesProvider: ToolProvider {
+    public static let entryCanonicalKey = "notes:create"
+
     public let id = ProviderID.notes.rawValue
     public let displayName = "便笺"
     public let priority = 200
@@ -20,6 +22,7 @@ public final class NotesProvider: ToolProvider {
     private let opener: any LocalNoteOpening
     private let clipboard: (any ClipboardProviding)?
     private let feedback: (any FeedbackProviding)?
+    private let usage: UsageStore?
     private let unavailableKeywords: @MainActor () -> Set<String>
 
     public init(
@@ -28,6 +31,7 @@ public final class NotesProvider: ToolProvider {
         opener: any LocalNoteOpening,
         clipboard: (any ClipboardProviding)? = nil,
         feedback: (any FeedbackProviding)? = nil,
+        usage: UsageStore? = nil,
         unavailableKeywords: @escaping @MainActor () -> Set<String> = { [] }
     ) {
         self.settings = settings
@@ -35,6 +39,7 @@ public final class NotesProvider: ToolProvider {
         self.opener = opener
         self.clipboard = clipboard
         self.feedback = feedback
+        self.usage = usage
         self.unavailableKeywords = unavailableKeywords
     }
 
@@ -76,6 +81,7 @@ public final class NotesProvider: ToolProvider {
     private func newNoteEntry(scoped: Bool) -> SearchItem {
         let settings = settings
         let opener = opener
+        let usage = usage
         let id = id
         let keyword = keywords.first
         return SearchItem(
@@ -85,10 +91,11 @@ public final class NotesProvider: ToolProvider {
             subtitle: scoped ? "打开工作台记录文字、代码和图片" : (keyword.map { "输入 \($0) 搜索、速记或查看最近便笺 · 回车新建" } ?? "记录文字、代码和图片 · 回车新建便笺"),
             icon: .symbol(name: "note.text", tint: .amber),
             score: 2000,
-            canonicalKey: "notes:create",
+            canonicalKey: Self.entryCanonicalKey,
             actions: [ItemAction(id: "notes.create", title: "新建便笺", presentation: .openWindow, symbol: "square.and.pencil") {
                 guard settings.isProviderEnabled(id), !Task.isCancelled else { return }
                 opener.createNote()
+                usage?.recordUse(of: Self.entryCanonicalKey)
             }],
             keyword: keyword
         )
@@ -98,17 +105,20 @@ public final class NotesProvider: ToolProvider {
         let settings = settings
         let opener = opener
         let feedback = feedback
+        let usage = usage
         let id = id
         let preview = singleLinePreview(text, limit: 48)
         let dailyTitle = LocalNoteStore.dailyNoteTitle()
         let captureAction = ItemAction(id: "notes.quickCapture", title: "记入今日速记", presentation: .dismissThenRun, symbol: "text.append") {
             guard settings.isProviderEnabled(id), !Task.isCancelled else { return }
             let record = try opener.quickCapture(text)
+            usage?.recordUse(of: Self.entryCanonicalKey)
             feedback?.show("已记入「\(record.title)」")
         }
         let openAction = ItemAction(id: "notes.createWithText", title: "新建独立便笺", presentation: .openWindow, symbol: "note.text.badge.plus") {
             guard settings.isProviderEnabled(id), !Task.isCancelled else { return }
             opener.createNote(with: text)
+            usage?.recordUse(of: Self.entryCanonicalKey)
         }
         return SearchItem(
             providerID: id,
@@ -125,6 +135,7 @@ public final class NotesProvider: ToolProvider {
     private func newNoteWithTextEntry(text: String, score: Double) -> SearchItem {
         let settings = settings
         let opener = opener
+        let usage = usage
         let id = id
         let preview = singleLinePreview(text, limit: 48)
         return SearchItem(
@@ -138,6 +149,7 @@ public final class NotesProvider: ToolProvider {
             actions: [ItemAction(id: "notes.createWithText", title: "新建并打开", presentation: .openWindow, symbol: "note.text.badge.plus") {
                 guard settings.isProviderEnabled(id), !Task.isCancelled else { return }
                 opener.createNote(with: text)
+                usage?.recordUse(of: Self.entryCanonicalKey)
             }]
         )
     }
@@ -148,6 +160,7 @@ public final class NotesProvider: ToolProvider {
         let store = store
         let clipboard = clipboard
         let feedback = feedback
+        let usage = usage
         let id = id
         let summary = note.content.plainText.split(whereSeparator: \.isNewline).first.map { String($0.prefix(120)) } ?? "空白便笺"
         let timeLabel = Self.relativeTime(for: note.updatedAt)
@@ -156,17 +169,20 @@ public final class NotesProvider: ToolProvider {
             ItemAction(id: "notes.open", title: "打开便笺", presentation: .openWindow, symbol: "note.text") {
                 guard settings.isProviderEnabled(id), store.note(note.id) != nil, !Task.isCancelled else { return }
                 opener.openNote(note.id)
+                usage?.recordUse(of: Self.entryCanonicalKey)
             }
         ]
         if let clipboard {
             actions.append(ItemAction(id: "notes.copyPlain", title: "复制纯文本", presentation: .dismissThenRun, symbol: "doc.on.doc") {
                 guard settings.isProviderEnabled(id), let current = store.note(note.id), !Task.isCancelled else { return }
                 clipboard.writeString(current.content.plainText)
+                usage?.recordUse(of: Self.entryCanonicalKey)
                 feedback?.show("已复制便笺正文")
             })
             actions.append(ItemAction(id: "notes.copyMarkdown", title: "复制 Markdown", presentation: .dismissThenRun, symbol: "number") {
                 guard settings.isProviderEnabled(id), let current = store.note(note.id), !Task.isCancelled else { return }
                 clipboard.writeString(current.content.markdown)
+                usage?.recordUse(of: Self.entryCanonicalKey)
                 feedback?.show("已复制 Markdown")
             })
         }

@@ -89,6 +89,8 @@ public final class SettingsStore: ObservableObject {
         static let notesProviderMigrationCompleted = "dontstool.notesProviderMigrationCompleted"
         static let killProcessProviderMigrationCompleted = "dontstool.killProcessProviderMigrationCompleted"
         static let chromeProviderMigrationCompleted = "dontstool.chromeProviderMigrationCompleted"
+        static let terminalFinderProviderMigrationCompleted = "dontstool.terminalFinderProviderMigrationCompleted"
+        static let preferredTerminalBundleID = "dontstool.preferredTerminalBundleID"
         static let hasCompletedOnboarding = "dontstool.hasCompletedOnboarding"
         static let cloudSyncEnabled = "dontstool.cloudSync.enabled"
         static let cloudSyncServerURL = "dontstool.cloudSync.serverURL"
@@ -105,6 +107,7 @@ public final class SettingsStore: ObservableObject {
         public var translationAPIModel: String
         public var selectionHoldDelayRawValue: Int
         public var selectionTranslationEnabled: Bool
+        public var preferredTerminalBundleID: String?
 
         public init(
             hotKey: HotKeyConfiguration,
@@ -115,7 +118,8 @@ public final class SettingsStore: ObservableObject {
             translationAPIBaseURL: String,
             translationAPIModel: String,
             selectionHoldDelayRawValue: Int,
-            selectionTranslationEnabled: Bool
+            selectionTranslationEnabled: Bool,
+            preferredTerminalBundleID: String? = nil
         ) {
             self.hotKey = hotKey
             self.applicationSortOrder = applicationSortOrder
@@ -126,6 +130,7 @@ public final class SettingsStore: ObservableObject {
             self.translationAPIModel = translationAPIModel
             self.selectionHoldDelayRawValue = selectionHoldDelayRawValue
             self.selectionTranslationEnabled = selectionTranslationEnabled
+            self.preferredTerminalBundleID = preferredTerminalBundleID
         }
     }
 
@@ -140,6 +145,7 @@ public final class SettingsStore: ObservableObject {
     @Published public private(set) var translationAPIModel: String
     @Published public private(set) var selectionHoldDelay: SelectionHoldDelay
     @Published public private(set) var selectionTranslationEnabled: Bool
+    @Published public private(set) var preferredTerminalBundleID: String
     @Published public private(set) var hasCompletedOnboarding: Bool
     @Published public private(set) var cloudSyncEnabled: Bool
     @Published public private(set) var cloudSyncServerURL: String
@@ -209,6 +215,13 @@ public final class SettingsStore: ObservableObject {
             }
             defaults.set(true, forKey: Key.chromeProviderMigrationCompleted)
         }
+        if !defaults.bool(forKey: Key.terminalFinderProviderMigrationCompleted) {
+            enabledProviders.insert(ProviderID.terminalFinder.rawValue)
+            if storedProviders != nil {
+                defaults.set(Array(enabledProviders).sorted(), forKey: Key.enabledProviders)
+            }
+            defaults.set(true, forKey: Key.terminalFinderProviderMigrationCompleted)
+        }
         enabledProviders.remove("knowledge")
         enabledProviderIDs = enabledProviders
 
@@ -225,6 +238,7 @@ public final class SettingsStore: ObservableObject {
         translationAPIModel = defaults.string(forKey: Key.translationAPIModel) ?? ""
         selectionHoldDelay = SelectionHoldDelay(rawValue: defaults.integer(forKey: Key.selectionHoldDelay)) ?? .seconds2
         selectionTranslationEnabled = defaults.bool(forKey: Key.selectionTranslationEnabled)
+        preferredTerminalBundleID = defaults.string(forKey: Key.preferredTerminalBundleID) ?? ""
         hasCompletedOnboarding = defaults.bool(forKey: Key.hasCompletedOnboarding)
         cloudSyncEnabled = defaults.bool(forKey: Key.cloudSyncEnabled)
         cloudSyncServerURL = defaults.string(forKey: Key.cloudSyncServerURL) ?? ""
@@ -293,6 +307,12 @@ public final class SettingsStore: ObservableObject {
         defaults.set(enabled, forKey: Key.selectionTranslationEnabled)
     }
 
+    public func setPreferredTerminalBundleID(_ bundleID: String) {
+        let trimmed = bundleID.trimmingCharacters(in: .whitespacesAndNewlines)
+        preferredTerminalBundleID = trimmed
+        defaults.set(trimmed, forKey: Key.preferredTerminalBundleID)
+    }
+
     public func completeOnboarding() {
         hasCompletedOnboarding = true
         defaults.set(true, forKey: Key.hasCompletedOnboarding)
@@ -323,7 +343,8 @@ public final class SettingsStore: ObservableObject {
             translationAPIBaseURL: translationAPIBaseURL,
             translationAPIModel: translationAPIModel,
             selectionHoldDelayRawValue: selectionHoldDelay.rawValue,
-            selectionTranslationEnabled: selectionTranslationEnabled
+            selectionTranslationEnabled: selectionTranslationEnabled,
+            preferredTerminalBundleID: preferredTerminalBundleID
         )
     }
 
@@ -340,5 +361,8 @@ public final class SettingsStore: ObservableObject {
         setTranslationAPIModel(synced.translationAPIModel)
         setSelectionHoldDelay(SelectionHoldDelay(rawValue: synced.selectionHoldDelayRawValue) ?? .seconds2)
         setSelectionTranslationEnabled(synced.selectionTranslationEnabled)
+        if let terminal = synced.preferredTerminalBundleID {
+            setPreferredTerminalBundleID(terminal)
+        }
     }
 }

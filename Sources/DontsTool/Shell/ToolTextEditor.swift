@@ -265,11 +265,12 @@ struct ToolTextEditor: NSViewRepresentable {
 final class WorkspaceTextView: NSTextView {
     var formatsWholeJSONPaste = false
     func pasteWholeJSONIfNeeded(from pasteboard: NSPasteboard) -> Bool {
-        let range = selectedRange()
-        guard formatsWholeJSONPaste, isEditable, !hasMarkedText(), range.location == 0,
-              range.length == string.utf16.count,
-              let pasted = pasteboard.string(forType: .string) else { return false }
-        insertText(JSONPaste.formatted(pasted), replacementRange: range)
+        guard formatsWholeJSONPaste, isEditable, !hasMarkedText() else { return false }
+        let documentRange = NSRange(location: 0, length: string.utf16.count)
+        guard selectedRange() == documentRange || string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              let pasted = pasteboard.string(forType: .string),
+              let formatted = JSONPaste.formatted(pasted) else { return false }
+        insertText(formatted, replacementRange: documentRange)
         return true
     }
     override func paste(_ sender: Any?) {
@@ -401,7 +402,19 @@ struct JSONFoldModel: Sendable {
 }
 
 enum JSONPaste {
-    static func formatted(_ pasted: String) -> String {
-        (try? JSONDocument.parse(pasted).formatted(pretty: true)) ?? pasted
+    static func formatted(_ pasted: String) -> String? {
+        let source = fencedJSON(in: pasted) ?? pasted
+        return try? JSONDocument.parse(source).formatted(pretty: true)
+    }
+
+    private static func fencedJSON(in pasted: String) -> String? {
+        let block = pasted.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard block.hasPrefix("```"), block.hasSuffix("```"),
+              let firstBreak = block.firstIndex(where: \.isNewline),
+              let lastBreak = block.lastIndex(where: \.isNewline), firstBreak < lastBreak else { return nil }
+        let opening = block[..<firstBreak].trimmingCharacters(in: .whitespaces).lowercased()
+        let closing = block[block.index(after: lastBreak)...].trimmingCharacters(in: .whitespaces)
+        guard (opening == "```json" || opening == "```"), closing == "```" else { return nil }
+        return String(block[block.index(after: firstBreak)..<lastBreak])
     }
 }
