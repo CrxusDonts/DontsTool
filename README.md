@@ -1,16 +1,19 @@
 <div align="center">
-  <img src="docs/assets/banner.png" alt="DontsTool" width="100%" />
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/banner-dark.png" />
+    <source media="(prefers-color-scheme: light)" srcset="docs/assets/banner-light.png" />
+    <img src="docs/assets/banner-dark.png" alt="DontsTool — 原生 macOS 微内核效率启动器" width="100%" />
+  </picture>
 
   <h1>DontsTool</h1>
 
   <p>原生 macOS 菜单栏效率启动器 · 微内核宿主 × 进程外插件生态</p>
 
   <p>
-    <a href="https://github.com/CrxusDonts/DontsTool/releases/latest"><img src="https://img.shields.io/github/v/release/CrxusDonts/DontsTool?style=flat-square&label=Release&color=496c56&labelColor=283330" alt="Latest Release" /></a>
-    <img src="https://img.shields.io/badge/macOS-26%2B%20%C2%B7%20Universal-2c3b34?style=flat-square&labelColor=283330" alt="macOS 26+ Universal" />
-    <img src="https://img.shields.io/badge/Swift%206-AppKit%20%26%20SwiftUI-2c3b34?style=flat-square&labelColor=283330" alt="Swift 6 AppKit and SwiftUI" />
-    <img src="https://img.shields.io/badge/Developer%20ID-Apple%20Notarized-496c56?style=flat-square&labelColor=283330" alt="Developer ID Apple Notarized" />
-    <a href="https://github.com/CrxusDonts/DontsTool-Plugins"><img src="https://img.shields.io/badge/Plugins-DontsTool--Plugins-496c56?style=flat-square&labelColor=283330" alt="Official Plugins" /></a>
+    <a href="https://github.com/CrxusDonts/DontsTool/releases/latest"><img src="https://img.shields.io/github/v/release/CrxusDonts/DontsTool?style=flat-square&label=Release&color=0A84FF&labelColor=1C1C1E" alt="Latest Release" /></a>
+    <img src="https://img.shields.io/badge/macOS-26%2B%20%C2%B7%20Universal-2C2C2E?style=flat-square&labelColor=1C1C1E" alt="macOS 26+ Universal" />
+    <img src="https://img.shields.io/badge/Swift%206-AppKit%20%26%20SwiftUI-2C2C2E?style=flat-square&labelColor=1C1C1E" alt="Swift 6 AppKit and SwiftUI" />
+    <a href="https://github.com/CrxusDonts/DontsTool-Plugins"><img src="https://img.shields.io/badge/Plugins-DontsTool--Plugins-0A84FF?style=flat-square&labelColor=1C1C1E" alt="Official Plugins" /></a>
   </p>
 
   <p>
@@ -23,6 +26,8 @@
     <a href="#开发文档">开发文档</a>
   </p>
 </div>
+
+<a id="安装"></a>
 
 ## 快速安装
 
@@ -40,17 +45,7 @@ curl -fsSL https://raw.githubusercontent.com/CrxusDonts/DontsTool/main/install.s
 
 1. 前往 [GitHub Releases](https://github.com/CrxusDonts/DontsTool/releases/latest) 下载 `DontsTool-版本号-macos-universal.zip`。
 2. 解压后将 `DontsTool.app` 拖入「应用程序」目录（更新前先保存草稿并正常退出旧版）。
-3. 脚本支持 `--dir "$HOME/Applications"` 和 `--version v0.3.0` 等选项，校验流程详见 [安装与完整性校验](docs/installation.md)。
-
-</details>
-
-<a id="签名与公证说明"></a>
-
-<details>
-<summary>签名与公证说明（含 0.2.9 及更早历史版本）</summary>
-
-- **0.2.10 及之后版本**：使用 Apple Developer ID（Team ID：`Q2K3CAKGG2`）签名、开启 Hardened Runtime 并经 Apple 公证与离线钉票，安装后可直接通过系统 Gatekeeper 打开。
-- **0.2.9 及更早历史版本**：采用 ad-hoc 本地签名；首次打开如被拦截，先尝试打开一次，再到 **系统设置 → 隐私与安全性** 选择「仍要打开」。
+3. 脚本支持 `--dir "$HOME/Applications"` 和 `--version v0.3.0` 等选项，完整校验与签名说明见 [安装与完整性校验](docs/installation.md)。
 
 </details>
 
@@ -65,7 +60,7 @@ flowchart LR
     subgraph Host["DontsTool 微内核宿主 (Swift 6)"]
         Core["搜索热路径 · 应用索引 · 计算 · 快速打开"]
         Workspace["文本工具窗口 · 离线便笺 · 翻译与划词 · Gemini"]
-        Sync["Cloudflare 多端同步 · 本地备份 · Sparkle 更新"]
+        Sync["Cloudflare 多端同步 · 本地备份 · 应用内更新"]
         Runtime["Sidecar 运行时 · 插件源与两步校验安装器"]
     end
 
@@ -110,7 +105,7 @@ flowchart LR
       <ul>
         <li><strong>Cloudflare 多端同步</strong>：可选部署自建 Worker（Durable Object + R2）跨 Mac 实时增量同步设置、网址、搜索引擎与便笺附件。</li>
         <li><strong>本地完整备份</strong>：一键导出带 SHA-256 校验的 <code>.zip</code> 快照，恢复前自动留存当前状态备份。</li>
-        <li><strong>应用内自动更新</strong>：集成 Sparkle 2.10.1 与 Ed25519 签名验证，菜单栏点击「检查更新」即可升级。</li>
+        <li><strong>应用内更新</strong>：在菜单栏点击「检查更新」即可获取并安装新版本。</li>
         <li><strong>内置使用指南</strong>：输入 <code>help</code> 或 <code>?</code> 速查全部触发词、示例与当前快捷键。</li>
       </ul>
     </td>
@@ -174,7 +169,7 @@ open build/Build/Products/Debug/DontsTool.app
 make test            # Core 核心单元测试（含插件运行时、源管理与安装器）
 make test-bridge     # 原生窗口、系统事件与 WebKit 桥接测试
 make test-editor     # 离线便笺编辑器测试并重新生成资源
-make test-updater    # 解析 Sparkle 依赖并验证更新源签名脚本
+make test-updater    # 解析包依赖并验证更新源脚本
 make test-installer  # 安装脚本完整性、回滚与并发锁测试
 ```
 

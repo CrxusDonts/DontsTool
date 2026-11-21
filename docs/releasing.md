@@ -59,4 +59,4 @@ Release workflow 在 `$RUNNER_TEMP` 中创建一次性随机密码临时钥匙�
 
 ## 签名与安装边界
 
-`0.2.10` 及之后版本的发布产物使用 Team ID `Q2K3CAKGG2` 的 Developer ID Application 证书签名、开启 Hardened Runtime 并经 Apple 官方公证及 `stapler` 钉票，通过 GitHub Release 直接分发（非沙盒，不上架 Mac App Store），用户安装后可直接通过 Gatekeeper 打开。`0.2.9` 及更早历史版本仍采用 ad-hoc 本地签名，详见 [README 签名与公证说明](../README.md#签名与公证说明)。
+`0.2.10` 及之后版本的发布产物使用 Team ID `Q2K3CAKGG2` 的 Developer ID Application 证书签名、开启 Hardened Runtime 并经 Apple 官方公证及 `stapler` 钉票，通过 GitHub Release 直接分发（非沙盒，不上架 Mac App Store），用户安装后可直接通过 Gatekeeper 打开。`0.2.9` 及更早历史版本仍采用 ad-hoc 本地签名，详见 [安装与签名说明](installation.md#签名与公证说明)。
