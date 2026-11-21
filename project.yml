@@ -98,7 +98,8 @@ targets:
       - path: Sources/DontsTool/UI/Settings/SettingsComponents.swift
       - path: Sources/DontsTool/UI/Settings/SearchEnginesSettingsView.swift
       - path: Sources/DontsTool/Shell/Selection
-      - path: Sources/DontsTool/Shell/Gemini
+      - path: Sources/DontsTool/Shell/AI
+      - path: Sources/DontsTool/UI/AI
       - path: Sources/DontsTool/Shell/Translation
       - path: Sources/DontsTool/UI/Tools/SelectionTranslationView.swift
     dependencies:

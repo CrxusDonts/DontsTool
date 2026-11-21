@@ -34,6 +34,7 @@ final class AppController {
     private var pluginManager: PluginManager?
     private var pluginInstaller: PluginInstaller?
     private var toolWindows: ToolWindowManager?
+    private var quickAIWindows: QuickAIWindowManager?
     private var selectionTranslation: SelectionTranslationController?
     private var cloudSync: CloudSyncCoordinator?
     private var wakeObserver: NSObjectProtocol?
@@ -56,8 +57,11 @@ final class AppController {
             clipboard: clipboard
         )
         let translator = RemoteTranslationService(settings: settings, secrets: secrets)
+        let aiService = RemoteAIChatService(settings: settings, secrets: secrets)
         let toolWindows = ToolWindowManager(settings: settings, translator: translator, usage: usage)
         self.toolWindows = toolWindows
+        let quickAIWindows = QuickAIWindowManager(aiService: aiService, usage: usage)
+        self.quickAIWindows = quickAIWindows
         let selectionTranslation = SelectionTranslationController(settings: settings, translator: translator,
             gestureVerificationOnly: CommandLine.arguments.contains("--verify-right-press"))
         self.selectionTranslation = selectionTranslation
@@ -115,15 +119,9 @@ final class AppController {
             openInTerminal: openInTerminal
         )
         let websiteProvider = WebsiteShortcutProvider(store: websites, opener: SystemURLOpener(), feedback: toast, prefill: prefiller)
-        let geminiService = GeminiConversationService(controller: SystemGeminiAppController())
-        let geminiProvider = GeminiProvider(
-            index: appIndex,
-            settings: settings,
-            service: geminiService,
-            feedback: toast,
-            usage: usage,
-            prefill: prefiller
-        )
+        let openAI: @MainActor (QuickAIRequest) -> Void = { [weak quickAIWindows] request in
+            quickAIWindows?.open(request)
+        }
         let helpGuideProvider = HelpGuideProvider(
             openGuide: { [weak self] query in
                 self?.settingsWindow?.showGuide(query: query)
@@ -137,7 +135,7 @@ final class AppController {
         let registry = ToolRegistry(providers: [
             appProvider, textProvider, webProvider, translationProvider,
             notesProvider, websiteProvider, calculatorProvider, quickOpenProvider,
-            geminiProvider, helpGuideProvider
+            helpGuideProvider
         ])
         let coordinator = SearchCoordinator(registry: registry, usage: usage)
         let contentProvider = ContentActionProvider(
@@ -145,7 +143,8 @@ final class AppController {
             toolOpener: toolWindows,
             urlOpener: SystemURLOpener(),
             feedback: toast,
-            noteOpener: noteWindows
+            noteOpener: noteWindows,
+            openAI: openAI
         )
         let panel = LauncherPanelController(
             registry: registry,
@@ -173,7 +172,8 @@ final class AppController {
                 panel?.refreshSearch()
             },
             openInTerminal: openInTerminal,
-            hostVersion: AppInfo.version
+            hostVersion: AppInfo.version,
+            openAI: openAI
         )
         let pluginManager = PluginManager(
             bundledDirectory: Bundle.main.resourceURL?.appendingPathComponent("BundledPlugins", isDirectory: true),
@@ -253,6 +253,7 @@ final class AppController {
             settingsWindow?.show()
         }
         toolWindows.onOpenSettings = { [weak settingsWindow] in settingsWindow?.showTranslation() }
+        quickAIWindows.onOpenSettings = { [weak settingsWindow] in settingsWindow?.showTranslation() }
         self.settingsWindow = settingsWindow
         selectionTranslation.onOpenSettings = { [weak settingsWindow] in settingsWindow?.showTranslation() }
         selectionTranslation.onEditSource = { [weak toolWindows] text in
@@ -306,6 +307,7 @@ final class AppController {
         pluginManager?.shutdownSync()
         usage.flush()
         noteWindows?.shutdown()
+        quickAIWindows?.shutdown()
         toolWindows?.shutdown()
     }
 

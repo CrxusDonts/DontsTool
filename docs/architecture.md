@@ -7,8 +7,8 @@
 
 DontsTool 是一个原生 macOS 菜单栏效率启动器。按下全局热键呼出浮动面板，输入即搜：
 
-- 微内核内置：启动应用、即时计算与单位换算、网址/路径快速打开、自定义网址快捷入口、网页搜索、文本工具独立工作窗口（JSON、Base64、URL、时间戳、UUID、Hash）、翻译与全局右键长按划词、本地离线便笺、Gemini 提问、内置使用指南，以及可选的自建 Cloudflare 多端同步与本地备份。
-- 外部 Sidecar 插件：通过 `PluginManager` 与 `PluginInstaller` 按需从官方仓库 `CrxusDonts/DontsTool-Plugins` 或自定义 GitHub 仓库安装扩展（如文件搜索、IDEA 项目、Google Chrome、终端与访达、结束进程）。
+- 微内核内置：启动应用、即时计算与单位换算、网址/路径快速打开、自定义网址快捷入口、网页搜索、文本工具独立工作窗口（JSON、Base64、URL、时间戳、UUID、Hash）、统一多格式大模型客户端与原生 AI 流式对话窗口、翻译与全局右键长按划词、本地离线便笺、内置使用指南，以及可选的自建 Cloudflare 多端同步与本地备份。
+- 外部 Sidecar 插件：通过 `PluginManager` 与 `PluginInstaller` 按需从官方仓库 `CrxusDonts/DontsTool-Plugins` 或自定义 GitHub 仓库安装扩展（如 AI 快问、文件搜索、IDEA 项目、Google Chrome、终端与访达、结束进程）。
 
 设计目标：
 
@@ -29,7 +29,7 @@ DontsTool 是一个原生 macOS 菜单栏效率启动器。按下全局热键呼
 | 全局热键 | Carbon `RegisterEventHotKey` |
 | 应用启动 | `NSWorkspace` |
 | 插件运行时 | 进程外 Sidecar（NDJSON over stdio，JSON-RPC 2.0），官方外迁插件托管于 `CrxusDonts/DontsTool-Plugins` |
-| 翻译 | 用户配置的 OpenAI Responses 兼容 HTTP API（`URLSession`）；密钥存钥匙串 |
+| AI 与翻译 | 统一大模型客户端 `RemoteAIChatService`（支持 OpenAI Responses、Gemini 原生 REST API 与 OpenAI Chat Completions，由 AI 流式窗口、翻译窗口与划词翻译共用）；密钥仅存本机钥匙串 |
 | 开机启动 | `SMAppService` |
 | Hash | `CryptoKit` |
 | 持久化 | `UserDefaults`（设置与插件源）、钥匙串（翻译 API 密钥、云同步密钥与插件私密配置）、应用支持目录内的版本化 JSON、便笺附件与已安装插件 |
@@ -62,15 +62,16 @@ flowchart TD
     Registry --> QuickP[QuickOpenProvider]
     Registry --> SiteP[WebsiteShortcutProvider]
     Registry --> NoteP[NotesProvider]
-    Registry --> GeminiP[GeminiProvider]
     Registry --> GuideP[HelpGuideProvider]
     Registry --> SidecarP[SidecarProvider / 外部插件]
     SidecarP --> PluginMgr[PluginManager / PluginInstaller]
+    SidecarP -->|openAI 权限动作| AIWin[QuickAIWindowManager / QuickAISession]
     NoteP --> Notes[LocalNoteWindowManager / LocalNoteSession]
     Notes --> NoteStore[LocalNoteStore / note.json / assets]
     Notes --> NoteWeb[本地 Tiptap / WKWebView]
     AppP --> Index[AppIndex]
-    TransP --> RemoteAPI[Responses API]
+    TransP --> RemoteAI[RemoteAIChatService]
+    AIWin --> RemoteAI
     CalcP --> Calc[CalculatorEngine]
     QuickP --> QParser[QuickOpenParser]
     Coord --> List[LauncherPanelModel / LauncherPanelView]
@@ -84,13 +85,14 @@ flowchart TD
 | Core | 查询解析、路由、聚合、排序、注册、设置与使用统计、即时计算与路径识别 | `SearchCoordinator`、`QueryParser`、`ToolRegistry`、`FuzzyMatcher`、`UsageStore`、`SettingsStore`、`CalculatorEngine`、`QuickOpenParser` |
 | Index | 本机应用索引与目录变更监听 | `AppIndex`、`AppScanner`、`AppDirectoryMonitor` |
 | Terminal | 首选终端识别与在终端中打开目录（供快速打开及外部插件复用） | `SystemTerminalFinderService`、`TerminalAppCatalog`、`TerminalAppDescriptor` |
-| Providers | 微内核内置结果提供者，统一实现 `ToolProvider` | `AppProvider`、`TextToolsProvider`、`WebSearchProvider`、`TranslationProvider`、`CalculatorProvider`、`QuickOpenProvider`、`WebsiteShortcutProvider`、`NotesProvider`、`GeminiProvider`、`HelpGuideProvider` |
+| Providers | 微内核内置结果提供者，统一实现 `ToolProvider` | `AppProvider`、`TextToolsProvider`、`WebSearchProvider`、`TranslationProvider`、`CalculatorProvider`、`QuickOpenProvider`、`WebsiteShortcutProvider`、`NotesProvider`、`HelpGuideProvider` |
+| AI | 统一多格式大模型引擎与原生流式对话窗口 | `RemoteAIChatService`、`AIAPIFormat`、`QuickAISession`、`QuickAIWindowManager`、`QuickAIWindowView`、`QuickAIMarkdownParser`、`QuickAIComposerView` |
 | Plugins | 微内核进程外 Sidecar 插件运行时、GitHub 插件源管理与校验安装更新器 | `PluginManager`、`SidecarProvider`、`SidecarTransport`、`PluginHostContext`、`PluginManifest`、`PluginCatalog`、`PluginSourceStore`、`PluginInstaller`、`PluginSettingsStore` |
 | Tools | 独立工具窗口与文本处理 | `ToolDefinition`、`ToolSession`、`ToolWindowManager`、`JSONDocument` |
 | Notes | 本地便笺、离线富文本、自动保存与独立附件 | `LocalNoteStore`、`LocalNoteSession`、`LocalNoteEditorBridge`、`LocalNoteWindowManager` |
 | Sync | Cloudflare 多端增量同步与本地快照备份 | `CloudSyncCoordinator`、`CloudSyncClient`、`SyncStateStore`、`BackupArchiveService` |
 | Services | 外部 API、钥匙串、登录项、系统动作 | `RemoteTranslationService`、`SecretStore`、`LoginItemManager`、`SystemAppLauncher` |
-| Settings | 设置界面、网址配置、插件商店与源管理、热键录制 | `SettingsWindowController`、`SettingsRootView`、`PluginsSettingsTabView` |
+| Settings | 设置界面、AI 与翻译配置、网址配置、插件商店与源管理、热键录制 | `SettingsWindowController`、`SettingsRootView`、`TranslationSettingsTabView`、`PluginsSettingsTabView` |
 
 ## 5. 关键流程
 
@@ -149,9 +151,10 @@ protocol ToolProvider: AnyObject {
 - **外部 Sidecar 插件（首选）**：按 `manifest.json`（`schemaVersion: 1`）与 NDJSON over stdio 协议实现，通过 `PluginManager` 热加载或通过 GitHub `catalog.json` 分发，详见 [插件使用与开发指南](plugins.md)。
 - **微内核内置 `ToolProvider`**（仅限强依赖主进程热路径或原生工作窗口的能力）：新建 `XxxProvider.swift` 实现 `ToolProvider`，在 `AppController.start()` 中传入 `ToolRegistry` 并补充单元测试。
 
-自微内核插件化落地起（见 [ADR 0008](adr/0008-microkernel-sidecar-plugins.md)），宿主仅保留高频热路径与核心工作台（应用启动、文本工具、网页搜索、翻译、本地便笺、网址快捷入口、计算器、快速打开、Gemini 提问、使用指南、Cloudflare 多端同步、划词监听与首选终端启动服务），其余扩展以进程外 Sidecar 插件运行（NDJSON over stdio，`oneshot` / `daemon`）：
+自微内核插件化落地起（见 [ADR 0008](adr/0008-microkernel-sidecar-plugins.md)），宿主仅保留高频热路径与核心工作台（应用启动、文本工具、网页搜索、统一多格式大模型客户端与原生 AI 流式对话窗口、翻译与划词监听、本地便笺、网址快捷入口、计算器、快速打开、使用指南、Cloudflare 多端同步与首选终端启动服务），其余扩展以进程外 Sidecar 插件运行（NDJSON over stdio，`oneshot` / `daemon`）：
 
-- **外迁至官方仓库 `CrxusDonts/DontsTool-Plugins` 的 5 个官方插件**：
+- **官方仓库 `CrxusDonts/DontsTool-Plugins` 的 6 个官方插件**：
+  - `com.donts.quick-ai`（AI 快问：`ai` / `ask` / `问`，申请 `openAI` 与 `prefill` 权限，通过 `effect.kind == "openAI"` 唤起宿主原生流式对话窗口）
   - `com.donts.kill-process`（结束进程：`kill` / `kp` / `进程`）
   - `com.donts.idea-projects`（IDEA 最近项目：`idea`）
   - `com.donts.file-search`（Spotlight 文件搜索：`file`，结果落入原生 `.file` 分组并支持定位与 `⌘⇧C` 复制路径）
@@ -186,9 +189,9 @@ protocol ToolProvider: AnyObject {
 
 - **全局热键**：组合键用 Carbon 注册，不需要辅助功能（Accessibility）权限；双击修饰键仅订阅 `NSEvent.flagsChanged`，用系统按键计数与最近按键时间打断组合输入，不订阅全局普通按键，不申请输入监控或辅助功能权限。当前系统的独立 App 已在两项权限均关闭时收到跨应用修饰键事件，见 ADR 0005。
 - **文件搜索与系统集成插件**：文件搜索（`com.donts.file-search`）、Chrome（`com.donts.chrome`）、终端与访达（`com.donts.terminal-finder`）等作为外部插件运行；受保护目录检索可按需授权「完全磁盘访问」，读取 Chrome 标签页或访达/终端路径需授权「自动化」，未授权时仅影响对应插件，不影响宿主其他功能。
-- **翻译**：用户主动执行翻译时，把文本发送到其配置的 OpenAI Responses 兼容接口；API 密钥存登录钥匙串，不写 UserDefaults，不做额外上报。
+- **AI 与翻译**：用户主动发起 AI 提问或翻译时，仅由宿主 `RemoteAIChatService` / `RemoteTranslationService` 按用户选定的接口格式（OpenAI Responses、Gemini 原生 REST API 或 OpenAI Chat Completions）直接请求配置的端点；API 密钥仅存本机登录钥匙串，不写 `UserDefaults`、日志或备份包。插件 `hostContext` 仅暴露非敏感的 `aiConfigured`、`aiFormat` 与 `aiModel`，绝不向子进程透传任何密钥。
 - **开机启动**：通过 `SMAppService` 注册登录项。
-- **网络**：应用仅在用户主动执行网页搜索（交给默认浏览器）、翻译、检查应用更新、在设置「插件」页刷新源或下载插件包，或开启 Cloudflare 多端同步后与自建同步服务通信时联网。
+- **网络**：应用仅在用户主动执行网页搜索（交给默认浏览器）、AI 对话、翻译、检查应用更新、在设置「插件」页刷新源或下载插件包，或开启 Cloudflare 多端同步后与自建同步服务通信时联网。
 - **剪贴板**：不监听；启动器搜索不读剪贴板。在工具窗口中显式粘贴或复制、动作面板复制，以及长按划词翻译时访问；划词翻译只读取本次复制后的内容，不清空或还原剪贴板。
 - **键盘**：仅在启用双击修饰键时订阅全局和本地修饰键变化；第二次短按松开后触发。只查询普通按键的计数和最近事件时间，不接收或记录按键内容；无轮询。
 - **进程调用**：微内核宿主不再直接调用 `mdfind`。外部插件按 `manifest.json` 校验后的路径直接启动可执行文件（不经过 shell），安装解压调用 `/usr/bin/ditto`，终端目录探测按需调用 `/bin/ps` 与 `/usr/bin/osascript`。
@@ -212,6 +215,7 @@ DontsTool/
 │   │   │   ├── AppController.swift
 │   │   │   └── MenuBarController.swift
 │   │   ├── Shell/
+│   │   │   ├── AI/                          # QuickAIWindowManager（原生 AI 流式多窗口）
 │   │   │   ├── HotKeyManager.swift          # Carbon 组合键
 │   │   │   ├── ModifierDoubleTapMonitor.swift # 只读双击监听
 │   │   │   ├── LauncherPanel.swift
@@ -221,11 +225,13 @@ DontsTool/
 │   │   │   ├── OnboardingWindowController.swift
 │   │   │   └── ToastPresenter.swift
 │   │   ├── UI/
+│   │   │   ├── AI/                    # QuickAIWindowView / Markdown 渲染 / IME 安全输入框
 │   │   │   ├── DesignSystem/          # Theme / Metrics / Motion 令牌
 │   │   │   ├── Components/            # 行、图标块、键帽、底栏、Toast
 │   │   │   ├── Launcher/              # LauncherPanelView
-│   │   │   └── Settings/              # SettingsRootView、插件页 PluginsSettingsTabView、组件、热键录制、引导
+│   │   │   └── Settings/              # SettingsRootView、AI 与翻译页、插件页 PluginsSettingsTabView、热键录制
 │   └── DontsToolCore/             # 静态库 target：可独立测试的逻辑
+│       ├── AI/                    # 统一多格式大模型引擎与流式会话（AIModels / AIChatService / QuickAISession）
 │       ├── Core/
 │       │   ├── Models.swift
 │       │   ├── LauncherPanelModel.swift
@@ -263,7 +269,6 @@ DontsTool/
 │       │   ├── QuickOpenProvider.swift
 │       │   ├── WebsiteShortcutProvider.swift
 │       │   ├── NotesProvider.swift
-│       │   ├── GeminiProvider.swift
 │       │   ├── HelpGuideProvider.swift
 │       │   └── ContentActionProvider.swift
 │       ├── Sync/
@@ -342,24 +347,22 @@ DontsTool/
 `LauncherPanelModel` 保存动作面板的展开与选中项；`PanelFooterView` 在面板打开时切换键位提示。`SearchField` 将 `⌘K` 转成动作面板开关，方向键、回车和 Esc 根据面板状态路由。应用、文件和网页结果扩展了退出应用、复制路径/链接等 `ItemAction`；动作面板只执行用户显式选择，不监听剪贴板，也不在后台触发系统操作。
 
 
-## 应用动作与翻译服务
+## 统一 AI 引擎与翻译服务
 
-`GeminiProvider` 仅关键词路由，不参与普通全局查询。新增内置入口通过一次性默认启用迁移接入，保留原有禁用项；执行时再次检查当前开关。IDEA 项目检索与打开已作为外部插件 `com.donts.idea-projects` 迁移至官方插件仓库 `CrxusDonts/DontsTool-Plugins`。
+自 `v0.4.0` 起，DontsTool 移除依赖辅助功能控件树的内置 Gemini Mac 自动化，改为在宿主内提供统一的多格式大模型引擎与原生流式对话窗口，并将快捷问答入口交给官方插件 `com.donts.quick-ai`；IDEA 项目检索同样由官方插件 `com.donts.idea-projects` 承接。
 
-Gemini 的 Core `GeminiConversationService` 在首次打开时等待应用完成激活；写入及发送前确认前台，用户切走会取消；发送已执行后的结果确认可在后台只读进行，仍绑定原窗口。随后验证草稿、新对话、精确问题和单次提交；Shell adapter 限定应用完整路径、PID与绑定窗口，后台 AX 遍历跳过历史列表，按已识别控件写入与提交。Esc监听仅在本次交接期间安装并清理；阶段等待和单次遍历分别有墙钟上限。用户输入只在明确执行时传递，不写URL、剪贴板或日志。
+- **多格式模型适配（`RemoteAIChatService`）**：根据 **设置 → AI 与翻译** 中选择的 `AIAPIFormat` 自动适配三种协议——`OpenAI Responses`（`/responses` SSE 流与同步响应）、`Gemini 原生 REST API`（`/models/{model}:generateContent` 与 `:streamGenerateContent?alt=sse`，通过 `x-goog-api-key` 请求头鉴权并过滤 `thought == true` 思考分片）、`OpenAI Chat Completions`（`/chat/completions`）。API 密钥统一保存在本机登录钥匙串，同时为 `QuickAISession` 与 `RemoteTranslationService` 复用。
+- **原生流式对话窗口（`QuickAIWindowManager` / `QuickAIWindowView`）**：支持独立多窗口、置顶（`.floating`）、多轮追问、停止生成、重新生成与清空重开；`QuickAIMarkdownParser` 将回答实时拆分为正文与代码块（支持未闭合流式围栏与一键复制）；`QuickAIComposerTextView` 在中文输入法组合态（`hasMarkedText()`）期间完全放行回车与 `Esc`，窗口关闭或应用退出时立即取消活跃网络流。
+- **插件协议与粘贴内容入口**：插件声明 `openAI` 权限后，可通过 `effect.kind == "openAI"`（支持 `value` 及 `options.title` / `options.systemPrompt` / `options.autoSend`）打开宿主 AI 窗口；空搜索框粘贴文本时，`ContentActionProvider` 也会提供「问 AI（预填到 AI 窗口）」入口（默认 `autoSend: false`，由用户确认后再发送）。
+- **翻译与划词**：应用启动时将 `RemoteTranslationService` 注入翻译窗口与划词卡片，复用同一套大模型服务配置；配置不完整时提示前往「AI 与翻译」设置且不发送请求，失败或取消后不自动切换后端。
 
+划词翻译在达到设置的 300ms、500ms、1 秒或 2 秒阈值后，向已捕获且仍聚焦的源窗口发送 Cmd-C，等到剪贴板 changeCount 更新后读取新文字；不清空或还原剪贴板。窗口与安全输入校验在后台执行，取词或失败复用单张翻译卡片。显式关闭会使 monitor 请求失效，保留吞掉已触发 mouse-up 的状态，防止迟到取词结果重新弹窗或联网。
 
 ## 多端同步与备份
 
 `CloudSync/` 目录存放独立部署的 Cloudflare Worker（`SyncHub` SQLite Durable Object + `SYNC_BUCKET` R2 存储桶）。`SyncHub` 串行维护单调递增 `revision` 游标与小于 64 KiB 的内联载荷；图片附件与超大载荷按 `SHA-256` 存入 R2 并跨设备去重；在线设备通过 Durable Object WebSocket Hibernation API 接收新 `revision` 推送通知，鉴权采用 Bearer Token + 常量时间哈希比对。
 
-客户端 `CloudSyncCoordinator` 以本地为主（Local-First），通过 `SyncStateStore` 记录已同步基线与游标；离线并发修改同一便笺时，先将本地修改另存为「冲突副本」再应用远端版本，避免丢稿。`BackupArchiveService` 复用统一快照格式提供本地 `.zip` 导出与恢复（恢复前校验证书级 SHA-256 并在 `Application Support/DontsTool/Backups/` 自动留存安全快照）。翻译 API 密钥与同步密钥均保留在本机钥匙串，不进入云端或备份包。
-
-应用启动时将 `RemoteTranslationService` 直接交给独立翻译窗口和划词卡片；用户需在翻译设置中填写 Responses 兼容接口地址、模型和 API 密钥。配置不完整时提示设置且不发送请求，服务失败或取消后不切换后端。系统翻译及语言包准备代码暂留在源码中，当前应用未接入。
-
-划词翻译在达到设置的 300ms、500ms、1 秒或 2 秒阈值后，向已捕获且仍聚焦的源窗口发送 Cmd-C，等到剪贴板 changeCount 更新后读取新文字；不清空或还原剪贴板。窗口与安全输入校验在后台执行，取词或失败复用单张翻译卡片。显式关闭会使monitor请求失效，保留吞掉已触发mouse-up的状态，防止迟到取词结果重新弹窗或联网。
-
-Gemini 交接在打开应用及新对话路由后显式激活应用窗口，避免已运行的 Gemini 留在后台。诊断只记录阶段和前台／输入框／新对话／可发送／已提交状态，不记录问题或历史正文。
+客户端 `CloudSyncCoordinator` 以本地为主（Local-First），通过 `SyncStateStore` 记录已同步基线与游标；离线并发修改同一便笺时，先将本地修改另存为「冲突副本」再应用远端版本，避免丢稿。`BackupArchiveService` 复用统一快照格式提供本地 `.zip` 导出与恢复（恢复前校验证书级 SHA-256 并在 `Application Support/DontsTool/Backups/` 自动留存安全快照）。大模型与翻译 API 密钥与同步密钥均保留在本机钥匙串，不进入云端或备份包。
 
 ## 本地便笺
 

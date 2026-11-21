@@ -473,4 +473,124 @@ struct SidecarProviderTests {
             try await restrictedItems[0].actions[3].run()
         }
     }
+
+    @Test func enforcesOpenAIPermissionAndExposesOnlyNonSensitiveAIHostContext() async throws {
+        let (settings, pluginSettings, defaults, suite) = makeStores()
+        defer { defaults.removePersistentDomain(forName: suite) }
+
+        settings.setAIAPIFormat(.gemini)
+        settings.setTranslationAPIBaseURL("https://generativelanguage.googleapis.com")
+        settings.setTranslationAPIModel("gemini-2.5-flash")
+        let secrets = MemorySecretStore()
+        secrets.setSecret("AIza-TOP-SECRET-NEVER-LEAK", for: SecretAccount.translationAPIKey)
+
+        var capturedRequests: [QuickAIRequest] = []
+        let transport = MockPluginTransport()
+        transport.setHandler { method, paramsData in
+            if method == "search" {
+                let params = try JSONDecoder().decode(PluginSearchParams.self, from: paramsData)
+                #expect(params.hostContext?["aiConfigured"] == "true")
+                #expect(params.hostContext?["aiFormat"] == "gemini")
+                #expect(params.hostContext?["aiModel"] == "gemini-2.5-flash")
+                let rawParamsJSON = String(decoding: paramsData, as: UTF8.self)
+                #expect(!rawParamsJSON.contains("AIza-TOP-SECRET-NEVER-LEAK"))
+
+                let result = PluginSearchResultDTO(items: [
+                    PluginSearchItemDTO(
+                        title: "问 AI",
+                        canonicalKey: "ai:ask",
+                        actions: [
+                            PluginActionDTO(
+                                id: "ask-auto",
+                                title: "立即提问",
+                                presentation: "openWindow",
+                                effect: PluginActionEffectDTO(
+                                    kind: "openAI",
+                                    value: "解释 Swift 6",
+                                    options: [
+                                        "title": "解释代码",
+                                        "systemPrompt": "请简明解释",
+                                        "autoSend": "true"
+                                    ]
+                                )
+                            ),
+                            PluginActionDTO(
+                                id: "ask-prefill",
+                                title: "仅预填",
+                                presentation: "openWindow",
+                                effect: PluginActionEffectDTO(
+                                    kind: "openAI",
+                                    value: "待确认问题",
+                                    options: [
+                                        "title": "AI 快问",
+                                        "autoSend": "false"
+                                    ]
+                                )
+                            ),
+                            PluginActionDTO(
+                                id: "ask-blank",
+                                title: "新建对话",
+                                presentation: "openWindow",
+                                effect: PluginActionEffectDTO(
+                                    kind: "openAI",
+                                    value: ""
+                                )
+                            )
+                        ]
+                    )
+                ])
+                return try JSONEncoder().encode(PluginRPCResponse(id: 1, result: result))
+            }
+            throw PluginTransportError.invalidResponse("unexpected")
+        }
+
+        let host = PluginHostContext(
+            settings: settings,
+            pluginSettings: pluginSettings,
+            secrets: secrets,
+            hostVersion: "0.4.0",
+            openAI: { request in
+                capturedRequests.append(request)
+            }
+        )
+
+        let allowedProvider = SidecarProvider(
+            manifest: makeManifest(id: "com.donts.quick-ai", keywords: ["ai"], permissions: [.openAI]),
+            host: host,
+            transport: transport
+        )
+        let items = await allowedProvider.search(SearchContext(
+            rawQuery: "ai swift",
+            mode: .keyword(providerID: allowedProvider.id, keyword: "ai", argument: "swift")
+        ))
+        #expect(items.count == 1)
+        try await items[0].actions[0].run()
+        try await items[0].actions[1].run()
+        try await items[0].actions[2].run()
+
+        #expect(capturedRequests == [
+            QuickAIRequest(title: "解释代码", prompt: "解释 Swift 6", systemPrompt: "请简明解释", autoSend: true),
+            QuickAIRequest(title: "AI 快问", prompt: "待确认问题", systemPrompt: nil, autoSend: false),
+            QuickAIRequest(title: nil, prompt: "", systemPrompt: nil, autoSend: false)
+        ])
+
+        // Verify permission denial when plugin lacks .openAI
+        let deniedProvider = SidecarProvider(
+            manifest: makeManifest(id: "com.example.noai", keywords: ["noai"], permissions: []),
+            host: host,
+            transport: transport
+        )
+        let deniedItems = await deniedProvider.search(SearchContext(
+            rawQuery: "noai test",
+            mode: .keyword(providerID: deniedProvider.id, keyword: "noai", argument: "test")
+        ))
+        await #expect(throws: PluginHostError.permissionDenied(.openAI, pluginID: "com.example.noai")) {
+            try await deniedItems[0].actions[0].run()
+        }
+        #expect(capturedRequests.count == 3)
+
+        // Verify aiConfigured flips to false when secret is cleared
+        secrets.setSecret(nil, for: SecretAccount.translationAPIKey)
+        #expect(host.resolveHostContext()["aiConfigured"] == "false")
+    }
 }

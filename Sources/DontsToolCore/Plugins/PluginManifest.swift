@@ -12,6 +12,7 @@ public enum PluginPermission: String, Codable, CaseIterable, Hashable, Sendable 
     case revealInFinder
     case openTerminal
     case openApplication
+    case openAI
     case prefill
     case toast
     case secrets
@@ -25,6 +26,7 @@ public enum PluginPermission: String, Codable, CaseIterable, Hashable, Sendable 
         case .revealInFinder: "在访达中显示"
         case .openTerminal: "在首选终端打开"
         case .openApplication: "启动本机应用"
+        case .openAI: "调用宿主 AI 对话窗口"
         case .prefill: "回填搜索框"
         case .toast: "显示通知提示"
         case .secrets: "读取插件专用钥匙串密钥"

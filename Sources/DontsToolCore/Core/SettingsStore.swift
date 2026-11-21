@@ -82,6 +82,7 @@ public final class SettingsStore: ObservableObject {
         static let translationTarget = "dontstool.translationTarget"
         static let translationAPIBaseURL = "dontstool.translationAPIBaseURL"
         static let translationAPIModel = "dontstool.translationAPIModel"
+        static let aiAPIFormat = "dontstool.aiAPIFormat"
         static let selectionHoldDelay = "dontstool.selectionHoldDelay"
         static let selectionTranslationEnabled = "dontstool.selectionTranslationEnabled"
         static let builtInProviderDefaultsV2Completed = "dontstool.builtInProviderDefaultsV2Completed"
@@ -108,6 +109,7 @@ public final class SettingsStore: ObservableObject {
         public var selectionHoldDelayRawValue: Int
         public var selectionTranslationEnabled: Bool
         public var preferredTerminalBundleID: String?
+        public var aiAPIFormat: String?
 
         public init(
             hotKey: HotKeyConfiguration,
@@ -119,7 +121,8 @@ public final class SettingsStore: ObservableObject {
             translationAPIModel: String,
             selectionHoldDelayRawValue: Int,
             selectionTranslationEnabled: Bool,
-            preferredTerminalBundleID: String? = nil
+            preferredTerminalBundleID: String? = nil,
+            aiAPIFormat: String? = nil
         ) {
             self.hotKey = hotKey
             self.applicationSortOrder = applicationSortOrder
@@ -131,6 +134,7 @@ public final class SettingsStore: ObservableObject {
             self.selectionHoldDelayRawValue = selectionHoldDelayRawValue
             self.selectionTranslationEnabled = selectionTranslationEnabled
             self.preferredTerminalBundleID = preferredTerminalBundleID
+            self.aiAPIFormat = aiAPIFormat
         }
     }
 
@@ -143,6 +147,7 @@ public final class SettingsStore: ObservableObject {
     @Published public private(set) var translationTarget: String
     @Published public private(set) var translationAPIBaseURL: String
     @Published public private(set) var translationAPIModel: String
+    @Published public private(set) var aiAPIFormat: AIAPIFormat
     @Published public private(set) var selectionHoldDelay: SelectionHoldDelay
     @Published public private(set) var selectionTranslationEnabled: Bool
     @Published public private(set) var preferredTerminalBundleID: String
@@ -236,6 +241,7 @@ public final class SettingsStore: ObservableObject {
         translationTarget = defaults.string(forKey: Key.translationTarget) ?? fallbackTarget
         translationAPIBaseURL = defaults.string(forKey: Key.translationAPIBaseURL) ?? ""
         translationAPIModel = defaults.string(forKey: Key.translationAPIModel) ?? ""
+        aiAPIFormat = AIAPIFormat(rawValue: defaults.string(forKey: Key.aiAPIFormat) ?? "") ?? .openAIResponses
         selectionHoldDelay = SelectionHoldDelay(rawValue: defaults.integer(forKey: Key.selectionHoldDelay)) ?? .seconds2
         selectionTranslationEnabled = defaults.bool(forKey: Key.selectionTranslationEnabled)
         preferredTerminalBundleID = defaults.string(forKey: Key.preferredTerminalBundleID) ?? ""
@@ -297,6 +303,11 @@ public final class SettingsStore: ObservableObject {
         defaults.set(model, forKey: Key.translationAPIModel)
     }
 
+    public func setAIAPIFormat(_ format: AIAPIFormat) {
+        aiAPIFormat = format
+        defaults.set(format.rawValue, forKey: Key.aiAPIFormat)
+    }
+
     public func setSelectionHoldDelay(_ delay: SelectionHoldDelay) {
         selectionHoldDelay = delay
         defaults.set(delay.rawValue, forKey: Key.selectionHoldDelay)
@@ -344,7 +355,8 @@ public final class SettingsStore: ObservableObject {
             translationAPIModel: translationAPIModel,
             selectionHoldDelayRawValue: selectionHoldDelay.rawValue,
             selectionTranslationEnabled: selectionTranslationEnabled,
-            preferredTerminalBundleID: preferredTerminalBundleID
+            preferredTerminalBundleID: preferredTerminalBundleID,
+            aiAPIFormat: aiAPIFormat.rawValue
         )
     }
 
@@ -363,6 +375,10 @@ public final class SettingsStore: ObservableObject {
         setSelectionTranslationEnabled(synced.selectionTranslationEnabled)
         if let terminal = synced.preferredTerminalBundleID {
             setPreferredTerminalBundleID(terminal)
+        }
+        if let rawFormat = synced.aiAPIFormat,
+           let format = AIAPIFormat(rawValue: rawFormat) {
+            setAIAPIFormat(format)
         }
     }
 }

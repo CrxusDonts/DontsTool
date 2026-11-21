@@ -17,6 +17,14 @@ struct FeatureGuideTests {
         #expect(entries.contains { $0.id == "terminal-finder" })
         #expect(entries.contains { $0.id == "kill-process" })
         #expect(entries.contains { $0.id == "notes" })
+        #expect(entries.contains { $0.id == "quick-ai" })
+        #expect(!entries.contains { $0.id == "gemini" })
+
+        let aiMatches = FeatureGuideCatalog.entries(matching: "ai")
+        #expect(aiMatches.contains { $0.id == "quick-ai" })
+
+        let translationEntry = entries.first { $0.id == "translation" }
+        #expect(translationEntry?.summary.contains("Gemini") == true)
 
         let portMatches = FeatureGuideCatalog.entries(matching: "端口")
         #expect(portMatches.first?.id == "kill-process")

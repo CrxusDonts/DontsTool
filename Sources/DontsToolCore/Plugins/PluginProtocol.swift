@@ -127,19 +127,22 @@ public struct PluginActionEffectDTO: Codable, Equatable, Sendable {
     public let toast: String?
     public let refresh: Bool?
     public let recordUsageKey: String?
+    public let options: [String: String]?
 
     public init(
         kind: String,
         value: String? = nil,
         toast: String? = nil,
         refresh: Bool? = nil,
-        recordUsageKey: String? = nil
+        recordUsageKey: String? = nil,
+        options: [String: String]? = nil
     ) {
         self.kind = kind
         self.value = value
         self.toast = toast
         self.refresh = refresh
         self.recordUsageKey = recordUsageKey
+        self.options = options
     }
 }
 

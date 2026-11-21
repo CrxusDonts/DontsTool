@@ -221,7 +221,7 @@ struct ToolGridTileView: View {
         case "UUID 生成器": return "UUID"
         case "Google Chrome": return "Chrome"
         case "IDEA 项目": return "IDEA"
-        case "Gemini 提问": return "Gemini"
+        case "AI 快问": return "AI"
         case "终端与访达": return "终端访达"
         default: return item.title
         }

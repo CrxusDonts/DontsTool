@@ -12,6 +12,7 @@
 
 | 插件 ID | 名称 | 触发关键词 | 运行模式 | 备注与系统授权 |
 | --- | --- | --- | --- | --- |
+| `com.donts.quick-ai` | AI 快问 | `ai`、`ask`、`问` | `daemon` | 需宿主 `≥ 0.4.0`；申请 `openAI` 与 `prefill` 权限，复用宿主「AI 与翻译」大模型配置，唤起原生流式对话窗口 |
 | `com.donts.kill-process` | 结束进程 | `kill`、`kp`、`进程` | `daemon` | 自动排除宿主与自身 PID，支持 `:端口` 查找 |
 | `com.donts.idea-projects` | IDEA 项目 | `idea` | `daemon` | 读取本机 JetBrains 最近项目 XML，支持本地目录路径 |
 | `com.donts.file-search` | 文件搜索 | `file` | `oneshot` | 调用 `/usr/bin/mdfind`；检索受保护目录可按需授「完全磁盘访问」 |
@@ -19,7 +20,7 @@
 | `com.donts.terminal-finder` | 终端与访达 | `tf`、`ft`、`term`、`终端` | `daemon` | 读取访达或 iTerm2 / 系统终端状态需 macOS「自动化」权限 |
 | `com.example.hello-sidecar` | Hello Sidecar 示例 | `hello` | `oneshot` | Python 示例插件，非官方推荐项，可按需单独安装 |
 
-在官方插件源卡片顶部点击「安装全部推荐插件」，可以一次性校验并安装全部 5 个官方插件；也可以在列表中逐条点击「安装」或「更新」。
+在官方插件源卡片顶部点击「安装全部推荐插件」，可以一次性校验并安装全部 6 个官方插件；也可以在列表中逐条点击「安装」或「更新」。
 
 ### 2. 添加自定义 GitHub 插件源
 
@@ -169,6 +170,7 @@ com.example.my-plugin/
 | `revealInFinder` | 在访达中显示 | `effect.kind == "revealInFinder"` |
 | `openTerminal` | 在首选终端打开 | `effect.kind == "openInTerminal"` |
 | `openApplication` | 启动本机应用 | `effect.kind == "openApplication"` |
+| `openAI` | 调用宿主 AI 对话窗口 | `effect.kind == "openAI"`（仅由宿主直连大模型，不向插件暴露 API 密钥） |
 | `prefill` | 回填搜索框 | `effect.kind == "prefill"` 及 `homeEntry` 回填关键词 |
 | `toast` | 显示通知提示 | `effect.kind == "toast"` 或响应附带 `toast` 文案 |
 | `secrets` | 读取插件专用钥匙串密钥 | 注入 `type == "secret"` 的 `preferences` |
@@ -201,14 +203,17 @@ com.example.my-plugin/
     "frontmostBundleID": "com.apple.finder",
     "preferences": { "greeting": "你好" },
     "hostContext": {
-      "hostVersion": "0.3.0",
-      "preferredTerminalBundleID": "com.mitchellh.ghostty"
+      "hostVersion": "0.4.0",
+      "preferredTerminalBundleID": "com.mitchellh.ghostty",
+      "aiConfigured": "true",
+      "aiFormat": "openai_responses",
+      "aiModel": "gpt-4.1-mini"
     }
   }
 }
 ```
 
-`hostContext` 始终包含 `hostVersion`；当用户在「设置 → 工具」选择了固定默认终端时，额外包含 `preferredTerminalBundleID`。
+`hostContext` 始终包含 `hostVersion`、`aiConfigured`（`"true"` / `"false"`）与 `aiFormat`（`"openai_responses"` / `"gemini"` / `"openai_chat"`）；当用户在「设置 → 工具」选择了固定默认终端时额外包含 `preferredTerminalBundleID`，在「设置 → AI 与翻译」填写了模型名时额外包含 `aiModel`。`hostContext` 仅提供非敏感状态字段，严禁透传 API 密钥。
 
 响应（`items` 最多取前 30 条）：
 
@@ -270,7 +275,7 @@ com.example.my-plugin/
     "actionId": "hello.callback",
     "payload": { "message": "你好，世界" },
     "preferences": { "greeting": "你好" },
-    "hostContext": { "hostVersion": "0.3.0" }
+    "hostContext": { "hostVersion": "0.4.0", "aiConfigured": "true", "aiFormat": "openai_responses" }
   }
 }
 ```
@@ -302,8 +307,11 @@ com.example.my-plugin/
 | `revealInFinder` | 本地文件或目录绝对路径（支持 `~`） | `revealInFinder` |
 | `openInTerminal` | 本地文件或目录绝对路径（支持 `~`，在用户首选终端打开） | `openTerminal` |
 | `openApplication` | 本地 `.app` 绝对路径（支持 `~`） | `openApplication` |
+| `openAI` | 初始提问文本（也可放在 `options.prompt`）；可选通过 `options` 传入 `title`、`systemPrompt`、`autoSend`（`"true"` / `"false"`，默认非空 prompt 自动发送） | `openAI` |
 | `prefill` | 回填到启动器搜索框的文本 | `prefill` |
 | `toast` | 显示 Toast 提示文案 | `toast` |
+
+`PluginActionEffectDTO` 支持可选字段 `options: { "<key>": "<value>" }`（字符串键值字典），供 `openAI` 等带扩展参数的宿主动作使用，不影响既有动作的向后兼容。
 
 #### 取消与退出通知（`daemon` 模式）
 
@@ -343,4 +351,4 @@ com.example.my-plugin/
 ### 6. 参考实现
 
 - 最小 Python 示例插件：[docs/examples/plugins/hello-sidecar/](examples/plugins/hello-sidecar/)
-- 官方生产插件集合（含共享 Swift SDK、5 个官方插件、打包脚本与 Release CI）：[CrxusDonts/DontsTool-Plugins](https://github.com/CrxusDonts/DontsTool-Plugins)
+- 官方生产插件集合（含共享 Swift SDK、6 个官方插件、打包脚本与 Release CI）：[CrxusDonts/DontsTool-Plugins](https://github.com/CrxusDonts/DontsTool-Plugins)

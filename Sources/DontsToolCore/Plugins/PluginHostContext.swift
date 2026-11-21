@@ -31,6 +31,7 @@ public final class PluginHostContext {
     public let unavailableKeywords: @MainActor () -> Set<String>
     public let refreshSearch: @MainActor () -> Void
     public let openInTerminal: (@MainActor (URL) async throws -> Void)?
+    public let openAI: (@MainActor (QuickAIRequest) -> Void)?
     public let hostVersion: String
 
     public init(
@@ -46,7 +47,8 @@ public final class PluginHostContext {
         unavailableKeywords: @escaping @MainActor () -> Set<String> = { [] },
         refreshSearch: @escaping @MainActor () -> Void = {},
         openInTerminal: (@MainActor (URL) async throws -> Void)? = nil,
-        hostVersion: String = AppInfo.version
+        hostVersion: String = AppInfo.version,
+        openAI: (@MainActor (QuickAIRequest) -> Void)? = nil
     ) {
         self.settings = settings
         self.pluginSettings = pluginSettings
@@ -61,16 +63,26 @@ public final class PluginHostContext {
         self.refreshSearch = refreshSearch
         self.openInTerminal = openInTerminal
         self.hostVersion = hostVersion
+        self.openAI = openAI
     }
 
     public func resolveHostContext() -> [String: String] {
         var context: [String: String] = [
-            "hostVersion": hostVersion
+            "hostVersion": hostVersion,
+            "aiFormat": settings.aiAPIFormat.rawValue
         ]
         let preferredTerminal = settings.preferredTerminalBundleID.trimmingCharacters(in: .whitespacesAndNewlines)
         if !preferredTerminal.isEmpty {
             context["preferredTerminalBundleID"] = preferredTerminal
         }
+        let baseURL = settings.translationAPIBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        let model = settings.translationAPIModel.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !model.isEmpty {
+            context["aiModel"] = model
+        }
+        // 只暴露布尔配置状态与非敏感模型名，严禁把任何 API 密钥传入插件上下文。
+        let hasAPIKey = !(secrets?.secret(for: SecretAccount.translationAPIKey) ?? "").isEmpty
+        context["aiConfigured"] = (!baseURL.isEmpty && !model.isEmpty && hasAPIKey) ? "true" : "false"
         return context
     }
 
@@ -153,6 +165,30 @@ public final class PluginHostContext {
             try requirePermission(.openApplication, for: manifest)
             let url = try resolvedLocalPathURL(effect.value, kind: "openApplication")
             try await appLauncher?.openApplication(at: url)
+        case "openAI":
+            try requirePermission(.openAI, for: manifest)
+            let prompt = effect.value ?? effect.options?["prompt"] ?? ""
+            let rawTitle = effect.options?["title"]?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let title = (rawTitle?.isEmpty == false) ? rawTitle : nil
+            let rawSystem = effect.options?["systemPrompt"]?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let systemPrompt = (rawSystem?.isEmpty == false) ? rawSystem : nil
+            let hasPrompt = !prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            let autoSend: Bool
+            if let rawAutoSend = effect.options?["autoSend"]?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+                if rawAutoSend == "false" || rawAutoSend == "0" {
+                    autoSend = false
+                } else {
+                    autoSend = hasPrompt
+                }
+            } else {
+                autoSend = hasPrompt
+            }
+            openAI?(QuickAIRequest(
+                title: title,
+                prompt: prompt,
+                systemPrompt: systemPrompt,
+                autoSend: autoSend
+            ))
         case "prefill":
             try requirePermission(.prefill, for: manifest)
             guard let value = effect.value else { throw PluginHostError.missingEffectValue("prefill") }

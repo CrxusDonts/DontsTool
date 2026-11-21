@@ -177,6 +177,8 @@ struct PluginManifestTests {
         #expect(PluginPermission.openTerminal.displayName == "在首选终端打开")
         #expect(PluginPermission.openApplication.rawValue == "openApplication")
         #expect(PluginPermission.openApplication.displayName == "启动本机应用")
+        #expect(PluginPermission.openAI.rawValue == "openAI")
+        #expect(PluginPermission.openAI.displayName == "调用宿主 AI 对话窗口")
 
         #expect(PluginVersion.isNewer("1.1.0", than: "1.0.9"))
         #expect(PluginVersion.isNewer("1.0.0", than: "1.0.0-beta.2"))

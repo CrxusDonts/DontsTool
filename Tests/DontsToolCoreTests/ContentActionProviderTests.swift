@@ -127,6 +127,33 @@ struct ContentActionProviderTests {
         settings.setProviderEnabled("notes", to: false)
         #expect(provider.items(for: "需要保留的排查笔记", matching: "便笺").isEmpty)
     }
+
+    @Test func pastedContentOffersOpenAIPrefillWithoutAutoSending() async throws {
+        let settings = SettingsStore(defaults: UserDefaults(suiteName: UUID().uuidString)!)
+        let tools = MockToolOpener()
+        let urls = MockURLOpener()
+        let feedback = MockFeedback()
+        var aiRequests: [QuickAIRequest] = []
+        let provider = ContentActionProvider(
+            settings: settings,
+            toolOpener: tools,
+            urlOpener: urls,
+            feedback: feedback,
+            openAI: { aiRequests.append($0) }
+        )
+
+        for sample in ["一段待分析日志", "{\"err\":500}", "https://example.com/docs"] {
+            let matched = provider.items(for: sample, matching: "ai")
+            #expect(matched.map(\.id) == ["content:ai.ask"])
+            #expect(matched[0].keyword == "ai")
+            #expect(matched[0].primaryAction?.presentation == .openWindow)
+            try await matched[0].primaryAction?.run()
+        }
+
+        #expect(aiRequests.count == 3)
+        #expect(aiRequests.allSatisfy { $0.autoSend == false })
+        #expect(aiRequests.map(\.prompt) == ["一段待分析日志", "{\"err\":500}", "https://example.com/docs"])
+    }
 }
 
 @MainActor

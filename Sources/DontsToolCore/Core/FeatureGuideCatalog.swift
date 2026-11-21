@@ -130,7 +130,7 @@ public enum FeatureGuideCatalog {
                 id: "selection-translate",
                 keyCap: "右键长按",
                 title: "全局划词翻译",
-                detail: "在任意应用选中文本后按住鼠标右键（需在「翻译」中开启并授权辅助功能）"
+                detail: "在任意应用选中文本后按住鼠标右键（需在「AI 与翻译」中开启并授权辅助功能）"
             ),
             FeatureGuideShortcut(
                 id: "dismiss",
@@ -218,21 +218,23 @@ public enum FeatureGuideCatalog {
             providerID: .ideaProjects
         ),
         FeatureGuideEntry(
-            id: "gemini",
+            id: "quick-ai",
             category: .productivity,
-            title: "Gemini 提问",
-            summary: "直接向本机安装的 Gemini Mac 版发起新对话并自动发送问题。",
+            title: "AI 快问（插件）",
+            summary: "复用宿主「AI 与翻译」大模型配置（支持 OpenAI Responses、Gemini 原生与 OpenAI Chat Completions），在原生流式窗口中即时问答、解释代码与排查报错。需从官方插件仓安装 com.donts.quick-ai。",
             symbol: "sparkles",
-            tint: .indigo,
-            keywords: ["gm", "gemini"],
+            tint: .blue,
+            keywords: ["ai", "ask", "问"],
             examples: [
-                FeatureGuideExample(query: "gm ", label: "输入问题后回车，新建 Gemini 对话并自动发送"),
-                FeatureGuideExample(query: "gemini", label: "不带问题直接回车，仅打开 Gemini 应用")
+                FeatureGuideExample(query: "ai ", label: "新建 AI 对话或选择解释代码、排查报错、润色改写等预设场景"),
+                FeatureGuideExample(query: "ai fix ", label: "按「排查报错」场景分析异常日志并流式给出建议"),
+                FeatureGuideExample(query: "ai Swift 6 Sendable 怎么用", label: "直接发起提问并在原生流式窗口中查看实时回答")
             ],
             tips: [
-                "自动输入需授予辅助功能权限；若检测到 Gemini 有未发送草稿会自动停止并保留草稿"
+                "请在「设置 → 插件」从官方插件仓（CrxusDonts/DontsTool-Plugins）安装「AI 快问（com.donts.quick-ai）」",
+                "在「设置 → AI 与翻译」配置接口格式、地址、模型和密钥即可复用；密钥仅存于宿主钥匙串，不会暴露给插件"
             ],
-            providerID: .gemini
+            providerID: nil
         ),
         FeatureGuideEntry(
             id: "calculator",
@@ -294,7 +296,7 @@ public enum FeatureGuideCatalog {
             id: "translation",
             category: .textAndNotes,
             title: "翻译与全局划词翻译",
-            summary: "对接自定义 OpenAI 兼容翻译 API，支持工作台多语言互译与全局鼠标右键长按划词翻译。",
+            summary: "支持 OpenAI Responses、Gemini 原生与 OpenAI Chat Completions 三种大模型接口格式，提供工作台多语言互译与全局鼠标右键长按划词翻译。",
             symbol: "character.bubble",
             tint: .teal,
             keywords: ["tr", "translate"],
@@ -303,8 +305,8 @@ public enum FeatureGuideCatalog {
                 FeatureGuideExample(query: "tr ", label: "打开独立翻译窗口，自由切换目标语言并复制译文")
             ],
             tips: [
-                "API 密钥保存在 macOS 钥匙串中，不写入配置文件或日志",
-                "可在「翻译」设置中开启「右键按住划词翻译」并调整触发时长"
+                "API 密钥保存在 macOS 钥匙串中，不写入配置文件或日志，与 AI 快问共享「AI 与翻译」配置",
+                "可在「AI 与翻译」设置中切换接口格式、开启「右键按住划词翻译」并调整触发时长"
             ],
             providerID: .translation
         ),

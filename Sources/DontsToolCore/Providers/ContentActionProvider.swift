@@ -8,19 +8,22 @@ public final class ContentActionProvider {
     private let urlOpener: URLOpening
     private let feedback: FeedbackProviding
     private let noteOpener: (any LocalNoteOpening)?
+    private let openAI: (@MainActor (QuickAIRequest) -> Void)?
 
     public init(
         settings: SettingsStore,
         toolOpener: ToolOpening,
         urlOpener: URLOpening,
         feedback: FeedbackProviding,
-        noteOpener: (any LocalNoteOpening)? = nil
+        noteOpener: (any LocalNoteOpening)? = nil,
+        openAI: (@MainActor (QuickAIRequest) -> Void)? = nil
     ) {
         self.settings = settings
         self.toolOpener = toolOpener
         self.urlOpener = urlOpener
         self.feedback = feedback
         self.noteOpener = noteOpener
+        self.openAI = openAI
     }
 
     public func items(for text: String, matching query: String = "") -> [SearchItem] {
@@ -54,6 +57,7 @@ public final class ContentActionProvider {
             appendTool(.translation, mode: "translation", title: "打开翻译", keyword: "tr", input: text, into: &candidates)
         }
         appendNoteActions(for: text, into: &candidates)
+        appendAIAction(for: text, into: &candidates)
         let normalized = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         return candidates.filter { item, aliases in
             normalized.isEmpty || ([item.title, item.keyword ?? ""] + aliases).contains {
@@ -107,6 +111,28 @@ public final class ContentActionProvider {
             keyword: "note"
         )
         candidates.append((createItem, ["note", "notes", "便笺", "笔记", "新建"]))
+    }
+
+    private func appendAIAction(for text: String, into candidates: inout [(SearchItem, [String])]) {
+        guard let openAI else { return }
+        let key = "content:ai.ask"
+        let item = SearchItem(
+            id: key,
+            providerID: "content",
+            group: .tool,
+            title: "问 AI（预填到 AI 窗口）",
+            subtitle: "带入原文到 AI 窗口，由你确认后再发送",
+            icon: .symbol(name: "sparkles", tint: .blue),
+            score: 990 - Double(candidates.count),
+            canonicalKey: key,
+            actions: [
+                ItemAction(id: key, title: "在 AI 窗口中提问", presentation: .openWindow, symbol: "sparkles") {
+                    openAI(QuickAIRequest(title: "AI 快问", prompt: text, systemPrompt: nil, autoSend: false))
+                }
+            ],
+            keyword: "ai"
+        )
+        candidates.append((item, ["ai", "ask", "chat", "问", "提问", "大模型"]))
     }
 
     private func appendTool(

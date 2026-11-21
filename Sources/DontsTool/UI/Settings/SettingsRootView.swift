@@ -15,7 +15,7 @@ struct SettingsRootView: View {
         case websites = "网址快捷入口"
         case tools = "工具"
         case plugins = "插件"
-        case translation = "翻译"
+        case translation = "AI 与翻译"
         case sync = "同步与备份"
         case index = "索引"
         case guide = "使用指南"
@@ -166,8 +166,6 @@ struct SettingsRootView: View {
                 case .tools:
                     ToolsSettingsTabView(
                         settings: settings,
-                        appIndex: appIndex,
-                        selectionTranslation: selectionTranslation,
                         onOpenPlugins: { navigation.tab = .plugins }
                     )
                 case .plugins:
@@ -182,7 +180,8 @@ struct SettingsRootView: View {
                     TranslationSettingsTabView(
                         settings: settings,
                         selectionTranslation: selectionTranslation,
-                        secrets: secrets
+                        secrets: secrets,
+                        onOpenPlugins: { navigation.tab = .plugins }
                     )
                 case .sync:
                     CloudSyncSettingsView(

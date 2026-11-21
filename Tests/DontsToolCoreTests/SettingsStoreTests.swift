@@ -236,4 +236,52 @@ struct SettingsStoreTests {
         let store = SettingsStore(defaults: defaults, systemLanguageCode: "en")
         #expect(store.applicationSortOrder == .recent)
     }
+
+    @Test func aiAPIFormatDefaultsPersistsAndMaintainsLegacyCloudSyncCompatibility() throws {
+        let (defaults, name) = makeDefaults()
+        defer { defaults.removePersistentDomain(forName: name) }
+
+        let store = SettingsStore(defaults: defaults, systemLanguageCode: "zh")
+        #expect(store.aiAPIFormat == .openAIResponses)
+
+        for format in AIAPIFormat.allCases {
+            store.setAIAPIFormat(format)
+            #expect(store.aiAPIFormat == format)
+            #expect(SettingsStore(defaults: defaults, systemLanguageCode: "zh").aiAPIFormat == format)
+        }
+
+        // Invalid stored value falls back to default .openAIResponses
+        defaults.set("unknown_format", forKey: "dontstool.aiAPIFormat")
+        #expect(SettingsStore(defaults: defaults, systemLanguageCode: "zh").aiAPIFormat == .openAIResponses)
+
+        // Export & re-apply SyncedAppSettings round-trips aiAPIFormat
+        store.setAIAPIFormat(.gemini)
+        let exported = store.exportSyncedSettings()
+        #expect(exported.aiAPIFormat == "gemini")
+
+        let (defaults2, name2) = makeDefaults()
+        defer { defaults2.removePersistentDomain(forName: name2) }
+        let targetStore = SettingsStore(defaults: defaults2, systemLanguageCode: "zh")
+        targetStore.applySyncedSettings(exported)
+        #expect(targetStore.aiAPIFormat == .gemini)
+
+        // Legacy cloud sync / backup JSON without aiAPIFormat decodes cleanly and preserves existing format
+        let legacyJSON = """
+        {
+          "hotKey": { "kind": "combination", "keyCode": 49, "modifiers": 2048 },
+          "applicationSortOrder": "recent",
+          "enabledProviderIDs": ["app", "translation"],
+          "fileSearchEnabled": true,
+          "translationTarget": "zh-Hans",
+          "translationAPIBaseURL": "https://api.openai.com/v1",
+          "translationAPIModel": "gpt-4.1-mini",
+          "selectionHoldDelayRawValue": 2,
+          "selectionTranslationEnabled": false
+        }
+        """
+        let legacyDecoded = try JSONDecoder().decode(SettingsStore.SyncedAppSettings.self, from: Data(legacyJSON.utf8))
+        #expect(legacyDecoded.aiAPIFormat == nil)
+        targetStore.applySyncedSettings(legacyDecoded)
+        #expect(targetStore.aiAPIFormat == .gemini)
+    }
 }
