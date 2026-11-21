@@ -331,7 +331,7 @@ private final class OneShotSession: @unchecked Sendable {
 
     func snapshot() -> (Data, Data, (timedOut: Bool, cancelled: Bool, outputTooLarge: Bool)) {
         lock.withLock {
-            (stdoutData, stderrData, (timedOut, cancelled, outputTooLarge))
+            (stdoutData, stderrData, (timedOut: timedOut, cancelled: cancelled, outputTooLarge: outputTooLarge))
         }
     }
 
