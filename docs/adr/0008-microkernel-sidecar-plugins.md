@@ -2,7 +2,7 @@
 
 - 状态：已实施（微内核精简化 + 官方插件仓 + GitHub 安装器）
 - 日期：2026-11-21
-- 关联：[ADR 0002](0002-built-in-modules-over-plugin-runtime.md)、[架构总览](../architecture.md)
+- 关联：[ADR 0002](0002-built-in-modules-over-plugin-runtime.md)、[架构总览](../architecture.md)、[插件使用与开发指南](../plugins.md)
 
 ## 背景
 

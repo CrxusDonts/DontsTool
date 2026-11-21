@@ -1,8 +1,8 @@
 # ADR 0002：采用内置 ToolProvider 模块，而非运行时插件系统
 
-- 状态：已接受
+- 状态：已由 [ADR 0008](0008-microkernel-sidecar-plugins.md) 部分取代（演进为微内核 + 进程外 Sidecar 插件架构）
 - 日期：2026-10-18
-- 关联：[架构总览](../architecture.md)、[V1 详细设计](../superpowers/specs/2026-10-18-dontstool-design.md)
+- 关联：[架构总览](../architecture.md)、[V1 详细设计](../superpowers/specs/2026-10-18-dontstool-design.md)、[ADR 0008](0008-microkernel-sidecar-plugins.md)
 
 ## 背景
 

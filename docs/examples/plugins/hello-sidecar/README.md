@@ -1,6 +1,6 @@
 # Hello Sidecar 示例插件
 
-这是一个最小化的外部 Sidecar 插件示例，演示 DontsTool 的 `manifest.json`（`schemaVersion: 1`）与 NDJSON over stdio 协议。
+这是一个最小化的外部 Sidecar 插件示例，演示 DontsTool 的 `manifest.json`（`schemaVersion: 1`）与 NDJSON over stdio（JSON-RPC 2.0）协议。完整协议字段、权限说明与分发规范见 [插件使用与开发指南](../../../plugins.md)。
 
 ## 目录内容
 
@@ -23,5 +23,7 @@ mkdir -p "$HOME/Library/Application Support/DontsTool/Plugins"
 ln -s "$PWD/docs/examples/plugins/hello-sidecar" "$HOME/Library/Application Support/DontsTool/Plugins/com.example.hello-sidecar"
 ```
 
-3. 打开 DontsTool **设置 → 工具 → 插件**，点击 **重新加载**。
+3. 打开 DontsTool **设置 → 插件**，点击 **重新加载**。
 4. 呼出启动器输入 `hello 世界`，回车直接复制结果；按 `⌘K` 可触发插件 `execute` 回调。
+
+更多生产级 Swift 插件与打包脚本参考 [CrxusDonts/DontsTool-Plugins](https://github.com/CrxusDonts/DontsTool-Plugins)。
