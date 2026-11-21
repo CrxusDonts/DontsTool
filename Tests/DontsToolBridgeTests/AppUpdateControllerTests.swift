@@ -57,4 +57,131 @@ struct AppUpdateControllerTests {
         for _ in 0..<20 { await Task.yield() }
         #expect(installs == 1)
     }
+
+    @Test func gentleReminderDelegatesBackgroundUpdatesWithoutModalInterruption() throws {
+        _ = NSApplication.shared
+        let suiteName = "dontstool.bridge.update.gentle.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let controller = AppUpdateController(
+            currentVersion: "0.4.0",
+            startUpdater: false,
+            defaults: defaults,
+            prepareToInstall: { true }
+        )
+        let newerItem = try #require(SUAppcastItem(dictionary: [
+            "sparkle:version": "10", "sparkle:shortVersionString": "0.4.1",
+            "enclosure": ["url": "https://example.com/update.zip", "length": "100"]
+        ]))
+
+        #expect(controller.supportsGentleScheduledUpdateReminders)
+        #expect(!controller.standardUserDriverShouldHandleShowingScheduledUpdate(newerItem, andInImmediateFocus: true))
+        #expect(!controller.standardUserDriverShouldHandleShowingScheduledUpdate(newerItem, andInImmediateFocus: false))
+
+        controller.handleScheduledUpdateReminder(handleShowingUpdate: false, candidateVersion: "0.4.0")
+        #expect(controller.availableUpdateVersion == nil)
+        #expect(controller.visibleLauncherUpdateVersion == nil)
+
+        controller.handleScheduledUpdateReminder(handleShowingUpdate: false, candidateVersion: "0.3.9")
+        #expect(controller.availableUpdateVersion == nil)
+
+        controller.handleScheduledUpdateReminder(handleShowingUpdate: true, candidateVersion: "0.4.1")
+        #expect(controller.availableUpdateVersion == nil)
+
+        controller.handleScheduledUpdateReminder(handleShowingUpdate: false, candidateVersion: "0.4.1")
+        #expect(controller.availableUpdateVersion == "0.4.1")
+        #expect(controller.visibleLauncherUpdateVersion == "0.4.1")
+
+        controller.dismissAvailableUpdateBanner()
+        #expect(controller.availableUpdateVersion == "0.4.1")
+        #expect(controller.visibleLauncherUpdateVersion == nil)
+
+        let reloaded = AppUpdateController(
+            currentVersion: "0.4.0",
+            startUpdater: false,
+            defaults: defaults,
+            prepareToInstall: { true }
+        )
+        reloaded.handleScheduledUpdateReminder(handleShowingUpdate: false, candidateVersion: "0.4.1")
+        #expect(reloaded.availableUpdateVersion == "0.4.1")
+        #expect(reloaded.visibleLauncherUpdateVersion == nil)
+
+        reloaded.handleScheduledUpdateReminder(handleShowingUpdate: false, candidateVersion: "0.4.2")
+        #expect(reloaded.availableUpdateVersion == "0.4.2")
+        #expect(reloaded.visibleLauncherUpdateVersion == "0.4.2")
+
+        reloaded.standardUserDriverWillFinishUpdateSession()
+        #expect(reloaded.availableUpdateVersion == nil)
+        #expect(reloaded.visibleLauncherUpdateVersion == nil)
+    }
+
+    @Test func launcherOpenTriggersBackgroundCheckOncePerDayWhenEnabled() throws {
+        _ = NSApplication.shared
+        let suiteName = "dontstool.bridge.update.daily.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 8 * 3600))
+        let day1Morning = try #require(calendar.date(from: DateComponents(year: 2026, month: 11, day: 21, hour: 9)))
+        let day1Afternoon = try #require(calendar.date(from: DateComponents(year: 2026, month: 11, day: 21, hour: 15)))
+        let day2Morning = try #require(calendar.date(from: DateComponents(year: 2026, month: 11, day: 22, hour: 9)))
+
+        var checks = 0
+        let controller = AppUpdateController(
+            currentVersion: "0.4.0",
+            startUpdater: false,
+            defaults: defaults,
+            backgroundCheckRunner: { checks += 1 },
+            prepareToInstall: { true }
+        )
+        controller.automaticallyChecksForUpdates = true
+
+        #expect(controller.checkForUpdatesOnLauncherOpenIfNeeded(now: day1Morning, calendar: calendar))
+        #expect(checks == 1)
+
+        #expect(!controller.checkForUpdatesOnLauncherOpenIfNeeded(now: day1Afternoon, calendar: calendar))
+        #expect(checks == 1)
+
+        controller.automaticallyChecksForUpdates = false
+        #expect(!controller.checkForUpdatesOnLauncherOpenIfNeeded(now: day2Morning, calendar: calendar))
+        #expect(checks == 1)
+
+        controller.automaticallyChecksForUpdates = true
+        controller.handleScheduledUpdateReminder(handleShowingUpdate: false, candidateVersion: "0.4.1")
+        #expect(!controller.checkForUpdatesOnLauncherOpenIfNeeded(now: day2Morning, calendar: calendar))
+        #expect(checks == 1)
+
+        controller.standardUserDriverWillFinishUpdateSession()
+        #expect(controller.checkForUpdatesOnLauncherOpenIfNeeded(now: day2Morning, calendar: calendar))
+        #expect(checks == 2)
+    }
+
+    @Test func panelModelAndMenuBarReflectAvailableUpdateVersion() throws {
+        _ = NSApplication.shared
+        let suiteName = "dontstool.bridge.update.menubar.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let controller = AppUpdateController(
+            currentVersion: "0.4.0",
+            startUpdater: false,
+            defaults: defaults,
+            prepareToInstall: { true }
+        )
+        let menuBar = MenuBarController()
+        menuBar.updates = controller
+        menuBar.install()
+
+        let registry = ToolRegistry(providers: [])
+        let model = LauncherPanelModel(coordinator: SearchCoordinator(registry: registry), hotKeyDisplay: "⌥Space")
+        model.updateAvailableUpdateVersion("0.4.1")
+        #expect(model.availableUpdateVersion == "0.4.1")
+
+        controller.handleScheduledUpdateReminder(handleShowingUpdate: false, candidateVersion: "0.4.1")
+        #expect(controller.availableUpdateVersion == "0.4.1")
+        controller.standardUserDriverWillFinishUpdateSession()
+        #expect(controller.availableUpdateVersion == nil)
+    }
 }

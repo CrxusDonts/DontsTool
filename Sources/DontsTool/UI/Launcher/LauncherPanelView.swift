@@ -14,6 +14,8 @@ struct LauncherPanelView: View {
     let onClearContent: () -> Void
     let onShowActions: () -> Void
     var onCopyFilePath: ((Int) -> Void)? = nil
+    var onOpenUpdate: (() -> Void)? = nil
+    var onDismissUpdate: (() -> Void)? = nil
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     var body: some View {
@@ -37,7 +39,10 @@ struct LauncherPanelView: View {
                 isActionPanelOpen: model.isActionPanelOpen,
                 onShowActions: onShowActions,
                 hasActions: !model.actionItems.isEmpty,
-                selectedItem: model.selectedItem
+                selectedItem: model.selectedItem,
+                availableUpdateVersion: model.availableUpdateVersion,
+                onOpenUpdate: onOpenUpdate,
+                onDismissUpdate: onDismissUpdate
             )
         }
         .frame(width: Metrics.panelSize.width)

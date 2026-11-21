@@ -120,12 +120,18 @@ struct AboutSettingsTabView: View {
                     SettingsBadge(text: signingBadgeText)
                 }
                 SettingsDivider()
-                SettingsRow(title: "应用更新", subtitle: "下载新版后，在应用内安装并重启") {
-                    SettingsButton(title: "检查更新…") { updates.checkForUpdates() }
-                        .disabled(!updates.canCheckForUpdates)
+                SettingsRow(
+                    title: "应用更新",
+                    subtitle: updates.availableUpdateVersion.map { "发现新版本 \($0)，点击查看更新说明并安装" }
+                        ?? "下载新版后，在应用内安装并重启"
+                ) {
+                    SettingsButton(title: updates.availableUpdateVersion.map { "更新到 \($0)…" } ?? "检查更新…") {
+                        updates.checkForUpdates()
+                    }
+                    .disabled(!updates.canCheckForUpdates)
                 }
                 SettingsDivider()
-                SettingsRow(title: "自动检查更新", subtitle: "每天检查一次，安装前由你确认") {
+                SettingsRow(title: "自动检查更新", subtitle: "每日首次打开启动器时静默检查一次，安装前由你确认") {
                     Toggle("自动检查更新", isOn: $updates.automaticallyChecksForUpdates).labelsHidden()
                 }
             }

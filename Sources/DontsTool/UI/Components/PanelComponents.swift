@@ -125,7 +125,7 @@ struct GroupHeader: View {
     }
 }
 
-/// 极简 30pt 底栏：产品名 + 实时状态 + 键位说明。
+/// 极简 30pt 底栏：产品名 + 实时状态 / 克制更新胶囊 + 键位说明。
 struct PanelFooterView: View {
     let statusText: String?
     let isWarning: Bool
@@ -133,6 +133,9 @@ struct PanelFooterView: View {
     var onShowActions: (() -> Void)? = nil
     var hasActions = true
     var selectedItem: SearchItem? = nil
+    var availableUpdateVersion: String? = nil
+    var onOpenUpdate: (() -> Void)? = nil
+    var onDismissUpdate: (() -> Void)? = nil
 
     var body: some View {
         HStack(spacing: 6) {
@@ -147,6 +150,8 @@ struct PanelFooterView: View {
                     .foregroundStyle(isWarning ? Theme.warning : Theme.tertiary)
                     .lineLimit(1)
                     .truncationMode(.middle)
+            } else if !isActionPanelOpen, let availableUpdateVersion {
+                updatePill(version: availableUpdateVersion)
             }
             Spacer(minLength: 8)
             if isActionPanelOpen {
@@ -191,6 +196,47 @@ struct PanelFooterView: View {
         Text("·")
             .font(Theme.footerFont)
             .foregroundStyle(Theme.tertiary.opacity(0.5))
+    }
+
+    private func updatePill(version: String) -> some View {
+        HStack(spacing: 4) {
+            Button {
+                onOpenUpdate?()
+            } label: {
+                HStack(spacing: 4) {
+                    Circle()
+                        .fill(Theme.accent)
+                        .frame(width: 5, height: 5)
+                    Text("新版本 \(version)")
+                        .font(.system(size: 10.5, weight: .medium))
+                        .foregroundStyle(Theme.ink)
+                        .lineLimit(1)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help("发现新版本 \(version)，点击查看更新并安装")
+            .accessibilityLabel("发现新版本 \(version)，点击查看更新")
+
+            Button {
+                onDismissUpdate?()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 8, weight: .semibold))
+                    .foregroundStyle(Theme.tertiary)
+                    .frame(width: 14, height: 14)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help("暂时隐藏此版本更新提示")
+            .accessibilityLabel("暂时隐藏新版本 \(version) 提示")
+        }
+        .padding(.leading, 6)
+        .padding(.trailing, 3)
+        .padding(.vertical, 2)
+        .background(Theme.accentFill, in: Capsule())
+        .overlay(Capsule().strokeBorder(Theme.accentBorder, lineWidth: 0.5))
+        .fixedSize(horizontal: true, vertical: false)
     }
 
     private func legend(keys: [String], label: String) -> some View {

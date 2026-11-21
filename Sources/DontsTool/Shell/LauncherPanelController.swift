@@ -9,6 +9,9 @@ import SwiftUI
 final class LauncherPanelController: NSObject, NSWindowDelegate, OperationProgressReporting {
     var onOpenSettings: (() -> Void)?
     var onRescanApps: (() -> Void)?
+    var onDidShow: (() -> Void)?
+    var onOpenUpdate: (() -> Void)?
+    var onDismissUpdate: (() -> Void)?
 
     private let model: LauncherPanelModel
     private let registry: ToolRegistry
@@ -64,6 +67,10 @@ final class LauncherPanelController: NSObject, NSWindowDelegate, OperationProgre
         model.updateHotKeyDisplay(display)
     }
 
+    func updateAvailableUpdateVersion(_ version: String?) {
+        model.updateAvailableUpdateVersion(version)
+    }
+
     func toggle() {
         if isVisible { hide() } else { show() }
     }
@@ -90,6 +97,9 @@ final class LauncherPanelController: NSObject, NSWindowDelegate, OperationProgre
         panel.makeFirstResponder(searchField)
         startMonitoringOutsideClicks()
         Performance.end(interval)
+        DispatchQueue.main.async { [weak self] in
+            self?.onDidShow?()
+        }
     }
 
     func hide(restorePreviousApp: Bool = true) {
@@ -199,7 +209,15 @@ final class LauncherPanelController: NSObject, NSWindowDelegate, OperationProgre
             },
             onClearContent: { [weak self] in self?.clearContent() },
             onShowActions: { [weak self] in self?.model.toggleActionPanel() },
-            onCopyFilePath: { [weak self] index in _ = self?.copyFilePath(at: index) }
+            onCopyFilePath: { [weak self] index in _ = self?.copyFilePath(at: index) },
+            onOpenUpdate: { [weak self] in
+                guard let self else { return }
+                self.hide(restorePreviousApp: false)
+                self.onOpenUpdate?()
+            },
+            onDismissUpdate: { [weak self] in
+                self?.onDismissUpdate?()
+            }
         )
         let hosting = NSHostingView(rootView: view)
         hosting.sizingOptions = []

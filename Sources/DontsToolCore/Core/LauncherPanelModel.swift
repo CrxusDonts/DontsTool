@@ -30,6 +30,7 @@ public final class LauncherPanelModel: ObservableObject {
     @Published public private(set) var isActionPanelOpen = false
     @Published public private(set) var selectedActionIndex = 0
     @Published public private(set) var attachedContent: ContentDescriptor?
+    @Published public private(set) var availableUpdateVersion: String?
 
     private let coordinator: SearchCoordinator
     private var toastTask: Task<Void, Never>?
@@ -234,6 +235,13 @@ public final class LauncherPanelModel: ObservableObject {
 
     public func endProgress() {
         progressMessage = nil
+    }
+
+    public func updateAvailableUpdateVersion(_ version: String?) {
+        let normalized = version?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let resolved = (normalized?.isEmpty == false) ? normalized : nil
+        guard availableUpdateVersion != resolved else { return }
+        availableUpdateVersion = resolved
     }
 
     public func showToast(_ message: String) {

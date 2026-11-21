@@ -4,8 +4,10 @@ import DontsToolCore
 import Sparkle
 
 @MainActor
-final class AppUpdateController: NSObject, ObservableObject, SPUUpdaterDelegate, NSMenuItemValidation {
+final class AppUpdateController: NSObject, ObservableObject, SPUUpdaterDelegate, SPUStandardUserDriverDelegate, NSMenuItemValidation {
     @Published private(set) var canCheckForUpdates = false
+    @Published private(set) var availableUpdateVersion: String?
+    @Published private(set) var visibleLauncherUpdateVersion: String?
     @Published var automaticallyChecksForUpdates = true {
         didSet {
             guard oldValue != automaticallyChecksForUpdates else { return }
@@ -14,6 +16,9 @@ final class AppUpdateController: NSObject, ObservableObject, SPUUpdaterDelegate,
     }
     private var standard: SPUStandardUpdaterController!
     private let currentVersion: String
+    private let isUpdaterStarted: Bool
+    private let dailyPolicy: DailyUpdateCheckPolicy
+    private let customBackgroundCheckRunner: (@MainActor () -> Void)?
     private let installation: UpdateInstallationGate
     private var observations: Set<AnyCancellable> = []
     private let resumeAfterFailure: @MainActor () async -> Void
@@ -21,14 +26,22 @@ final class AppUpdateController: NSObject, ObservableObject, SPUUpdaterDelegate,
     @Published private var recovering = false
     var sparkleUpdater: SPUUpdater { standard.updater }
 
-    init(currentVersion: String = AppInfo.version, startUpdater: Bool = true,
-         resumeAfterFailure: @escaping @MainActor () async -> Void = {},
-         prepareToInstall: @escaping @MainActor () async -> Bool) {
+    init(
+        currentVersion: String = AppInfo.version,
+        startUpdater: Bool = true,
+        defaults: UserDefaults = .standard,
+        backgroundCheckRunner: (@MainActor () -> Void)? = nil,
+        resumeAfterFailure: @escaping @MainActor () async -> Void = {},
+        prepareToInstall: @escaping @MainActor () async -> Bool
+    ) {
         self.currentVersion = currentVersion
+        self.isUpdaterStarted = startUpdater
+        self.dailyPolicy = DailyUpdateCheckPolicy(defaults: defaults)
+        self.customBackgroundCheckRunner = backgroundCheckRunner
         self.resumeAfterFailure = resumeAfterFailure
         installation = UpdateInstallationGate(prepare: prepareToInstall)
         super.init()
-        standard = SPUStandardUpdaterController(startingUpdater: false, updaterDelegate: self, userDriverDelegate: nil)
+        standard = SPUStandardUpdaterController(startingUpdater: false, updaterDelegate: self, userDriverDelegate: self)
         standard.updater.sendsSystemProfile = false
         standard.updater.automaticallyDownloadsUpdates = false
         standard.updater.publisher(for: \.canCheckForUpdates)
@@ -52,7 +65,79 @@ final class AppUpdateController: NSObject, ObservableObject, SPUUpdaterDelegate,
         }
     }
 
+    @discardableResult
+    func checkForUpdatesOnLauncherOpenIfNeeded(now: Date = Date(), calendar: Calendar = .current) -> Bool {
+        guard dailyPolicy.shouldTriggerDailyCheck(
+            now: now,
+            calendar: calendar,
+            automaticallyChecks: automaticallyChecksForUpdates,
+            hasAvailableUpdate: availableUpdateVersion != nil
+        ) else {
+            return false
+        }
+        guard !installation.hasPendingInstallation, !installation.isPreparing, !recovering,
+              !standard.updater.sessionInProgress else {
+            return false
+        }
+        if customBackgroundCheckRunner == nil {
+            guard isUpdaterStarted, canCheckForUpdates else {
+                return false
+            }
+        }
+        dailyPolicy.recordCheckAttempt(now: now, calendar: calendar)
+        if let customBackgroundCheckRunner {
+            customBackgroundCheckRunner()
+        } else {
+            standard.updater.checkForUpdatesInBackground()
+        }
+        return true
+    }
+
+    func dismissAvailableUpdateBanner() {
+        guard let version = availableUpdateVersion else { return }
+        dailyPolicy.dismissVersion(version)
+        visibleLauncherUpdateVersion = nil
+    }
+
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool { canCheckForUpdates }
+
+    nonisolated var supportsGentleScheduledUpdateReminders: Bool { true }
+
+    nonisolated func standardUserDriverShouldHandleShowingScheduledUpdate(
+        _ update: SUAppcastItem,
+        andInImmediateFocus immediateFocus: Bool
+    ) -> Bool {
+        false
+    }
+
+    nonisolated func standardUserDriverWillHandleShowingUpdate(
+        _ handleShowingUpdate: Bool,
+        forUpdate update: SUAppcastItem,
+        state: SPUUserUpdateState
+    ) {
+        let candidateVersion = update.displayVersionString
+        MainActor.assumeIsolated {
+            handleScheduledUpdateReminder(
+                handleShowingUpdate: handleShowingUpdate,
+                candidateVersion: candidateVersion
+            )
+        }
+    }
+
+    nonisolated func standardUserDriverWillFinishUpdateSession() {
+        MainActor.assumeIsolated {
+            availableUpdateVersion = nil
+            visibleLauncherUpdateVersion = nil
+        }
+    }
+
+    func handleScheduledUpdateReminder(handleShowingUpdate: Bool, candidateVersion: String) {
+        guard !handleShowingUpdate, UpdateVersion.isNewer(candidateVersion, than: currentVersion) else {
+            return
+        }
+        availableUpdateVersion = candidateVersion
+        visibleLauncherUpdateVersion = dailyPolicy.isVersionDismissed(candidateVersion) ? nil : candidateVersion
+    }
 
     func updater(_ updater: SPUUpdater, shouldProceedWithUpdate updateItem: SUAppcastItem,
                  updateCheck: SPUUpdateCheck) throws {

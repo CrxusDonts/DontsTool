@@ -252,6 +252,20 @@ final class AppController {
         panel.onOpenSettings = { [weak settingsWindow] in
             settingsWindow?.show()
         }
+        panel.onDidShow = { [weak updateController] in
+            updateController?.checkForUpdatesOnLauncherOpenIfNeeded()
+        }
+        panel.onOpenUpdate = { [weak updateController] in
+            updateController?.checkForUpdates()
+        }
+        panel.onDismissUpdate = { [weak updateController] in
+            updateController?.dismissAvailableUpdateBanner()
+        }
+        updateController.$visibleLauncherUpdateVersion
+            .sink { [weak panel] version in
+                panel?.updateAvailableUpdateVersion(version)
+            }
+            .store(in: &searchRefreshCancellables)
         toolWindows.onOpenSettings = { [weak settingsWindow] in settingsWindow?.showTranslation() }
         quickAIWindows.onOpenSettings = { [weak settingsWindow] in settingsWindow?.showTranslation() }
         self.settingsWindow = settingsWindow

@@ -96,4 +96,68 @@ struct UpdateTests {
         #expect(installations == 1)
         #expect(!gate.isPreparing)
     }
+
+    @Test func dailyPolicyAllowsFirstOpenAndThrottlesSameDayChecks() throws {
+        let suiteName = "dontstool.update.policy.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 8 * 3600))
+        let day1Morning = try #require(calendar.date(from: DateComponents(year: 2026, month: 11, day: 21, hour: 9)))
+        let day1Evening = try #require(calendar.date(from: DateComponents(year: 2026, month: 11, day: 21, hour: 21)))
+        let day2Morning = try #require(calendar.date(from: DateComponents(year: 2026, month: 11, day: 22, hour: 8)))
+
+        let policy = DailyUpdateCheckPolicy(defaults: defaults)
+        #expect(policy.shouldTriggerDailyCheck(
+            now: day1Morning,
+            calendar: calendar,
+            automaticallyChecks: true,
+            hasAvailableUpdate: false
+        ))
+
+        policy.recordCheckAttempt(now: day1Morning, calendar: calendar)
+        #expect(!policy.shouldTriggerDailyCheck(
+            now: day1Evening,
+            calendar: calendar,
+            automaticallyChecks: true,
+            hasAvailableUpdate: false
+        ))
+        #expect(!policy.shouldTriggerDailyCheck(
+            now: day2Morning,
+            calendar: calendar,
+            automaticallyChecks: false,
+            hasAvailableUpdate: false
+        ))
+        #expect(!policy.shouldTriggerDailyCheck(
+            now: day2Morning,
+            calendar: calendar,
+            automaticallyChecks: true,
+            hasAvailableUpdate: true
+        ))
+        #expect(policy.shouldTriggerDailyCheck(
+            now: day2Morning,
+            calendar: calendar,
+            automaticallyChecks: true,
+            hasAvailableUpdate: false
+        ))
+    }
+
+    @Test func dailyPolicyPersistsDismissedVersionAndResumesHigherVersions() throws {
+        let suiteName = "dontstool.update.dismiss.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let policy = DailyUpdateCheckPolicy(defaults: defaults)
+        #expect(!policy.isVersionDismissed("0.4.2"))
+        policy.dismissVersion("0.4.2")
+        #expect(policy.isVersionDismissed("0.4.2"))
+
+        let reloaded = DailyUpdateCheckPolicy(defaults: defaults)
+        #expect(reloaded.isVersionDismissed("0.4.2"))
+        #expect(!reloaded.isVersionDismissed("0.4.3"))
+
+        reloaded.clearDismissedVersion()
+        #expect(!reloaded.isVersionDismissed("0.4.2"))
+    }
 }

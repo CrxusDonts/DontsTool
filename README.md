@@ -48,7 +48,7 @@ curl -fsSL https://raw.githubusercontent.com/CrxusDonts/DontsTool/main/install.s
 
 1. 前往 [GitHub Releases](https://github.com/CrxusDonts/DontsTool/releases/latest) 下载 `DontsTool-版本号-macos-universal.zip`。
 2. 解压后将 `DontsTool.app` 拖入「应用程序」目录（更新前先保存草稿并正常退出旧版）。
-3. 脚本支持 `--dir "$HOME/Applications"` 和 `--version v0.4.0` 等选项，完整校验与签名说明见 [安装与完整性校验](docs/installation.md)。
+3. 脚本支持 `--dir "$HOME/Applications"` 和 `--version v0.4.1` 等选项，完整校验与签名说明见 [安装与完整性校验](docs/installation.md)。
 
 </details>
 
