@@ -51,6 +51,7 @@ struct QuickAIWindowView: View {
                 .padding(.vertical, 3)
                 .background(Theme.controlFill, in: Capsule())
                 .overlay(Capsule().strokeBorder(Theme.controlBorder, lineWidth: 0.5))
+                .help(session.activeModelDisplay)
             } else {
                 Button(action: onOpenSettings) {
                     HStack(spacing: 5) {
@@ -66,7 +67,7 @@ struct QuickAIWindowView: View {
                     .background(Theme.warning.opacity(0.12), in: Capsule())
                 }
                 .buttonStyle(.plain)
-                .help("打开「设置 → AI 与翻译」配置大模型")
+                .help("打开「设置 → 模型服务」配置大模型")
             }
 
             Spacer(minLength: 8)
@@ -97,7 +98,7 @@ struct QuickAIWindowView: View {
 
                 toolbarIconButton(
                     symbol: "gearshape",
-                    help: "打开「AI 与翻译」设置",
+                    help: "打开模型服务设置",
                     isActive: false,
                     action: onOpenSettings
                 )
@@ -206,11 +207,11 @@ struct QuickAIWindowView: View {
                             .strokeBorder(Theme.accentBorder, lineWidth: 0.6)
                     )
 
-                Text("尚未配置大模型服务")
+                Text("尚未配置模型服务")
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(Theme.ink)
 
-                Text("请在「设置 → AI 与翻译」填写接口地址、模型名称和 API 密钥。\n支持 OpenAI Responses、Gemini 原生与 OpenAI Chat Completions 三种接口格式，与翻译及划词翻译共用。")
+                Text("请在「设置 → 模型服务」添加模型配置并填写 API 密钥。\n支持 OpenAI Responses、Gemini 原生与 OpenAI Chat Completions 三种接口格式，并可为翻译与 AI 快问分别绑定模型。")
                     .font(.system(size: 12.5))
                     .foregroundStyle(Theme.secondary)
                     .multilineTextAlignment(.center)
@@ -218,7 +219,7 @@ struct QuickAIWindowView: View {
                     .frame(maxWidth: 420)
 
                 Button(action: onOpenSettings) {
-                    Text("打开「AI 与翻译」设置")
+                    Text("打开模型服务设置")
                         .font(.system(size: 12.5, weight: .medium))
                         .foregroundStyle(Theme.onAccent)
                         .padding(.horizontal, 14)
@@ -264,7 +265,7 @@ struct QuickAIWindowView: View {
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.system(size: 12))
                 .foregroundStyle(Theme.warning)
-            Text("尚未完成大模型服务配置，请先在「设置 → AI 与翻译」填写接口地址、模型和 API 密钥。")
+            Text("尚未完成模型服务配置，请先在「设置 → 模型服务」填写接口地址、模型和 API 密钥。")
                 .font(.system(size: 12))
                 .foregroundStyle(Theme.ink)
                 .frame(maxWidth: .infinity, alignment: .leading)

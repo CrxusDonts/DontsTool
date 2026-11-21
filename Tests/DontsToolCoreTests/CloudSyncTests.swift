@@ -399,4 +399,60 @@ struct CloudSyncTests {
             #expect(macB.notes.trashedNotes.isEmpty)
         }
     }
+
+    @Test func syncsMultiAIModelProfilesAndBindingsAcrossDevicesWithoutKeys() async throws {
+        try await withTempDir { dir in
+            let server = InMemorySyncServer(token: "sync-secret")
+            let macA = ClientFixture(root: dir, name: "MacA-AI")
+            let macB = ClientFixture(root: dir, name: "MacB-AI")
+            defer { macA.cleanup(); macB.cleanup() }
+
+            for fixture in [macA, macB] {
+                fixture.settings.setCloudSyncEnabled(true)
+                fixture.settings.setCloudSyncServerURL("https://sync.example.com")
+                fixture.secrets.setSecret("sync-secret", for: SecretAccount.cloudSyncToken)
+            }
+
+            let coordA = CloudSyncCoordinator(
+                settings: macA.settings, websites: macA.websites, searchEngines: macA.searchEngines,
+                notes: macA.notes, secrets: macA.secrets, httpClient: server, stateStore: macA.stateStore,
+                realtimeClientFactory: nil, deviceNameProvider: { "MacA" }
+            )
+            let coordB = CloudSyncCoordinator(
+                settings: macB.settings, websites: macB.websites, searchEngines: macB.searchEngines,
+                notes: macB.notes, secrets: macB.secrets, httpClient: server, stateStore: macB.stateStore,
+                realtimeClientFactory: nil, deviceNameProvider: { "MacB" }
+            )
+
+            let gemini = AIModelProfile(
+                id: "sync-gemini",
+                name: "Gemini 2.5",
+                format: .gemini,
+                baseURL: "https://generativelanguage.googleapis.com/v1beta",
+                model: "gemini-2.5-flash"
+            )
+            let openai = AIModelProfile(
+                id: "sync-openai",
+                name: "OpenAI 主力",
+                format: .openAIResponses,
+                baseURL: "https://api.openai.com/v1",
+                model: "gpt-4.1-mini"
+            )
+            macA.settings.upsertAIModelProfile(gemini, makeDefault: true)
+            macA.settings.upsertAIModelProfile(openai)
+            macA.settings.setTranslationAIModelProfileID(gemini.id)
+            macA.settings.setQuickAIAIModelProfileID(openai.id)
+            macA.settings.saveAPIKey("AIza-local-key-only", for: gemini, secrets: macA.secrets)
+
+            #expect(await coordA.syncNow())
+            #expect(await coordB.syncNow())
+
+            #expect(macB.settings.aiModelProfiles == [gemini, openai])
+            #expect(macB.settings.defaultAIModelProfileID == gemini.id)
+            #expect(macB.settings.translationAIModelProfileID == gemini.id)
+            #expect(macB.settings.quickAIAIModelProfileID == openai.id)
+            // Secrets remain local to Keychain and never sync over the wire
+            #expect(macB.settings.apiKey(for: gemini, secrets: macB.secrets) == nil)
+        }
+    }
 }

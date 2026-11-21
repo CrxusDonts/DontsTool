@@ -23,7 +23,8 @@ public final class RemoteTranslationService: TranslationServicing {
             settings: settings,
             secrets: secrets,
             http: http,
-            timeout: timeout
+            timeout: timeout,
+            purpose: .translation
         )
     }
 
@@ -33,7 +34,7 @@ public final class RemoteTranslationService: TranslationServicing {
 
     public func translate(_ text: String, target: String) async throws -> String {
         guard isConfigured else {
-            throw ActionError.translationFailed("大模型翻译未配置，请在「设置 → AI 与翻译」填写接口地址、模型和 API 密钥")
+            throw ActionError.translationFailed("大模型翻译未配置，请在「设置 → 模型服务」填写接口地址、模型和 API 密钥")
         }
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
@@ -53,13 +54,13 @@ public final class RemoteTranslationService: TranslationServicing {
     private func mapTranslationError(_ error: AIChatError) -> ActionError {
         switch error {
         case .notConfigured:
-            .translationFailed("大模型翻译未配置，请在「设置 → AI 与翻译」填写接口地址、模型和 API 密钥")
+            .translationFailed("大模型翻译未配置，请在「设置 → 模型服务」填写接口地址、模型和 API 密钥")
         case .emptyInput:
             .invalidInput("翻译内容为空")
         case .invalidEndpoint(let message):
             .translationFailed("翻译 \(message)")
         case .missingAPIKey:
-            .translationFailed("翻译 API 密钥缺失，请在「设置 → AI 与翻译」填写密钥")
+            .translationFailed("翻译 API 密钥缺失，请在「设置 → 模型服务」填写密钥")
         case .httpStatus(let code):
             .translationFailed("翻译服务返回 HTTP \(code)")
         case .apiError(let message):

@@ -41,6 +41,10 @@ public final class QuickAISession: ObservableObject, Identifiable {
         service.activeFormat
     }
 
+    public var activeProfileName: String? {
+        service.activeProfileName
+    }
+
     public var canRegenerate: Bool {
         !isStreaming && messages.contains(where: { $0.role == .user })
     }

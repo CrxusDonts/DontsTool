@@ -513,4 +513,132 @@ struct AIChatServiceTests {
         #expect(chatReq.url?.absoluteString == "https://api.deepseek.com/v1/chat/completions")
         #expect(chatReq.value(forHTTPHeaderField: "Authorization") == "Bearer sk-chat-key")
     }
+
+    // MARK: - Multi-Profile Binding & Connection Test
+
+    @Test func multiProfileSeparatesTranslationAndQuickAIEndpointsFormatsAndKeys() async throws {
+        let suite = "MultiProfileRouting-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+
+        let settings = SettingsStore(defaults: defaults, systemLanguageCode: "zh")
+        let secrets = MemorySecretStore()
+
+        let geminiProfile = AIModelProfile(
+            id: "trans-gemini",
+            name: "翻译用 Gemini",
+            format: .gemini,
+            baseURL: "https://generativelanguage.googleapis.com",
+            model: "gemini-2.5-flash"
+        )
+        let openaiProfile = AIModelProfile(
+            id: "qa-openai",
+            name: "问答用 OpenAI",
+            format: .openAIResponses,
+            baseURL: "https://api.openai.com/v1",
+            model: "gpt-4.1-mini"
+        )
+        settings.upsertAIModelProfile(geminiProfile, makeDefault: true)
+        settings.upsertAIModelProfile(openaiProfile)
+        settings.saveAPIKey("AIza-trans-secret", for: geminiProfile, secrets: secrets)
+        settings.saveAPIKey("sk-quickai-secret", for: openaiProfile, secrets: secrets)
+        settings.setTranslationAIModelProfileID(geminiProfile.id)
+        settings.setQuickAIAIModelProfileID(openaiProfile.id)
+
+        let transHTTP = MockHTTPClient()
+        transHTTP.responseData = Data("""
+        {"candidates":[{"content":{"parts":[{"text":"你好"}]},"finishReason":"STOP"}]}
+        """.utf8)
+        let translator = RemoteTranslationService(settings: settings, secrets: secrets, http: transHTTP)
+
+        let aiHTTP = MockHTTPClient()
+        aiHTTP.responseData = Data(#"{"status":"completed","output_text":"Swift 6 并发安全"}"#.utf8)
+        let quickAI = RemoteAIChatService(settings: settings, secrets: secrets, http: aiHTTP, purpose: .quickAI)
+
+        #expect(translator.isConfigured)
+        #expect(quickAI.isConfigured)
+        #expect(quickAI.activeFormat == .openAIResponses)
+        #expect(quickAI.activeProfileName == "问答用 OpenAI")
+        #expect(quickAI.activeModelDisplay == "问答用 OpenAI · gpt-4.1-mini")
+
+        let translated = try await translator.translate("hello", target: "zh-Hans")
+        let answered = try await quickAI.complete(messages: [AIChatMessage(role: .user, content: "Swift 6?")])
+
+        #expect(translated == "你好")
+        #expect(answered == "Swift 6 并发安全")
+
+        let transReq = try #require(transHTTP.requests.first)
+        #expect(transReq.url?.absoluteString == "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent")
+        #expect(transReq.value(forHTTPHeaderField: "x-goog-api-key") == "AIza-trans-secret")
+
+        let aiReq = try #require(aiHTTP.requests.first)
+        #expect(aiReq.url?.absoluteString == "https://api.openai.com/v1/responses")
+        #expect(aiReq.value(forHTTPHeaderField: "Authorization") == "Bearer sk-quickai-secret")
+    }
+
+    @Test func testConnectionValidatesAllThreeFormatsAndReportsErrors() async throws {
+        let suite = "TestConnection-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+
+        let settings = SettingsStore(defaults: defaults, systemLanguageCode: "zh")
+        let secrets = MemorySecretStore()
+
+        // 1. OpenAI Responses success
+        let responsesHTTP = MockHTTPClient()
+        responsesHTTP.responseData = Data(#"{"status":"completed","output_text":"OK"}"#.utf8)
+        let responsesService = RemoteAIChatService(settings: settings, secrets: secrets, http: responsesHTTP)
+        let responsesDraft = AIModelProfile(
+            name: "OpenAI Draft",
+            format: .openAIResponses,
+            baseURL: "https://api.openai.com/v1",
+            model: "gpt-4.1-mini"
+        )
+        let rElapsed = try await responsesService.testConnection(for: responsesDraft, apiKey: "sk-probe-1")
+        #expect(rElapsed >= 0)
+        #expect(responsesHTTP.requests.first?.url?.absoluteString == "https://api.openai.com/v1/responses")
+        #expect(responsesHTTP.requests.first?.value(forHTTPHeaderField: "Authorization") == "Bearer sk-probe-1")
+
+        // 2. Gemini Native success (header auth, filters thought)
+        let geminiHTTP = MockHTTPClient()
+        geminiHTTP.responseData = Data(#"{"candidates":[{"content":{"parts":[{"text":"thinking","thought":true},{"text":"OK"}]},"finishReason":"STOP"}]}"#.utf8)
+        let geminiService = RemoteAIChatService(settings: settings, secrets: secrets, http: geminiHTTP)
+        let geminiDraft = AIModelProfile(
+            name: "Gemini Draft",
+            format: .gemini,
+            baseURL: "https://generativelanguage.googleapis.com",
+            model: "gemini-2.5-flash"
+        )
+        let gElapsed = try await geminiService.testConnection(for: geminiDraft, apiKey: "AIza-probe")
+        #expect(gElapsed >= 0)
+        #expect(geminiHTTP.requests.first?.url?.absoluteString == "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent")
+        #expect(geminiHTTP.requests.first?.value(forHTTPHeaderField: "x-goog-api-key") == "AIza-probe")
+
+        // 3. OpenAI Chat Completions success
+        let chatHTTP = MockHTTPClient()
+        chatHTTP.responseData = Data(#"{"choices":[{"message":{"content":"OK"}}]}"#.utf8)
+        let chatService = RemoteAIChatService(settings: settings, secrets: secrets, http: chatHTTP)
+        let chatDraft = AIModelProfile(
+            name: "DeepSeek Draft",
+            format: .openAIChatCompletions,
+            baseURL: "https://api.deepseek.com/v1",
+            model: "deepseek-chat"
+        )
+        let cElapsed = try await chatService.testConnection(for: chatDraft, apiKey: "sk-ds-probe")
+        #expect(cElapsed >= 0)
+        #expect(chatHTTP.requests.first?.url?.absoluteString == "https://api.deepseek.com/v1/chat/completions")
+
+        // 4. Error handling: missing key & API 401
+        await #expect(throws: AIChatError.missingAPIKey) {
+            _ = try await chatService.testConnection(for: chatDraft, apiKey: "   ")
+        }
+
+        let errHTTP = MockHTTPClient()
+        errHTTP.statusCode = 401
+        errHTTP.responseData = Data(#"[{"error":{"code":401,"message":"Invalid Gemini key"}}]"#.utf8)
+        let errService = RemoteAIChatService(settings: settings, secrets: secrets, http: errHTTP)
+        await #expect(throws: AIChatError.apiError("Invalid Gemini key")) {
+            _ = try await errService.testConnection(for: geminiDraft, apiKey: "AIza-bad")
+        }
+    }
 }

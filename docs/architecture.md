@@ -29,7 +29,7 @@ DontsTool 是一个原生 macOS 菜单栏效率启动器。按下全局热键呼
 | 全局热键 | Carbon `RegisterEventHotKey` |
 | 应用启动 | `NSWorkspace` |
 | 插件运行时 | 进程外 Sidecar（NDJSON over stdio，JSON-RPC 2.0），官方外迁插件托管于 `CrxusDonts/DontsTool-Plugins` |
-| AI 与翻译 | 统一大模型客户端 `RemoteAIChatService`（支持 OpenAI Responses、Gemini 原生 REST API 与 OpenAI Chat Completions，由 AI 流式窗口、翻译窗口与划词翻译共用）；密钥仅存本机钥匙串 |
+| 模型服务与翻译 | 统一多配置大模型客户端 `RemoteAIChatService`（支持 OpenAI Responses、Gemini 原生 REST API 与 OpenAI Chat Completions，可配置多套 `AIModelProfile` 并按场景分别绑定默认、翻译与 AI 快问）；密钥仅存本机钥匙串 |
 | 开机启动 | `SMAppService` |
 | Hash | `CryptoKit` |
 | 持久化 | `UserDefaults`（设置与插件源）、钥匙串（翻译 API 密钥、云同步密钥与插件私密配置）、应用支持目录内的版本化 JSON、便笺附件与已安装插件 |
@@ -92,7 +92,7 @@ flowchart TD
 | Notes | 本地便笺、离线富文本、自动保存与独立附件 | `LocalNoteStore`、`LocalNoteSession`、`LocalNoteEditorBridge`、`LocalNoteWindowManager` |
 | Sync | Cloudflare 多端增量同步与本地快照备份 | `CloudSyncCoordinator`、`CloudSyncClient`、`SyncStateStore`、`BackupArchiveService` |
 | Services | 外部 API、钥匙串、登录项、系统动作 | `RemoteTranslationService`、`SecretStore`、`LoginItemManager`、`SystemAppLauncher` |
-| Settings | 设置界面、AI 与翻译配置、网址配置、插件商店与源管理、热键录制 | `SettingsWindowController`、`SettingsRootView`、`TranslationSettingsTabView`、`PluginsSettingsTabView` |
+| Settings | 设置界面、多套模型服务配置与场景绑定、翻译设置、网址配置、插件商店与源管理、热键录制 | `SettingsWindowController`、`SettingsRootView`、`AIModelsSettingsTabView`、`TranslationSettingsTabView`、`PluginsSettingsTabView` |
 
 ## 5. 关键流程
 
@@ -189,7 +189,7 @@ protocol ToolProvider: AnyObject {
 
 - **全局热键**：组合键用 Carbon 注册，不需要辅助功能（Accessibility）权限；双击修饰键仅订阅 `NSEvent.flagsChanged`，用系统按键计数与最近按键时间打断组合输入，不订阅全局普通按键，不申请输入监控或辅助功能权限。当前系统的独立 App 已在两项权限均关闭时收到跨应用修饰键事件，见 ADR 0005。
 - **文件搜索与系统集成插件**：文件搜索（`com.donts.file-search`）、Chrome（`com.donts.chrome`）、终端与访达（`com.donts.terminal-finder`）等作为外部插件运行；受保护目录检索可按需授权「完全磁盘访问」，读取 Chrome 标签页或访达/终端路径需授权「自动化」，未授权时仅影响对应插件，不影响宿主其他功能。
-- **AI 与翻译**：用户主动发起 AI 提问或翻译时，仅由宿主 `RemoteAIChatService` / `RemoteTranslationService` 按用户选定的接口格式（OpenAI Responses、Gemini 原生 REST API 或 OpenAI Chat Completions）直接请求配置的端点；API 密钥仅存本机登录钥匙串，不写 `UserDefaults`、日志或备份包。插件 `hostContext` 仅暴露非敏感的 `aiConfigured`、`aiFormat` 与 `aiModel`，绝不向子进程透传任何密钥。
+- **模型服务与翻译**：用户主动发起 AI 提问、连通性测试或翻译时，仅由宿主 `RemoteAIChatService` / `RemoteTranslationService` 按对应场景（`.quickAI` / `.translation`）解析已绑定的 `AIModelProfile`，并以选定接口格式（OpenAI Responses、Gemini 原生 REST API 或 OpenAI Chat Completions）直接请求端点；各配置独立的 API 密钥仅存本机登录钥匙串，不写 `UserDefaults`、日志或备份包。插件 `hostContext` 仅暴露非敏感的 `aiConfigured`、`aiFormat` 与 `aiModel`，绝不向子进程透传任何密钥。
 - **开机启动**：通过 `SMAppService` 注册登录项。
 - **网络**：应用仅在用户主动执行网页搜索（交给默认浏览器）、AI 对话、翻译、检查应用更新、在设置「插件」页刷新源或下载插件包，或开启 Cloudflare 多端同步后与自建同步服务通信时联网。
 - **剪贴板**：不监听；启动器搜索不读剪贴板。在工具窗口中显式粘贴或复制、动作面板复制，以及长按划词翻译时访问；划词翻译只读取本次复制后的内容，不清空或还原剪贴板。
@@ -229,7 +229,7 @@ DontsTool/
 │   │   │   ├── DesignSystem/          # Theme / Metrics / Motion 令牌
 │   │   │   ├── Components/            # 行、图标块、键帽、底栏、Toast
 │   │   │   ├── Launcher/              # LauncherPanelView
-│   │   │   └── Settings/              # SettingsRootView、AI 与翻译页、插件页 PluginsSettingsTabView、热键录制
+│   │   │   └── Settings/              # SettingsRootView、模型服务页 AIModelsSettingsTabView、翻译页、插件页 PluginsSettingsTabView、热键录制
 │   └── DontsToolCore/             # 静态库 target：可独立测试的逻辑
 │       ├── AI/                    # 统一多格式大模型引擎与流式会话（AIModels / AIChatService / QuickAISession）
 │       ├── Core/
@@ -351,10 +351,10 @@ DontsTool/
 
 自 `v0.4.0` 起，DontsTool 移除依赖辅助功能控件树的内置 Gemini Mac 自动化，改为在宿主内提供统一的多格式大模型引擎与原生流式对话窗口，并将快捷问答入口交给官方插件 `com.donts.quick-ai`；IDEA 项目检索同样由官方插件 `com.donts.idea-projects` 承接。
 
-- **多格式模型适配（`RemoteAIChatService`）**：根据 **设置 → AI 与翻译** 中选择的 `AIAPIFormat` 自动适配三种协议——`OpenAI Responses`（`/responses` SSE 流与同步响应）、`Gemini 原生 REST API`（`/models/{model}:generateContent` 与 `:streamGenerateContent?alt=sse`，通过 `x-goog-api-key` 请求头鉴权并过滤 `thought == true` 思考分片）、`OpenAI Chat Completions`（`/chat/completions`）。API 密钥统一保存在本机登录钥匙串，同时为 `QuickAISession` 与 `RemoteTranslationService` 复用。
+- **多配置模型适配与场景绑定（`RemoteAIChatService`）**：用户在 **设置 → 模型服务** 可维护多套 `AIModelProfile`（各配置支持独立名称、接口格式、地址、模型与本机钥匙串密钥，并提供一键连通性测试），并为「默认模型」「翻译与划词」「AI 快问」分别绑定不同配置（老版本单配置自动无感迁移为 `legacy-default`）。引擎自动适配三种协议——`OpenAI Responses`（`/responses` SSE 流与同步响应）、`Gemini 原生 REST API`（`/models/{model}:generateContent` 与 `:streamGenerateContent?alt=sse`，通过 `x-goog-api-key` 请求头鉴权并过滤 `thought == true` 思考分片）、`OpenAI Chat Completions`（`/chat/completions`）。
 - **原生流式对话窗口（`QuickAIWindowManager` / `QuickAIWindowView`）**：支持独立多窗口、置顶（`.floating`）、多轮追问、停止生成、重新生成与清空重开；`QuickAIMarkdownParser` 将回答实时拆分为正文与代码块（支持未闭合流式围栏与一键复制）；`QuickAIComposerTextView` 在中文输入法组合态（`hasMarkedText()`）期间完全放行回车与 `Esc`，窗口关闭或应用退出时立即取消活跃网络流。
 - **插件协议与粘贴内容入口**：插件声明 `openAI` 权限后，可通过 `effect.kind == "openAI"`（支持 `value` 及 `options.title` / `options.systemPrompt` / `options.autoSend`）打开宿主 AI 窗口；空搜索框粘贴文本时，`ContentActionProvider` 也会提供「问 AI（预填到 AI 窗口）」入口（默认 `autoSend: false`，由用户确认后再发送）。
-- **翻译与划词**：应用启动时将 `RemoteTranslationService` 注入翻译窗口与划词卡片，复用同一套大模型服务配置；配置不完整时提示前往「AI 与翻译」设置且不发送请求，失败或取消后不自动切换后端。
+- **翻译与划词**：应用启动时将 `RemoteTranslationService`（按 `.translation` 场景解析模型配置）注入翻译窗口与划词卡片；**设置 → 翻译** 聚焦目标语言、右键长按手势与当前翻译模型状态，配置不完整时提示前往「模型服务」设置且不发送请求，失败或取消后不自动切换后端。
 
 划词翻译在达到设置的 300ms、500ms、1 秒或 2 秒阈值后，向已捕获且仍聚焦的源窗口发送 Cmd-C，等到剪贴板 changeCount 更新后读取新文字；不清空或还原剪贴板。窗口与安全输入校验在后台执行，取词或失败复用单张翻译卡片。显式关闭会使 monitor 请求失效，保留吞掉已触发 mouse-up 的状态，防止迟到取词结果重新弹窗或联网。
 

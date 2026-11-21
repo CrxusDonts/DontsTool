@@ -48,7 +48,7 @@ curl -fsSL https://raw.githubusercontent.com/CrxusDonts/DontsTool/main/install.s
 
 1. 前往 [GitHub Releases](https://github.com/CrxusDonts/DontsTool/releases/latest) 下载 `DontsTool-版本号-macos-universal.zip`。
 2. 解压后将 `DontsTool.app` 拖入「应用程序」目录（更新前先保存草稿并正常退出旧版）。
-3. 脚本支持 `--dir "$HOME/Applications"` 和 `--version v0.4.1` 等选项，完整校验与签名说明见 [安装与完整性校验](docs/installation.md)。
+3. 脚本支持 `--dir "$HOME/Applications"` 和 `--version v0.4.2` 等选项，完整校验与签名说明见 [安装与完整性校验](docs/installation.md)。
 
 </details>
 
@@ -99,8 +99,8 @@ flowchart LR
       <h3>便笺、翻译与 AI</h3>
       <ul>
         <li><strong>本地离线便笺</strong>：输入 <code>note</code> 或 <code>便笺</code> 检索与新建，内置离线 Tiptap 所见即所得与 Markdown 编辑，支持粘贴图片、置顶与回收站。</li>
-        <li><strong>AI 流式对话窗口</strong>：在 <strong>设置 → AI 与翻译</strong> 统一配置大模型（支持 OpenAI Responses、Gemini 原生与 OpenAI Chat Completions），配合官方插件 <code>AI 快问</code>（<code>ai</code> / <code>ask</code> / <code>问</code>）或粘贴内容模式直接唤起原生流式对话窗口，支持代码块渲染、多轮追问、多开与置顶。</li>
-        <li><strong>翻译与长按划词</strong>：输入 <code>tr</code> 打开翻译窗口，或开启全局鼠标右键长按划词，与 AI 对话共用本机大模型配置，密钥仅存本机钥匙串。</li>
+        <li><strong>AI 流式对话窗口</strong>：在 <strong>设置 → 模型服务</strong> 可配置多套大模型（支持 OpenAI Responses、Gemini 原生与 OpenAI Chat Completions），按场景分别绑定默认、翻译与 AI 快问；配合官方插件 <code>AI 快问</code>（<code>ai</code> / <code>ask</code> / <code>问</code>）或粘贴内容模式直接唤起原生流式对话窗口，支持代码块渲染、多轮追问、多开与置顶。</li>
+        <li><strong>翻译与长按划词</strong>：输入 <code>tr</code> 打开翻译窗口，或在 <strong>设置 → 翻译</strong> 开启全局鼠标右键长按划词，自动使用「模型服务」中绑定的翻译模型，密钥仅存本机钥匙串。</li>
       </ul>
     </td>
     <td width="50%" valign="top">

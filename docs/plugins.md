@@ -12,7 +12,7 @@
 
 | 插件 ID | 名称 | 触发关键词 | 运行模式 | 备注与系统授权 |
 | --- | --- | --- | --- | --- |
-| `com.donts.quick-ai` | AI 快问 | `ai`、`ask`、`问` | `daemon` | 需宿主 `≥ 0.4.0`；申请 `openAI` 与 `prefill` 权限，复用宿主「AI 与翻译」大模型配置，唤起原生流式对话窗口 |
+| `com.donts.quick-ai` | AI 快问 | `ai`、`ask`、`问` | `daemon` | 需宿主 `≥ 0.4.0`；申请 `openAI` 与 `prefill` 权限，复用宿主「模型服务」配置（支持独立绑定 AI 快问模型），唤起原生流式对话窗口 |
 | `com.donts.kill-process` | 结束进程 | `kill`、`kp`、`进程` | `daemon` | 自动排除宿主与自身 PID，支持 `:端口` 查找 |
 | `com.donts.idea-projects` | IDEA 项目 | `idea` | `daemon` | 读取本机 JetBrains 最近项目 XML，支持本地目录路径 |
 | `com.donts.file-search` | 文件搜索 | `file` | `oneshot` | 调用 `/usr/bin/mdfind`；检索受保护目录可按需授「完全磁盘访问」 |
@@ -213,7 +213,7 @@ com.example.my-plugin/
 }
 ```
 
-`hostContext` 始终包含 `hostVersion`、`aiConfigured`（`"true"` / `"false"`）与 `aiFormat`（`"openai_responses"` / `"gemini"` / `"openai_chat"`）；当用户在「设置 → 工具」选择了固定默认终端时额外包含 `preferredTerminalBundleID`，在「设置 → AI 与翻译」填写了模型名时额外包含 `aiModel`。`hostContext` 仅提供非敏感状态字段，严禁透传 API 密钥。
+`hostContext` 始终包含 `hostVersion`、`aiConfigured`（`"true"` / `"false"`）与 `aiFormat`（`"openai_responses"` / `"gemini"` / `"openai_chat"`），按「AI 快问」场景（未单独绑定时跟随默认模型）动态解析；当用户在「设置 → 通用」选择了固定首选终端时额外包含 `preferredTerminalBundleID`，在「设置 → 模型服务」配置了可用模型时额外包含 `aiModel`。`hostContext` 仅提供非敏感状态字段，严禁透传 API 密钥。
 
 响应（`items` 最多取前 30 条）：
 

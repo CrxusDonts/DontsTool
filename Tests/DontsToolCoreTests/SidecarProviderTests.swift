@@ -592,5 +592,37 @@ struct SidecarProviderTests {
         // Verify aiConfigured flips to false when secret is cleared
         secrets.setSecret(nil, for: SecretAccount.translationAPIKey)
         #expect(host.resolveHostContext()["aiConfigured"] == "false")
+
+        // Verify multi-profile hostContext resolves specifically from .quickAI binding and leaks zero keys
+        let transProfile = AIModelProfile(
+            id: "trans-p",
+            name: "Gemini 翻译",
+            format: .gemini,
+            baseURL: "https://generativelanguage.googleapis.com",
+            model: "gemini-2.5-flash"
+        )
+        let qaProfile = AIModelProfile(
+            id: "qa-p",
+            name: "DeepSeek 问答",
+            format: .openAIChatCompletions,
+            baseURL: "https://api.deepseek.com/v1",
+            model: "deepseek-chat"
+        )
+        settings.upsertAIModelProfile(transProfile, makeDefault: true)
+        settings.upsertAIModelProfile(qaProfile)
+        settings.saveAPIKey("AIza-TRANS-SECRET", for: transProfile, secrets: secrets)
+        settings.saveAPIKey("sk-QA-SECRET-DO-NOT-LEAK", for: qaProfile, secrets: secrets)
+        settings.setTranslationAIModelProfileID(transProfile.id)
+        settings.setQuickAIAIModelProfileID(qaProfile.id)
+
+        let multiContext = host.resolveHostContext()
+        #expect(multiContext["aiConfigured"] == "true")
+        #expect(multiContext["aiFormat"] == "openai_chat")
+        #expect(multiContext["aiModel"] == "deepseek-chat")
+        #expect(!multiContext.values.contains { $0.contains("SECRET") })
+
+        // Clearing only quickAI profile's key marks quickAI unconfigured even while translation profile remains configured
+        settings.saveAPIKey(nil, for: qaProfile, secrets: secrets)
+        #expect(host.resolveHostContext()["aiConfigured"] == "false")
     }
 }

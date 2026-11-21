@@ -32,6 +32,108 @@ public enum AIAPIFormat: String, CaseIterable, Identifiable, Codable, Sendable {
     }
 }
 
+public enum AIUsagePurpose: String, CaseIterable, Identifiable, Codable, Sendable {
+    case general
+    case translation
+    case quickAI
+
+    public var id: String { rawValue }
+
+    public var displayName: String {
+        switch self {
+        case .general: "默认"
+        case .translation: "翻译与划词"
+        case .quickAI: "AI 快问"
+        }
+    }
+}
+
+public struct AIModelProfile: Identifiable, Codable, Equatable, Sendable {
+    public let id: String
+    public var name: String
+    public var format: AIAPIFormat
+    public var baseURL: String
+    public var model: String
+
+    public init(
+        id: String = UUID().uuidString,
+        name: String,
+        format: AIAPIFormat = .openAIResponses,
+        baseURL: String,
+        model: String
+    ) {
+        self.id = id
+        self.name = name
+        self.format = format
+        self.baseURL = baseURL
+        self.model = model
+    }
+
+    public var secretAccount: String {
+        SecretAccount.aiModelProfileAPIKey(id: id)
+    }
+
+    public var displayHost: String {
+        let trimmed = baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return "" }
+        let candidate = trimmed.contains("://") ? trimmed : "https://\(trimmed)"
+        if let components = URLComponents(string: candidate),
+           let host = components.host, !host.isEmpty {
+            if let port = components.port {
+                return "\(host):\(port)"
+            }
+            return host
+        }
+        return trimmed
+    }
+}
+
+public struct ResolvedAIConfiguration: Equatable, Sendable {
+    public let profileID: String?
+    public let profileName: String?
+    public let format: AIAPIFormat
+    public let baseURL: String
+    public let model: String
+    public let secretAccount: String
+
+    public init(
+        profileID: String?,
+        profileName: String?,
+        format: AIAPIFormat,
+        baseURL: String,
+        model: String,
+        secretAccount: String
+    ) {
+        self.profileID = profileID
+        self.profileName = profileName
+        self.format = format
+        self.baseURL = baseURL
+        self.model = model
+        self.secretAccount = secretAccount
+    }
+
+    public var isEndpointComplete: Bool {
+        !baseURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !model.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    public var displaySummary: String {
+        let trimmedModel = model.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedName = profileName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !trimmedName.isEmpty && !trimmedModel.isEmpty {
+            if trimmedName.caseInsensitiveCompare(trimmedModel) == .orderedSame {
+                return "\(format.displayName) · \(trimmedModel)"
+            }
+            return "\(trimmedName) · \(trimmedModel)"
+        }
+        if !trimmedName.isEmpty {
+            return trimmedName
+        }
+        guard !trimmedModel.isEmpty else { return "未配置模型" }
+        return "\(format.displayName) · \(trimmedModel)"
+    }
+}
+
 public enum AIChatRole: String, Codable, Equatable, Sendable {
     case user
     case assistant
@@ -105,13 +207,13 @@ public enum AIChatError: LocalizedError, Equatable, Sendable {
     public var errorDescription: String? {
         switch self {
         case .notConfigured:
-            "大模型服务未配置，请在「设置 → AI 与翻译」填写接口地址、模型和 API 密钥"
+            "大模型服务未配置，请在「设置 → 模型服务」添加接口地址、模型和 API 密钥"
         case .emptyInput:
             "提问内容为空"
         case .invalidEndpoint(let message):
             message
         case .missingAPIKey:
-            "API 密钥缺失，请在「设置 → AI 与翻译」填写密钥"
+            "API 密钥缺失，请在「设置 → 模型服务」填写密钥"
         case .httpStatus(let code):
             "模型服务返回 HTTP \(code)"
         case .apiError(let message):

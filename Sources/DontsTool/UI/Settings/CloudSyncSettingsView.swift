@@ -116,7 +116,7 @@ struct CloudSyncSettingsView: View {
             HStack(spacing: 6) {
                 Image(systemName: "lock.shield")
                     .font(.system(size: 11))
-                Text("翻译 API 密钥与同步密钥只保存在本机钥匙串，不上传云端也不写入本地备份包")
+                Text("模型服务 API 密钥与同步密钥只保存在本机钥匙串，不上传云端也不写入本地备份包")
                     .font(.system(size: 11))
             }
             .foregroundStyle(Theme.tertiary)

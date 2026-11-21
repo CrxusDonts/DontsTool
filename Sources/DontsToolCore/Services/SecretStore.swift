@@ -10,6 +10,10 @@ public protocol SecretStoring: Sendable {
 public enum SecretAccount {
     public static let translationAPIKey = "translationAPIKey"
     public static let cloudSyncToken = "cloudSyncToken"
+
+    public static func aiModelProfileAPIKey(id: String) -> String {
+        "aiModelProfile.\(id).apiKey"
+    }
 }
 
 /// 登录钥匙串中的通用密码项，不落磁盘明文。

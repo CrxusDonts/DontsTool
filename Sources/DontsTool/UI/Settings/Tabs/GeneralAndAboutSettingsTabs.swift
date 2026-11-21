@@ -34,51 +34,58 @@ struct GeneralSettingsTabView: View {
                     SettingsBadge(text: "跟随系统")
                 }
             }
-            SettingsGroup(caption: "使用说明") {
-                SettingsGuideRow(title: "选择结果", keys: ["↑", "↓"])
-                SettingsDivider()
-                SettingsGuideRow(title: "执行操作", keys: ["↵"])
-                SettingsDivider()
-                SettingsGuideRow(title: "执行次操作", keys: ["⌘", "↵"])
-                SettingsDivider()
-                SettingsGuideRow(title: "查看全部操作", keys: ["⌘", "K"])
-                SettingsDivider()
-                SettingsGuideRow(title: "关闭面板", keys: ["esc"])
+
+            SettingsGroup(caption: "系统偏好") {
+                SettingsRow(
+                    title: "首选终端",
+                    subtitle: "用于快速打开以及外部插件（文件搜索、IDEA 项目、终端与访达等）的「在终端中打开」"
+                ) {
+                    Picker("", selection: Binding(
+                        get: { settings.preferredTerminalBundleID },
+                        set: { settings.setPreferredTerminalBundleID($0) }
+                    )) {
+                        Text("自动（优先当前运行终端）").tag("")
+                        ForEach(installedTerminals) { terminal in
+                            Text(terminal.displayName).tag(terminal.bundleID)
+                        }
+                        if let unavailablePreferredTerminal {
+                            Text("\(unavailablePreferredTerminal.displayName)（未安装）").tag(unavailablePreferredTerminal.bundleID)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .frame(maxWidth: 210)
+                }
             }
+
             SettingsPrivacyNote()
         }
+    }
+
+    private var installedTerminals: [TerminalAppDescriptor] {
+        SystemTerminalFinderService().installedTerminals()
+    }
+
+    private var unavailablePreferredTerminal: TerminalAppDescriptor? {
+        let configured = settings.preferredTerminalBundleID
+        guard !configured.isEmpty,
+              !installedTerminals.contains(where: { $0.matches(bundleID: configured) }) else {
+            return nil
+        }
+        return TerminalAppCatalog.descriptor(forBundleID: configured)
+            ?? TerminalAppDescriptor(bundleID: configured, displayName: configured)
     }
 }
 
 struct SearchSettingsTabView: View {
     @ObservedObject var searchEngines: SearchEngineStore
     @ObservedObject var websites: WebsiteShortcutStore
-    @ObservedObject var settings: SettingsStore
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            SearchEnginesSettingsView(store: searchEngines, websites: websites)
-            SettingsGroup(caption: "搜索行为") {
-                SettingsRow(title: "按需文件搜索", subtitle: "仅输入 file 加文件名时查询 Spotlight，普通搜索不查文件") {
-                    Toggle("", isOn: Binding(
-                        get: { settings.fileSearchEnabled },
-                        set: { settings.setFileSearchEnabled($0) }
-                    ))
-                    .toggleStyle(.switch)
-                    .labelsHidden()
-                }
-            }
-        }
-    }
-}
-
-struct IndexSettingsTabView: View {
     @ObservedObject var appIndex: AppIndex
-    @ObservedObject var settings: SettingsStore
     let onRescan: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
+            SearchEnginesSettingsView(store: searchEngines, websites: websites)
             SettingsGroup(caption: "应用索引") {
                 SettingsRow(
                     title: "已索引 \(appIndex.apps.count) 个应用",
@@ -92,16 +99,6 @@ struct IndexSettingsTabView: View {
                     }
                 }
             }
-            SettingsGroup(caption: "文件搜索") {
-                SettingsRow(title: "启用按需文件搜索", subtitle: "输入 file 加文件名开始搜索；关闭后不再查询 Spotlight") {
-                    Toggle("", isOn: Binding(
-                        get: { settings.fileSearchEnabled },
-                        set: { settings.setFileSearchEnabled($0) }
-                    ))
-                    .toggleStyle(.switch)
-                    .labelsHidden()
-                }
-            }
         }
     }
 }
@@ -113,7 +110,7 @@ struct AboutSettingsTabView: View {
         VStack(alignment: .leading, spacing: 16) {
             SettingsGroup(caption: "关于") {
                 SettingsRow(title: "DontsTool", subtitle: "个人自用的原生 macOS 效率启动器") {
-                    SettingsBadge(text: "V1")
+                    EmptyView()
                 }
                 SettingsDivider()
                 SettingsRow(title: "版本", subtitle: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0") {
@@ -155,25 +152,6 @@ struct AboutSettingsTabView: View {
             return "ad-hoc 签名"
         }
         return (flags & SecCodeSignatureFlags.adhoc.rawValue) != 0 ? "ad-hoc 签名" : "Developer ID 签名"
-    }
-}
-
-private struct SettingsGuideRow: View {
-    let title: String
-    let keys: [String]
-
-    var body: some View {
-        HStack {
-            Text(title)
-                .font(.system(size: 12))
-                .foregroundStyle(Theme.secondary)
-            Spacer()
-            HStack(spacing: 4) {
-                ForEach(keys, id: \.self) { KeyCap(text: $0) }
-            }
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 8)
     }
 }
 

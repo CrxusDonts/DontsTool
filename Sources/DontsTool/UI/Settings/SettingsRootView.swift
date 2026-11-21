@@ -15,9 +15,9 @@ struct SettingsRootView: View {
         case websites = "网址快捷入口"
         case tools = "工具"
         case plugins = "插件"
-        case translation = "AI 与翻译"
+        case aiModels = "模型服务"
+        case translation = "翻译"
         case sync = "同步与备份"
-        case index = "索引"
         case guide = "使用指南"
         case about = "关于"
 
@@ -30,9 +30,9 @@ struct SettingsRootView: View {
             case .websites: "link"
             case .tools: "wrench.and.screwdriver"
             case .plugins: "puzzlepiece.extension"
+            case .aiModels: "sparkles"
             case .translation: "character.bubble"
             case .sync: "icloud"
-            case .index: "folder"
             case .guide: "book.closed"
             case .about: "info.circle"
             }
@@ -47,6 +47,7 @@ struct SettingsRootView: View {
     @ObservedObject var sync: CloudSyncCoordinator
     @ObservedObject var login: LoginItemManager
     let secrets: SecretStoring
+    let aiService: RemoteAIChatService
     @ObservedObject var appIndex: AppIndex
     @ObservedObject var selectionTranslation: SelectionTranslationController
     @ObservedObject var pluginManager: PluginManager
@@ -159,15 +160,13 @@ struct SettingsRootView: View {
                     SearchSettingsTabView(
                         searchEngines: searchEngines,
                         websites: websites,
-                        settings: settings
+                        appIndex: appIndex,
+                        onRescan: onRescan
                     )
                 case .websites:
                     WebsiteShortcutsSettingsView(store: websites)
                 case .tools:
-                    ToolsSettingsTabView(
-                        settings: settings,
-                        onOpenPlugins: { navigation.tab = .plugins }
-                    )
+                    ToolsSettingsTabView(settings: settings)
                 case .plugins:
                     PluginsSettingsTabView(
                         pluginManager: pluginManager,
@@ -176,12 +175,18 @@ struct SettingsRootView: View {
                         pluginInstaller: pluginInstaller,
                         onReloadPlugins: onReloadPlugins
                     )
+                case .aiModels:
+                    AIModelsSettingsTabView(
+                        settings: settings,
+                        secrets: secrets,
+                        aiService: aiService
+                    )
                 case .translation:
                     TranslationSettingsTabView(
                         settings: settings,
                         selectionTranslation: selectionTranslation,
                         secrets: secrets,
-                        onOpenPlugins: { navigation.tab = .plugins }
+                        onOpenAIModels: { navigation.tab = .aiModels }
                     )
                 case .sync:
                     CloudSyncSettingsView(
@@ -193,12 +198,6 @@ struct SettingsRootView: View {
                         secrets: secrets,
                         prepareBackup: prepareBackup,
                         didRestoreBackup: didRestoreBackup
-                    )
-                case .index:
-                    IndexSettingsTabView(
-                        appIndex: appIndex,
-                        settings: settings,
-                        onRescan: onRescan
                     )
                 case .guide:
                     GuideSettingsTabView(

@@ -208,6 +208,7 @@ final class AppController {
             sync: cloudSync,
             login: login,
             secrets: secrets,
+            aiService: aiService,
             appIndex: appIndex,
             selectionTranslation: selectionTranslation,
             pluginManager: pluginManager,
@@ -266,10 +267,10 @@ final class AppController {
                 panel?.updateAvailableUpdateVersion(version)
             }
             .store(in: &searchRefreshCancellables)
-        toolWindows.onOpenSettings = { [weak settingsWindow] in settingsWindow?.showTranslation() }
-        quickAIWindows.onOpenSettings = { [weak settingsWindow] in settingsWindow?.showTranslation() }
+        toolWindows.onOpenSettings = { [weak settingsWindow] in settingsWindow?.showAIModels() }
+        quickAIWindows.onOpenSettings = { [weak settingsWindow] in settingsWindow?.showAIModels() }
         self.settingsWindow = settingsWindow
-        selectionTranslation.onOpenSettings = { [weak settingsWindow] in settingsWindow?.showTranslation() }
+        selectionTranslation.onOpenSettings = { [weak settingsWindow] in settingsWindow?.showAIModels() }
         selectionTranslation.onEditSource = { [weak toolWindows] text in
             toolWindows?.openTool(ToolOpenRequest(kind: .translation, input: text))
         }

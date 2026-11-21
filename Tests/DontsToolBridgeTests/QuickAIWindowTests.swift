@@ -215,6 +215,57 @@ struct QuickAIWindowTests {
         #expect(newWindowCount == 1)
     }
 
+    @Test func quickAIWindowReflectsBoundModelProfileAndUnconfiguredState() throws {
+        _ = NSApplication.shared
+        let suiteName = "dontstool.quickai.profiles.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let settings = SettingsStore(defaults: defaults)
+        let secrets = InMemoryQuickAISecrets()
+        let service = RemoteAIChatService(settings: settings, secrets: secrets, purpose: .quickAI)
+        let manager = QuickAIWindowManager(aiService: service)
+        defer { manager.shutdown() }
+
+        let session = manager.open(QuickAIRequest(title: "AI 快问", prompt: "", autoSend: false))
+        let window = try #require(manager.window(for: session.id))
+        window.contentView?.layoutSubtreeIfNeeded()
+        #expect(!session.isConfigured)
+        #expect(session.activeProfileName == nil)
+
+        let defaultProfile = AIModelProfile(
+            name: "主力模型",
+            format: .openAIResponses,
+            baseURL: "https://api.openai.com/v1",
+            model: "gpt-4.1-mini"
+        )
+        let quickAIProfile = AIModelProfile(
+            name: "DeepSeek Flash",
+            format: .openAIChatCompletions,
+            baseURL: "https://api.deepseek.com/v1",
+            model: "deepseek-chat"
+        )
+        settings.upsertAIModelProfile(defaultProfile, makeDefault: true)
+        settings.saveAPIKey("sk-default", for: defaultProfile, secrets: secrets)
+        settings.upsertAIModelProfile(quickAIProfile)
+        settings.saveAPIKey("sk-quick", for: quickAIProfile, secrets: secrets)
+        settings.setQuickAIAIModelProfileID(quickAIProfile.id)
+
+        #expect(session.isConfigured)
+        #expect(session.activeProfileName == "DeepSeek Flash")
+        #expect(session.activeModelDisplay == "DeepSeek Flash · deepseek-chat")
+        #expect(session.activeFormat == .openAIChatCompletions)
+
+        // 触发重排确保配置态与未配置态均正常渲染
+        window.contentView?.needsLayout = true
+        window.contentView?.layoutSubtreeIfNeeded()
+
+        // 取消单独绑定后应回退到默认模型
+        settings.setQuickAIAIModelProfileID(nil)
+        #expect(session.activeProfileName == "主力模型")
+        #expect(session.activeModelDisplay == "主力模型 · gpt-4.1-mini")
+    }
+
     private func waitUntil(
         maxAttempts: Int = 100,
         condition: @MainActor () -> Bool
@@ -255,6 +306,25 @@ private final class LockedFlag: @unchecked Sendable {
 
     func setTrue() {
         lock.withLock { storage = true }
+    }
+}
+
+private final class InMemoryQuickAISecrets: SecretStoring, @unchecked Sendable {
+    private let lock = NSLock()
+    private var values: [String: String] = [:]
+
+    func secret(for account: String) -> String? {
+        lock.withLock { values[account] }
+    }
+
+    func setSecret(_ value: String?, for account: String) {
+        lock.withLock {
+            if let value, !value.isEmpty {
+                values[account] = value
+            } else {
+                values.removeValue(forKey: account)
+            }
+        }
     }
 }
 

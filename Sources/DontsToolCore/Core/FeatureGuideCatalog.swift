@@ -130,7 +130,7 @@ public enum FeatureGuideCatalog {
                 id: "selection-translate",
                 keyCap: "右键长按",
                 title: "全局划词翻译",
-                detail: "在任意应用选中文本后按住鼠标右键（需在「AI 与翻译」中开启并授权辅助功能）"
+                detail: "在任意应用选中文本后按住鼠标右键（需在「翻译」设置中开启并授权辅助功能）"
             ),
             FeatureGuideShortcut(
                 id: "dismiss",
@@ -221,7 +221,7 @@ public enum FeatureGuideCatalog {
             id: "quick-ai",
             category: .productivity,
             title: "AI 快问（插件）",
-            summary: "复用宿主「AI 与翻译」大模型配置（支持 OpenAI Responses、Gemini 原生与 OpenAI Chat Completions），在原生流式窗口中即时问答、解释代码与排查报错。需从官方插件仓安装 com.donts.quick-ai。",
+            summary: "复用宿主「模型服务」配置（支持 OpenAI Responses、Gemini 原生与 OpenAI Chat Completions，可按场景单独绑定），在原生流式窗口中即时问答、解释代码与排查报错。需从官方插件仓安装 com.donts.quick-ai。",
             symbol: "sparkles",
             tint: .blue,
             keywords: ["ai", "ask", "问"],
@@ -232,7 +232,7 @@ public enum FeatureGuideCatalog {
             ],
             tips: [
                 "请在「设置 → 插件」从官方插件仓（CrxusDonts/DontsTool-Plugins）安装「AI 快问（com.donts.quick-ai）」",
-                "在「设置 → AI 与翻译」配置接口格式、地址、模型和密钥即可复用；密钥仅存于宿主钥匙串，不会暴露给插件"
+                "在「设置 → 模型服务」添加模型配置并绑定到 AI 快问即可使用；密钥仅存于宿主钥匙串，不会暴露给插件"
             ],
             providerID: nil
         ),
@@ -305,8 +305,8 @@ public enum FeatureGuideCatalog {
                 FeatureGuideExample(query: "tr ", label: "打开独立翻译窗口，自由切换目标语言并复制译文")
             ],
             tips: [
-                "API 密钥保存在 macOS 钥匙串中，不写入配置文件或日志，与 AI 快问共享「AI 与翻译」配置",
-                "可在「AI 与翻译」设置中切换接口格式、开启「右键按住划词翻译」并调整触发时长"
+                "API 密钥保存在 macOS 钥匙串中，不写入配置文件或日志，可在「设置 → 模型服务」为翻译单独绑定模型",
+                "可在「设置 → 翻译」选择目标语言、开启「右键按住划词翻译」并调整触发时长"
             ],
             providerID: .translation
         ),

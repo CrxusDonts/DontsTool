@@ -67,22 +67,22 @@ public final class PluginHostContext {
     }
 
     public func resolveHostContext() -> [String: String] {
+        let aiConfig = settings.resolvedAIConfiguration(for: .quickAI)
         var context: [String: String] = [
             "hostVersion": hostVersion,
-            "aiFormat": settings.aiAPIFormat.rawValue
+            "aiFormat": aiConfig.format.rawValue
         ]
         let preferredTerminal = settings.preferredTerminalBundleID.trimmingCharacters(in: .whitespacesAndNewlines)
         if !preferredTerminal.isEmpty {
             context["preferredTerminalBundleID"] = preferredTerminal
         }
-        let baseURL = settings.translationAPIBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
-        let model = settings.translationAPIModel.trimmingCharacters(in: .whitespacesAndNewlines)
+        let model = aiConfig.model.trimmingCharacters(in: .whitespacesAndNewlines)
         if !model.isEmpty {
             context["aiModel"] = model
         }
         // 只暴露布尔配置状态与非敏感模型名，严禁把任何 API 密钥传入插件上下文。
-        let hasAPIKey = !(secrets?.secret(for: SecretAccount.translationAPIKey) ?? "").isEmpty
-        context["aiConfigured"] = (!baseURL.isEmpty && !model.isEmpty && hasAPIKey) ? "true" : "false"
+        let hasAPIKey = secrets.flatMap { settings.apiKey(for: aiConfig, secrets: $0) } != nil
+        context["aiConfigured"] = (aiConfig.isEndpointComplete && hasAPIKey) ? "true" : "false"
         return context
     }
 

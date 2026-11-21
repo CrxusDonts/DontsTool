@@ -78,12 +78,12 @@ struct SelectionTranslationView: View {
                             HStack(spacing: 8) { ProgressView().controlSize(.small); Text("正在翻译…") }
                                 .font(.system(size: 12)).foregroundStyle(Theme.secondary)
                         } else if !session.translationConfigured {
-                            Text("请在翻译设置中填写大模型接口地址、模型和 API 密钥。")
+                            Text("请在「设置 → 模型服务」中填写接口地址、模型和 API 密钥。")
                                 .font(.system(size: 12)).foregroundStyle(Theme.secondary)
-                            Button("打开翻译设置") { controller.openSettings() }.controlSize(.small)
+                            Button("打开模型服务设置") { controller.openSettings() }.controlSize(.small)
                         } else if let error = session.errorMessage {
                             Text(error).font(.system(size: 12)).foregroundStyle(.red).textSelection(.enabled)
-                            Button("翻译设置") { controller.openSettings() }.controlSize(.small)
+                            Button("模型服务设置") { controller.openSettings() }.controlSize(.small)
                         } else if session.isFresh {
                             Text(session.output)
                                 .font(.system(size: 14.5, weight: .medium))

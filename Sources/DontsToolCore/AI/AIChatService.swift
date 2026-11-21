@@ -5,12 +5,15 @@ public protocol AIChatServicing: AnyObject {
     var isConfigured: Bool { get }
     var activeModelDisplay: String { get }
     var activeFormat: AIAPIFormat { get }
+    var activeProfileName: String? { get }
 
     func complete(messages: [AIChatMessage], systemPrompt: String?) async throws -> String
     func stream(messages: [AIChatMessage], systemPrompt: String?) -> AsyncThrowingStream<String, Error>
 }
 
 public extension AIChatServicing {
+    var activeProfileName: String? { nil }
+
     func complete(messages: [AIChatMessage]) async throws -> String {
         try await complete(messages: messages, systemPrompt: nil)
     }
@@ -21,40 +24,44 @@ public extension AIChatServicing {
 }
 
 /// 统一大模型客户端：支持 OpenAI Responses、Gemini 原生 REST API 与 OpenAI Chat Completions。
-/// 复用宿主「AI 与翻译」配置，密钥仅保存在宿主钥匙串，永不经过外部插件进程。
+/// 复用宿主「模型服务」多配置，按场景解析模型与密钥，密钥仅保存在宿主钥匙串，永不经过外部插件进程。
 @MainActor
 public final class RemoteAIChatService: AIChatServicing {
     private let settings: SettingsStore
     private let secrets: SecretStoring
     private let http: HTTPRequesting
     private let timeout: Duration
+    public let purpose: AIUsagePurpose
 
     public init(
         settings: SettingsStore,
         secrets: SecretStoring,
         http: HTTPRequesting = URLSessionHTTPClient(),
-        timeout: Duration = .seconds(60)
+        timeout: Duration = .seconds(60),
+        purpose: AIUsagePurpose = .quickAI
     ) {
         self.settings = settings
         self.secrets = secrets
         self.http = http
         self.timeout = timeout
+        self.purpose = purpose
     }
 
     public var isConfigured: Bool {
-        !settings.translationAPIBaseURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            && !settings.translationAPIModel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            && !(secrets.secret(for: SecretAccount.translationAPIKey) ?? "").isEmpty
+        let config = settings.resolvedAIConfiguration(for: purpose)
+        return config.isEndpointComplete && settings.apiKey(for: config, secrets: secrets) != nil
     }
 
     public var activeFormat: AIAPIFormat {
-        settings.aiAPIFormat
+        settings.resolvedAIConfiguration(for: purpose).format
+    }
+
+    public var activeProfileName: String? {
+        settings.resolvedAIConfiguration(for: purpose).profileName
     }
 
     public var activeModelDisplay: String {
-        let model = settings.translationAPIModel.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !model.isEmpty else { return "未配置模型" }
-        return "\(settings.aiAPIFormat.displayName) · \(model)"
+        settings.resolvedAIConfiguration(for: purpose).displaySummary
     }
 
     public func complete(messages: [AIChatMessage], systemPrompt: String? = nil) async throws -> String {
@@ -67,6 +74,45 @@ public final class RemoteAIChatService: AIChatServicing {
         )
         let (data, response) = try await http.data(for: request)
         return try Self.parseNonStream(data: data, response: response, format: snapshot.format)
+    }
+
+    /// 直接测试模型表单草稿或已保存配置的连通性，返回请求往返耗时（秒）。
+    public func testConnection(for profile: AIModelProfile, apiKey: String) async throws -> TimeInterval {
+        let trimmedBase = profile.baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedModel = profile.model.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !trimmedBase.isEmpty else {
+            throw AIChatError.invalidEndpoint("请先填写接口地址")
+        }
+        guard !trimmedModel.isEmpty else {
+            throw AIChatError.invalidEndpoint("请先填写模型名称")
+        }
+        guard !trimmedKey.isEmpty else {
+            throw AIChatError.missingAPIKey
+        }
+
+        let probeTimeout = min(max(TimeInterval(timeout.components.seconds), 5), 20)
+        let config = RequestConfiguration(
+            format: profile.format,
+            baseURL: trimmedBase,
+            model: trimmedModel,
+            apiKey: trimmedKey,
+            timeoutSeconds: probeTimeout
+        )
+        let request = try Self.makeRequest(
+            config: config,
+            messages: [AIChatMessage(role: .user, content: "Reply with OK")],
+            systemPrompt: "Reply with OK only.",
+            stream: false
+        )
+
+        let clock = ContinuousClock()
+        let start = clock.now
+        let (data, response) = try await http.data(for: request)
+        _ = try Self.parseNonStream(data: data, response: response, format: config.format)
+        let elapsed = start.duration(to: clock.now)
+        return Double(elapsed.components.seconds) + Double(elapsed.components.attoseconds) / 1e18
     }
 
     public func stream(messages: [AIChatMessage], systemPrompt: String? = nil) -> AsyncThrowingStream<String, Error> {
@@ -124,20 +170,21 @@ public final class RemoteAIChatService: AIChatServicing {
     }
 
     private func captureConfiguration(messages: [AIChatMessage]) throws -> RequestConfiguration {
-        guard isConfigured else {
+        let resolved = settings.resolvedAIConfiguration(for: purpose)
+        guard resolved.isEndpointComplete else {
+            throw AIChatError.notConfigured
+        }
+        guard let apiKey = settings.apiKey(for: resolved, secrets: secrets), !apiKey.isEmpty else {
             throw AIChatError.notConfigured
         }
         let hasContent = messages.contains { !$0.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
         guard hasContent else {
             throw AIChatError.emptyInput
         }
-        guard let apiKey = secrets.secret(for: SecretAccount.translationAPIKey), !apiKey.isEmpty else {
-            throw AIChatError.missingAPIKey
-        }
         return RequestConfiguration(
-            format: settings.aiAPIFormat,
-            baseURL: settings.translationAPIBaseURL.trimmingCharacters(in: .whitespacesAndNewlines),
-            model: settings.translationAPIModel.trimmingCharacters(in: .whitespacesAndNewlines),
+            format: resolved.format,
+            baseURL: resolved.baseURL,
+            model: resolved.model,
             apiKey: apiKey,
             timeoutSeconds: TimeInterval(timeout.components.seconds)
         )

@@ -281,7 +281,124 @@ struct SettingsStoreTests {
         """
         let legacyDecoded = try JSONDecoder().decode(SettingsStore.SyncedAppSettings.self, from: Data(legacyJSON.utf8))
         #expect(legacyDecoded.aiAPIFormat == nil)
+        #expect(legacyDecoded.aiModelProfiles == nil)
         targetStore.applySyncedSettings(legacyDecoded)
         #expect(targetStore.aiAPIFormat == .gemini)
+    }
+
+    @Test func legacySingleConfigAutoMigratesToProfileAndPreservesKeychainFallback() {
+        let (defaults, name) = makeDefaults()
+        defer { defaults.removePersistentDomain(forName: name) }
+
+        defaults.set("https://api.openai.com/v1", forKey: "dontstool.translationAPIBaseURL")
+        defaults.set("gpt-4.1-mini", forKey: "dontstool.translationAPIModel")
+        defaults.set("openai_responses", forKey: "dontstool.aiAPIFormat")
+
+        let secrets = MemorySecretStore()
+        secrets.setSecret("sk-legacy-only", for: SecretAccount.translationAPIKey)
+
+        let store = SettingsStore(defaults: defaults, systemLanguageCode: "zh")
+        #expect(store.aiModelProfiles.count == 1)
+        let migrated = store.aiModelProfiles[0]
+        #expect(migrated.id == SettingsStore.legacyMigratedProfileID)
+        #expect(migrated.name == "gpt-4.1-mini")
+        #expect(migrated.format == .openAIResponses)
+        #expect(migrated.baseURL == "https://api.openai.com/v1")
+        #expect(migrated.model == "gpt-4.1-mini")
+        #expect(store.defaultAIModelProfileID == SettingsStore.legacyMigratedProfileID)
+
+        // Legacy keychain fallback works seamlessly for both profile and resolved config
+        let resolved = store.resolvedAIConfiguration(for: .quickAI)
+        #expect(resolved.profileID == SettingsStore.legacyMigratedProfileID)
+        #expect(store.apiKey(for: resolved, secrets: secrets) == "sk-legacy-only")
+        #expect(store.apiKey(for: migrated, secrets: secrets) == "sk-legacy-only")
+
+        // Saving a new key on legacy-default keeps translationAPIKey in sync
+        store.saveAPIKey("sk-updated-legacy", for: migrated, secrets: secrets)
+        #expect(secrets.secret(for: migrated.secretAccount) == "sk-updated-legacy")
+        #expect(secrets.secret(for: SecretAccount.translationAPIKey) == "sk-updated-legacy")
+
+        // Deleting migrated profile clears both keychain keys and does NOT resurrect on reload
+        store.deleteAIModelProfile(id: SettingsStore.legacyMigratedProfileID, secrets: secrets)
+        #expect(store.aiModelProfiles.isEmpty)
+        #expect(store.defaultAIModelProfileID == nil)
+        #expect(secrets.secret(for: migrated.secretAccount) == nil)
+        #expect(secrets.secret(for: SecretAccount.translationAPIKey) == nil)
+
+        let reloaded = SettingsStore(defaults: defaults, systemLanguageCode: "zh")
+        #expect(reloaded.aiModelProfiles.isEmpty)
+        #expect(reloaded.defaultAIModelProfileID == nil)
+    }
+
+    @Test func multiProfileCRUDSceneBindingsAndDeletionFallback() {
+        let (defaults, name) = makeDefaults()
+        defer { defaults.removePersistentDomain(forName: name) }
+        let secrets = MemorySecretStore()
+        let store = SettingsStore(defaults: defaults, systemLanguageCode: "zh")
+
+        let gemini = AIModelProfile(
+            id: "prof-gemini",
+            name: "Gemini Flash",
+            format: .gemini,
+            baseURL: " https://generativelanguage.googleapis.com/v1beta ",
+            model: " gemini-2.5-flash "
+        )
+        let openai = AIModelProfile(
+            id: "prof-openai",
+            name: "   ",
+            format: .openAIResponses,
+            baseURL: "http://localhost:11434/v1",
+            model: "gpt-4.1-mini"
+        )
+
+        store.upsertAIModelProfile(gemini)
+        store.upsertAIModelProfile(openai)
+        store.saveAPIKey("AIza-gemini-key", for: gemini, secrets: secrets)
+        store.saveAPIKey("sk-openai-key", for: openai, secrets: secrets)
+
+        #expect(store.aiModelProfiles.count == 2)
+        #expect(store.aiModelProfile(id: "prof-gemini")?.displayHost == "generativelanguage.googleapis.com")
+        #expect(store.aiModelProfile(id: "prof-openai")?.displayHost == "localhost:11434")
+        #expect(store.aiModelProfile(id: "prof-openai")?.name == "gpt-4.1-mini")
+        #expect(store.defaultAIModelProfileID == "prof-gemini")
+
+        // Bind translation -> Gemini, quickAI -> OpenAI
+        store.setTranslationAIModelProfileID("prof-gemini")
+        store.setQuickAIAIModelProfileID("prof-openai")
+
+        let transConfig = store.resolvedAIConfiguration(for: .translation)
+        let quickConfig = store.resolvedAIConfiguration(for: .quickAI)
+        #expect(transConfig.profileID == "prof-gemini")
+        #expect(transConfig.format == .gemini)
+        #expect(transConfig.displaySummary == "Gemini Flash · gemini-2.5-flash")
+        #expect(store.apiKey(for: transConfig, secrets: secrets) == "AIza-gemini-key")
+
+        #expect(quickConfig.profileID == "prof-openai")
+        #expect(quickConfig.format == .openAIResponses)
+        #expect(store.apiKey(for: quickConfig, secrets: secrets) == "sk-openai-key")
+
+        // Legacy fields reflect active .translation config
+        #expect(store.translationAPIBaseURL == "https://generativelanguage.googleapis.com/v1beta")
+        #expect(store.translationAPIModel == "gemini-2.5-flash")
+        #expect(store.aiAPIFormat == .gemini)
+
+        // Persist and reload
+        let reloaded = SettingsStore(defaults: defaults, systemLanguageCode: "zh")
+        #expect(reloaded.aiModelProfiles.count == 2)
+        #expect(reloaded.defaultAIModelProfileID == "prof-gemini")
+        #expect(reloaded.translationAIModelProfileID == "prof-gemini")
+        #expect(reloaded.quickAIAIModelProfileID == "prof-openai")
+
+        // Deleting default & translation-bound profile auto-repairs bindings and clears its keychain key
+        reloaded.deleteAIModelProfile(id: "prof-gemini", secrets: secrets)
+        #expect(reloaded.aiModelProfiles.map(\.id) == ["prof-openai"])
+        #expect(reloaded.defaultAIModelProfileID == "prof-openai")
+        #expect(reloaded.translationAIModelProfileID == nil)
+        #expect(reloaded.quickAIAIModelProfileID == "prof-openai")
+        #expect(secrets.secret(for: gemini.secretAccount) == nil)
+        #expect(secrets.secret(for: openai.secretAccount) == "sk-openai-key")
+        #expect(reloaded.resolvedAIConfiguration(for: .translation).profileID == "prof-openai")
+        #expect(reloaded.translationAPIModel == "gpt-4.1-mini")
+        #expect(reloaded.aiAPIFormat == .openAIResponses)
     }
 }

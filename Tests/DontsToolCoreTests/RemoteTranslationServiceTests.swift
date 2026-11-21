@@ -135,7 +135,7 @@ struct RemoteTranslationServiceTests {
             Issue.record("缺少大模型配置时应提示设置，不应返回译文")
         } catch let error as ActionError {
             let message = error.localizedDescription
-            #expect(message.contains("设置 → AI 与翻译"))
+            #expect(message.contains("设置 → 模型服务"))
             #expect(message.contains("接口地址"))
             #expect(message.contains("模型"))
             #expect(message.contains("API 密钥"))

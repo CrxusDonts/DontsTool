@@ -3,6 +3,8 @@ import Foundation
 
 @MainActor
 public final class SettingsStore: ObservableObject {
+    public static let legacyMigratedProfileID = "legacy-default"
+
     public enum ApplicationSortOrder: String, CaseIterable, Identifiable, Codable, Sendable {
         case recent
         case frequency
@@ -83,6 +85,10 @@ public final class SettingsStore: ObservableObject {
         static let translationAPIBaseURL = "dontstool.translationAPIBaseURL"
         static let translationAPIModel = "dontstool.translationAPIModel"
         static let aiAPIFormat = "dontstool.aiAPIFormat"
+        static let aiModelProfiles = "dontstool.aiModelProfiles"
+        static let aiDefaultModelProfileID = "dontstool.aiDefaultModelProfileID"
+        static let aiTranslationModelProfileID = "dontstool.aiTranslationModelProfileID"
+        static let aiQuickAIModelProfileID = "dontstool.aiQuickAIModelProfileID"
         static let selectionHoldDelay = "dontstool.selectionHoldDelay"
         static let selectionTranslationEnabled = "dontstool.selectionTranslationEnabled"
         static let builtInProviderDefaultsV2Completed = "dontstool.builtInProviderDefaultsV2Completed"
@@ -110,6 +116,10 @@ public final class SettingsStore: ObservableObject {
         public var selectionTranslationEnabled: Bool
         public var preferredTerminalBundleID: String?
         public var aiAPIFormat: String?
+        public var aiModelProfiles: [AIModelProfile]?
+        public var defaultAIModelProfileID: String?
+        public var translationAIModelProfileID: String?
+        public var quickAIAIModelProfileID: String?
 
         public init(
             hotKey: HotKeyConfiguration,
@@ -122,7 +132,11 @@ public final class SettingsStore: ObservableObject {
             selectionHoldDelayRawValue: Int,
             selectionTranslationEnabled: Bool,
             preferredTerminalBundleID: String? = nil,
-            aiAPIFormat: String? = nil
+            aiAPIFormat: String? = nil,
+            aiModelProfiles: [AIModelProfile]? = nil,
+            defaultAIModelProfileID: String? = nil,
+            translationAIModelProfileID: String? = nil,
+            quickAIAIModelProfileID: String? = nil
         ) {
             self.hotKey = hotKey
             self.applicationSortOrder = applicationSortOrder
@@ -135,6 +149,10 @@ public final class SettingsStore: ObservableObject {
             self.selectionTranslationEnabled = selectionTranslationEnabled
             self.preferredTerminalBundleID = preferredTerminalBundleID
             self.aiAPIFormat = aiAPIFormat
+            self.aiModelProfiles = aiModelProfiles
+            self.defaultAIModelProfileID = defaultAIModelProfileID
+            self.translationAIModelProfileID = translationAIModelProfileID
+            self.quickAIAIModelProfileID = quickAIAIModelProfileID
         }
     }
 
@@ -148,6 +166,10 @@ public final class SettingsStore: ObservableObject {
     @Published public private(set) var translationAPIBaseURL: String
     @Published public private(set) var translationAPIModel: String
     @Published public private(set) var aiAPIFormat: AIAPIFormat
+    @Published public private(set) var aiModelProfiles: [AIModelProfile]
+    @Published public private(set) var defaultAIModelProfileID: String?
+    @Published public private(set) var translationAIModelProfileID: String?
+    @Published public private(set) var quickAIAIModelProfileID: String?
     @Published public private(set) var selectionHoldDelay: SelectionHoldDelay
     @Published public private(set) var selectionTranslationEnabled: Bool
     @Published public private(set) var preferredTerminalBundleID: String
@@ -239,9 +261,55 @@ public final class SettingsStore: ObservableObject {
         let languageCode = systemLanguageCode ?? Locale.current.language.languageCode?.identifier
         let fallbackTarget = languageCode == "zh" ? "zh-Hans" : "en"
         translationTarget = defaults.string(forKey: Key.translationTarget) ?? fallbackTarget
-        translationAPIBaseURL = defaults.string(forKey: Key.translationAPIBaseURL) ?? ""
-        translationAPIModel = defaults.string(forKey: Key.translationAPIModel) ?? ""
-        aiAPIFormat = AIAPIFormat(rawValue: defaults.string(forKey: Key.aiAPIFormat) ?? "") ?? .openAIResponses
+        let loadedBaseURL = defaults.string(forKey: Key.translationAPIBaseURL) ?? ""
+        let loadedModel = defaults.string(forKey: Key.translationAPIModel) ?? ""
+        let loadedFormat = AIAPIFormat(rawValue: defaults.string(forKey: Key.aiAPIFormat) ?? "") ?? .openAIResponses
+        translationAPIBaseURL = loadedBaseURL
+        translationAPIModel = loadedModel
+        aiAPIFormat = loadedFormat
+
+        var initialProfiles: [AIModelProfile] = []
+        var initialDefaultID: String?
+        var initialTranslationID: String?
+        var initialQuickAIID: String?
+        var didMigrateLegacyProfile = false
+
+        if let storedProfilesData = defaults.data(forKey: Key.aiModelProfiles) {
+            if let decoded = try? JSONDecoder().decode([AIModelProfile].self, from: storedProfilesData) {
+                initialProfiles = Self.normalizedProfiles(decoded)
+            }
+            initialDefaultID = defaults.string(forKey: Key.aiDefaultModelProfileID)
+            initialTranslationID = defaults.string(forKey: Key.aiTranslationModelProfileID)
+            initialQuickAIID = defaults.string(forKey: Key.aiQuickAIModelProfileID)
+        } else {
+            let trimmedBase = loadedBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+            let trimmedModel = loadedModel.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmedBase.isEmpty || !trimmedModel.isEmpty {
+                let inferredName = !trimmedModel.isEmpty ? trimmedModel : loadedFormat.displayName
+                initialProfiles = [
+                    AIModelProfile(
+                        id: Self.legacyMigratedProfileID,
+                        name: inferredName,
+                        format: loadedFormat,
+                        baseURL: trimmedBase,
+                        model: trimmedModel
+                    )
+                ]
+                initialDefaultID = Self.legacyMigratedProfileID
+                didMigrateLegacyProfile = true
+            }
+        }
+
+        let validProfileIDs = Set(initialProfiles.map(\.id))
+        if let candidate = initialDefaultID, validProfileIDs.contains(candidate) {
+            defaultAIModelProfileID = candidate
+        } else {
+            defaultAIModelProfileID = initialProfiles.first?.id
+        }
+        translationAIModelProfileID = initialTranslationID.flatMap { validProfileIDs.contains($0) ? $0 : nil }
+        quickAIAIModelProfileID = initialQuickAIID.flatMap { validProfileIDs.contains($0) ? $0 : nil }
+        aiModelProfiles = initialProfiles
+
         selectionHoldDelay = SelectionHoldDelay(rawValue: defaults.integer(forKey: Key.selectionHoldDelay)) ?? .seconds2
         selectionTranslationEnabled = defaults.bool(forKey: Key.selectionTranslationEnabled)
         preferredTerminalBundleID = defaults.string(forKey: Key.preferredTerminalBundleID) ?? ""
@@ -255,6 +323,10 @@ public final class SettingsStore: ObservableObject {
             let generated = UUID().uuidString
             defaults.set(generated, forKey: Key.cloudSyncDeviceID)
             cloudSyncDeviceID = generated
+        }
+
+        if didMigrateLegacyProfile {
+            persistAIModelProfiles()
         }
     }
 
@@ -308,6 +380,163 @@ public final class SettingsStore: ObservableObject {
         defaults.set(format.rawValue, forKey: Key.aiAPIFormat)
     }
 
+    // MARK: - Multi-Profile AI Model Services
+
+    public func aiModelProfile(id: String) -> AIModelProfile? {
+        aiModelProfiles.first { $0.id == id }
+    }
+
+    public func resolvedAIModelProfile(for purpose: AIUsagePurpose) -> AIModelProfile? {
+        switch purpose {
+        case .translation:
+            if let id = translationAIModelProfileID, let matched = aiModelProfile(id: id) {
+                return matched
+            }
+        case .quickAI:
+            if let id = quickAIAIModelProfileID, let matched = aiModelProfile(id: id) {
+                return matched
+            }
+        case .general:
+            break
+        }
+        if let defaultID = defaultAIModelProfileID, let matched = aiModelProfile(id: defaultID) {
+            return matched
+        }
+        return aiModelProfiles.first
+    }
+
+    public func resolvedAIConfiguration(for purpose: AIUsagePurpose) -> ResolvedAIConfiguration {
+        if let profile = resolvedAIModelProfile(for: purpose) {
+            return ResolvedAIConfiguration(
+                profileID: profile.id,
+                profileName: profile.name,
+                format: profile.format,
+                baseURL: profile.baseURL.trimmingCharacters(in: .whitespacesAndNewlines),
+                model: profile.model.trimmingCharacters(in: .whitespacesAndNewlines),
+                secretAccount: profile.secretAccount
+            )
+        }
+        return ResolvedAIConfiguration(
+            profileID: nil,
+            profileName: nil,
+            format: aiAPIFormat,
+            baseURL: translationAPIBaseURL.trimmingCharacters(in: .whitespacesAndNewlines),
+            model: translationAPIModel.trimmingCharacters(in: .whitespacesAndNewlines),
+            secretAccount: SecretAccount.translationAPIKey
+        )
+    }
+
+    public func apiKey(for config: ResolvedAIConfiguration, secrets: SecretStoring) -> String? {
+        if let direct = secrets.secret(for: config.secretAccount), !direct.isEmpty {
+            return direct
+        }
+        if config.profileID == nil || config.profileID == Self.legacyMigratedProfileID {
+            if let legacy = secrets.secret(for: SecretAccount.translationAPIKey), !legacy.isEmpty {
+                return legacy
+            }
+        }
+        return nil
+    }
+
+    public func apiKey(for profile: AIModelProfile, secrets: SecretStoring) -> String? {
+        if let direct = secrets.secret(for: profile.secretAccount), !direct.isEmpty {
+            return direct
+        }
+        if profile.id == Self.legacyMigratedProfileID {
+            if let legacy = secrets.secret(for: SecretAccount.translationAPIKey), !legacy.isEmpty {
+                return legacy
+            }
+        }
+        return nil
+    }
+
+    public func saveAPIKey(_ key: String?, for profile: AIModelProfile, secrets: SecretStoring) {
+        let trimmed = key?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalized = (trimmed?.isEmpty == false) ? trimmed : nil
+        secrets.setSecret(normalized, for: profile.secretAccount)
+        if profile.id == Self.legacyMigratedProfileID {
+            secrets.setSecret(normalized, for: SecretAccount.translationAPIKey)
+        }
+    }
+
+    public func upsertAIModelProfile(_ profile: AIModelProfile, makeDefault: Bool = false) {
+        let normalized = Self.normalizeProfile(profile)
+        var updated = aiModelProfiles
+        if let index = updated.firstIndex(where: { $0.id == normalized.id }) {
+            updated[index] = normalized
+        } else {
+            updated.append(normalized)
+        }
+        aiModelProfiles = updated
+        if makeDefault
+            || defaultAIModelProfileID == nil
+            || !updated.contains(where: { $0.id == defaultAIModelProfileID }) {
+            defaultAIModelProfileID = normalized.id
+        }
+        persistAIModelProfiles()
+        syncLegacyFieldsFromActiveTranslationProfile()
+    }
+
+    public func deleteAIModelProfile(id: String, secrets: SecretStoring? = nil) {
+        var updated = aiModelProfiles
+        guard let index = updated.firstIndex(where: { $0.id == id }) else {
+            return
+        }
+        let removed = updated.remove(at: index)
+        aiModelProfiles = updated
+
+        if let secrets {
+            secrets.setSecret(nil, for: removed.secretAccount)
+            if removed.id == Self.legacyMigratedProfileID {
+                secrets.setSecret(nil, for: SecretAccount.translationAPIKey)
+            }
+        }
+
+        if defaultAIModelProfileID == id
+            || defaultAIModelProfileID == nil
+            || !updated.contains(where: { $0.id == defaultAIModelProfileID }) {
+            defaultAIModelProfileID = updated.first?.id
+        }
+        if translationAIModelProfileID == id {
+            translationAIModelProfileID = nil
+        }
+        if quickAIAIModelProfileID == id {
+            quickAIAIModelProfileID = nil
+        }
+        persistAIModelProfiles()
+        syncLegacyFieldsFromActiveTranslationProfile()
+    }
+
+    public func setDefaultAIModelProfileID(_ id: String?) {
+        if let id, aiModelProfiles.contains(where: { $0.id == id }) {
+            defaultAIModelProfileID = id
+        } else {
+            defaultAIModelProfileID = aiModelProfiles.first?.id
+        }
+        persistAIModelProfiles()
+        syncLegacyFieldsFromActiveTranslationProfile()
+    }
+
+    public func setTranslationAIModelProfileID(_ id: String?) {
+        if let id, aiModelProfiles.contains(where: { $0.id == id }) {
+            translationAIModelProfileID = id
+        } else {
+            translationAIModelProfileID = nil
+        }
+        persistAIModelProfiles()
+        syncLegacyFieldsFromActiveTranslationProfile()
+    }
+
+    public func setQuickAIAIModelProfileID(_ id: String?) {
+        if let id, aiModelProfiles.contains(where: { $0.id == id }) {
+            quickAIAIModelProfileID = id
+        } else {
+            quickAIAIModelProfileID = nil
+        }
+        persistAIModelProfiles()
+        syncLegacyFieldsFromActiveTranslationProfile()
+    }
+
     public func setSelectionHoldDelay(_ delay: SelectionHoldDelay) {
         selectionHoldDelay = delay
         defaults.set(delay.rawValue, forKey: Key.selectionHoldDelay)
@@ -356,7 +585,11 @@ public final class SettingsStore: ObservableObject {
             selectionHoldDelayRawValue: selectionHoldDelay.rawValue,
             selectionTranslationEnabled: selectionTranslationEnabled,
             preferredTerminalBundleID: preferredTerminalBundleID,
-            aiAPIFormat: aiAPIFormat.rawValue
+            aiAPIFormat: aiAPIFormat.rawValue,
+            aiModelProfiles: aiModelProfiles,
+            defaultAIModelProfileID: defaultAIModelProfileID,
+            translationAIModelProfileID: translationAIModelProfileID,
+            quickAIAIModelProfileID: quickAIAIModelProfileID
         )
     }
 
@@ -380,5 +613,118 @@ public final class SettingsStore: ObservableObject {
            let format = AIAPIFormat(rawValue: rawFormat) {
             setAIAPIFormat(format)
         }
+
+        if let syncedProfiles = synced.aiModelProfiles {
+            let normalized = Self.normalizedProfiles(syncedProfiles)
+            let validIDs = Set(normalized.map(\.id))
+            aiModelProfiles = normalized
+            if let candidate = synced.defaultAIModelProfileID, validIDs.contains(candidate) {
+                defaultAIModelProfileID = candidate
+            } else {
+                defaultAIModelProfileID = normalized.first?.id
+            }
+            translationAIModelProfileID = synced.translationAIModelProfileID.flatMap {
+                validIDs.contains($0) ? $0 : nil
+            }
+            quickAIAIModelProfileID = synced.quickAIAIModelProfileID.flatMap {
+                validIDs.contains($0) ? $0 : nil
+            }
+            persistAIModelProfiles()
+            if !normalized.isEmpty {
+                syncLegacyFieldsFromActiveTranslationProfile()
+            }
+        } else if aiModelProfiles.count == 1, aiModelProfiles[0].id == Self.legacyMigratedProfileID {
+            let trimmedBase = translationAPIBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+            let trimmedModel = translationAPIModel.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmedBase.isEmpty || !trimmedModel.isEmpty {
+                let existingName = aiModelProfiles[0].name
+                let resolvedName = existingName.isEmpty
+                    ? (!trimmedModel.isEmpty ? trimmedModel : aiAPIFormat.displayName)
+                    : existingName
+                aiModelProfiles = [
+                    AIModelProfile(
+                        id: Self.legacyMigratedProfileID,
+                        name: resolvedName,
+                        format: aiAPIFormat,
+                        baseURL: trimmedBase,
+                        model: trimmedModel
+                    )
+                ]
+                defaultAIModelProfileID = Self.legacyMigratedProfileID
+            } else {
+                aiModelProfiles = []
+                defaultAIModelProfileID = nil
+                translationAIModelProfileID = nil
+                quickAIAIModelProfileID = nil
+            }
+            persistAIModelProfiles()
+        }
+    }
+
+    // MARK: - Private AI Profile Helpers
+
+    private func persistAIModelProfiles() {
+        if let encoded = try? JSONEncoder().encode(aiModelProfiles) {
+            defaults.set(encoded, forKey: Key.aiModelProfiles)
+        }
+        setOptionalString(defaultAIModelProfileID, forKey: Key.aiDefaultModelProfileID)
+        setOptionalString(translationAIModelProfileID, forKey: Key.aiTranslationModelProfileID)
+        setOptionalString(quickAIAIModelProfileID, forKey: Key.aiQuickAIModelProfileID)
+    }
+
+    private func setOptionalString(_ value: String?, forKey key: String) {
+        if let value, !value.isEmpty {
+            defaults.set(value, forKey: key)
+        } else {
+            defaults.removeObject(forKey: key)
+        }
+    }
+
+    private func syncLegacyFieldsFromActiveTranslationProfile() {
+        if let active = resolvedAIModelProfile(for: .translation) {
+            let trimmedBase = active.baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+            let trimmedModel = active.model.trimmingCharacters(in: .whitespacesAndNewlines)
+            setTranslationAPIBaseURL(trimmedBase)
+            setTranslationAPIModel(trimmedModel)
+            setAIAPIFormat(active.format)
+        } else {
+            setTranslationAPIBaseURL("")
+            setTranslationAPIModel("")
+        }
+    }
+
+    private static func normalizeProfile(_ profile: AIModelProfile) -> AIModelProfile {
+        let trimmedID = profile.id.trimmingCharacters(in: .whitespacesAndNewlines)
+        let resolvedID = trimmedID.isEmpty ? UUID().uuidString : trimmedID
+        let trimmedBaseURL = profile.baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedModel = profile.model.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedName = profile.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let resolvedName: String
+        if !trimmedName.isEmpty {
+            resolvedName = trimmedName
+        } else if !trimmedModel.isEmpty {
+            resolvedName = trimmedModel
+        } else {
+            resolvedName = profile.format.displayName
+        }
+        return AIModelProfile(
+            id: resolvedID,
+            name: resolvedName,
+            format: profile.format,
+            baseURL: trimmedBaseURL,
+            model: trimmedModel
+        )
+    }
+
+    private static func normalizedProfiles(_ raw: [AIModelProfile]) -> [AIModelProfile] {
+        var seen: Set<String> = []
+        var result: [AIModelProfile] = []
+        for profile in raw {
+            let normalized = normalizeProfile(profile)
+            if seen.insert(normalized.id).inserted {
+                result.append(normalized)
+            }
+        }
+        return result
     }
 }

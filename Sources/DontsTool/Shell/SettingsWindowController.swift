@@ -15,6 +15,7 @@ final class SettingsWindowController: NSWindowController {
         sync: CloudSyncCoordinator,
         login: LoginItemManager,
         secrets: SecretStoring,
+        aiService: RemoteAIChatService,
         appIndex: AppIndex,
         selectionTranslation: SelectionTranslationController,
         pluginManager: PluginManager,
@@ -47,6 +48,7 @@ final class SettingsWindowController: NSWindowController {
             sync: sync,
             login: login,
             secrets: secrets,
+            aiService: aiService,
             appIndex: appIndex,
             selectionTranslation: selectionTranslation,
             pluginManager: pluginManager,
@@ -72,6 +74,11 @@ final class SettingsWindowController: NSWindowController {
     func show() {
         NSApp.activate(ignoringOtherApps: true)
         window?.makeKeyAndOrderFront(nil)
+    }
+
+    func showAIModels() {
+        navigation.tab = .aiModels
+        show()
     }
 
     func showTranslation() {

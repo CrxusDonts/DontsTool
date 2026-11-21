@@ -223,7 +223,7 @@ struct ToolWorkspaceView: View {
                 if !["zh-Hans", "zh-Hant", "en", "ja", "ko", "fr", "de"].contains(session.target) { Text(session.target).tag(session.target) }
             }
             .frame(width: 160)
-            Button("翻译设置", action: onOpenSettings)
+            Button("模型服务", action: onOpenSettings)
             Button("网页翻译") { openWebTranslation() }
         }
     }

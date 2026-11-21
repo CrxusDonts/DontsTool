@@ -238,8 +238,14 @@ public final class CloudSyncCoordinator: ObservableObject {
             settings.$translationTarget.dropFirst().map { _ in () }.eraseToAnyPublisher(),
             settings.$translationAPIBaseURL.dropFirst().map { _ in () }.eraseToAnyPublisher(),
             settings.$translationAPIModel.dropFirst().map { _ in () }.eraseToAnyPublisher(),
+            settings.$aiAPIFormat.dropFirst().map { _ in () }.eraseToAnyPublisher(),
             settings.$selectionHoldDelay.dropFirst().map { _ in () }.eraseToAnyPublisher(),
-            settings.$selectionTranslationEnabled.dropFirst().map { _ in () }.eraseToAnyPublisher()
+            settings.$selectionTranslationEnabled.dropFirst().map { _ in () }.eraseToAnyPublisher(),
+            settings.$preferredTerminalBundleID.dropFirst().map { _ in () }.eraseToAnyPublisher(),
+            settings.$aiModelProfiles.dropFirst().map { _ in () }.eraseToAnyPublisher(),
+            settings.$defaultAIModelProfileID.dropFirst().map { _ in () }.eraseToAnyPublisher(),
+            settings.$translationAIModelProfileID.dropFirst().map { _ in () }.eraseToAnyPublisher(),
+            settings.$quickAIAIModelProfileID.dropFirst().map { _ in () }.eraseToAnyPublisher()
         ]
         Publishers.MergeMany(syncableSettingsChanges)
             .sink { [weak self] _ in self?.recordConfigChange(SyncEntityKey.settings) }
