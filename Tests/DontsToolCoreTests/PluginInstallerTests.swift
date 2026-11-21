@@ -531,4 +531,85 @@ struct PluginInstallerTests {
 
         await sandbox.manager.shutdown()
     }
+
+    @Test func installFromDirectDownloadURLFallsBackToArchiveRootWhenRedundantSubpathIsSet() async throws {
+        let sandbox = try makeSandbox()
+        defer {
+            try? FileManager.default.removeItem(at: sandbox.root)
+            sandbox.defaults.removePersistentDomain(forName: sandbox.suite)
+        }
+
+        let http = RouteMockHTTPClient()
+        let installer = PluginInstaller(pluginManager: sandbox.manager, httpClient: http, hostVersion: "0.4.1")
+        let source = PluginSource(id: "official", name: "Official", location: "team/plugins")
+
+        let archive = try makePluginZip(
+            in: sandbox.root,
+            pluginID: "com.team.standalone",
+            name: "Standalone Plugin",
+            version: "1.1.0",
+            keyword: "solo",
+            resultTitle: "Root Fallback Hit"
+        )
+        let downloadURL = "https://github.com/team/plugins/releases/download/v1.1.0/com.team.standalone-1.1.0-macos.dontsplugin.zip"
+        http.register(url: downloadURL, data: archive.zipData)
+
+        let entry = PluginCatalogEntry(
+            id: "com.team.standalone",
+            name: "Standalone Plugin",
+            version: "1.1.0",
+            downloadURL: downloadURL,
+            subpath: "plugins/com.team.standalone",
+            sha256: archive.sha256
+        )
+        let installed = try await installer.install(entry: entry, from: source)
+        #expect(installed.id == "com.team.standalone")
+
+        let provider = try #require(sandbox.registry.pluginProviders.first as? SidecarProvider)
+        let hits = await provider.search(SearchContext(
+            rawQuery: "solo go",
+            mode: .keyword(providerID: provider.id, keyword: "solo", argument: "go")
+        ))
+        #expect(hits.map(\.title) == ["Root Fallback Hit"])
+
+        await sandbox.manager.shutdown()
+    }
+
+    @Test func installFromSourceArchiveStillRejectsMissingSubpathWhenDownloadURLIsOmitted() async throws {
+        let sandbox = try makeSandbox()
+        defer {
+            try? FileManager.default.removeItem(at: sandbox.root)
+            sandbox.defaults.removePersistentDomain(forName: sandbox.suite)
+        }
+
+        let http = RouteMockHTTPClient()
+        let installer = PluginInstaller(pluginManager: sandbox.manager, httpClient: http, hostVersion: "0.4.1")
+        let source = PluginSource(id: "mono", name: "Mono", location: "team/mono-plugins")
+
+        let archive = try makePluginZip(
+            in: sandbox.root,
+            pluginID: "com.team.wrongpath",
+            name: "Wrong Path Plugin",
+            version: "1.0.0",
+            keyword: "wrong",
+            wrapInTopFolder: "mono-plugins-main"
+        )
+        http.register(url: "https://github.com/team/mono-plugins/archive/refs/heads/main.zip", data: archive.zipData)
+
+        let entry = PluginCatalogEntry(
+            id: "com.team.wrongpath",
+            name: "Wrong Path Plugin",
+            version: "1.0.0",
+            subpath: "plugins/does-not-exist"
+        )
+
+        do {
+            _ = try await installer.inspectPackage(entry: entry, from: source)
+            Issue.record("Expected manifestNotFoundInArchive when subpath is missing in repo archive")
+        } catch let error as PluginInstallerError {
+            #expect(error == .manifestNotFoundInArchive)
+        }
+
+        await sandbox.manager.shutdown()
+    }
 }

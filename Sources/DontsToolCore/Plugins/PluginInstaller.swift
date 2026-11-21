@@ -263,7 +263,14 @@ public final class PluginInstaller: ObservableObject {
             try fileManager.createDirectory(at: extractDir, withIntermediateDirectories: true)
 
             try await Self.extractZip(archiveURL: archiveFileURL, to: extractDir)
-            let packageDir = try locatePackageDirectory(in: extractDir, subpath: normalizedSubpath)
+            let hasDirectDownloadURL = entry.downloadURL?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .isEmpty == false
+            let packageDir = try locatePackageDirectory(
+                in: extractDir,
+                subpath: normalizedSubpath,
+                allowRootFallback: hasDirectDownloadURL
+            )
             try Self.verifyNoEscapingSymlinks(in: packageDir)
             try ensureExecutablePermissions(in: packageDir)
 
@@ -663,7 +670,11 @@ public final class PluginInstaller: ObservableObject {
         return nil
     }
 
-    private func locatePackageDirectory(in extractDir: URL, subpath: String?) throws -> URL {
+    private func locatePackageDirectory(
+        in extractDir: URL,
+        subpath: String?,
+        allowRootFallback: Bool
+    ) throws -> URL {
         if let subpath {
             if let direct = try? PluginManifestLoader.resolveContainedPath(subpath, within: extractDir),
                fileManager.fileExists(atPath: direct.appendingPathComponent("manifest.json").path) {
@@ -674,7 +685,9 @@ public final class PluginInstaller: ObservableObject {
                fileManager.fileExists(atPath: nested.appendingPathComponent("manifest.json").path) {
                 return nested
             }
-            throw PluginInstallerError.manifestNotFoundInArchive
+            guard allowRootFallback else {
+                throw PluginInstallerError.manifestNotFoundInArchive
+            }
         }
 
         if fileManager.fileExists(atPath: extractDir.appendingPathComponent("manifest.json").path) {
