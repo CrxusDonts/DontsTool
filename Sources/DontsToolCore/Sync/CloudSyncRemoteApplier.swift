@@ -119,7 +119,12 @@ struct CloudSyncRemoteApplier {
         let remotePayload = try SyncJSON.makeDecoder().decode(SyncedNotePayload.self, from: payloadData)
         var downloadedAssets: [String: Data] = [:]
         for ref in remotePayload.assets {
-            downloadedAssets[ref.relativePath] = try await client.downloadBlob(sha256: ref.sha256)
+            if let existingData = currentLocal?.extraBlobs[ref.sha256] {
+                downloadedAssets[ref.relativePath] = existingData
+            } else {
+                downloadedAssets[ref.relativePath] = try await client.downloadBlob(sha256: ref.sha256)
+            }
+            stateStore.state.knownRemoteBlobHashes.insert(ref.sha256)
         }
 
         let hasUnsyncedLocalNote = (localDirty && currentLocal != nil) || (baseline == nil && currentLocal != nil)
@@ -138,7 +143,8 @@ struct CloudSyncRemoteApplier {
         try performLocalWrite {
             try notes.applySyncedNote(remotePayload.record, isTrashed: remotePayload.isTrashed, assets: downloadedAssets)
         }
-        recordBaseline(for: change, deleted: false)
+        let localHash = (try? snapshotBuilder.buildLocalItem(for: change.entityKey))?.contentHash ?? change.contentHash
+        recordBaseline(for: change, deleted: false, contentHashOverride: localHash)
         return true
     }
 
@@ -250,10 +256,11 @@ struct CloudSyncRemoteApplier {
         return try await resolvePayloadData(for: change, client: client)
     }
 
-    private func commitConfigChange(for change: SyncItemRecord, write: () throws -> Void) rethrows {
+    private func commitConfigChange(for change: SyncItemRecord, write: () throws -> Void) throws {
         try write()
         stateStore.state.localConfigUpdatedAt.removeValue(forKey: change.entityKey)
-        recordBaseline(for: change, deleted: false)
+        let localHash = (try? snapshotBuilder.buildLocalItem(for: change.entityKey))?.contentHash ?? change.contentHash
+        recordBaseline(for: change, deleted: false, contentHashOverride: localHash)
     }
 
     private func isLocallyDirty(currentLocal: SyncLocalItem?, baseline: SyncedEntityBaseline?) -> Bool {
@@ -261,10 +268,10 @@ struct CloudSyncRemoteApplier {
         return baseline.deleted ? currentLocal != nil : currentLocal?.contentHash != baseline.contentHash
     }
 
-    private func recordBaseline(for change: SyncItemRecord, deleted: Bool) {
+    private func recordBaseline(for change: SyncItemRecord, deleted: Bool, contentHashOverride: String? = nil) {
         stateStore.state.items[change.entityKey] = SyncedEntityBaseline(
             revision: change.revision,
-            contentHash: change.contentHash,
+            contentHash: contentHashOverride ?? change.contentHash,
             deleted: deleted,
             updatedAt: change.updatedAt
         )
@@ -275,7 +282,9 @@ struct CloudSyncRemoteApplier {
             return Data(inline.utf8)
         }
         if let blobHash = item.payloadBlobSha256 {
-            return try await client.downloadBlob(sha256: blobHash)
+            let data = try await client.downloadBlob(sha256: blobHash)
+            stateStore.state.knownRemoteBlobHashes.insert(blobHash)
+            return data
         }
         throw CloudSyncError.invalidResponse
     }

@@ -201,9 +201,16 @@ public final class URLSessionSyncRealtimeClient: SyncRealtimeListening, @uncheck
             var connected = false
             let pingTask = Task {
                 while !Task.isCancelled {
-                    try? await Task.sleep(for: .seconds(45))
-                    guard !Task.isCancelled else { break }
-                    try? await socket.send(.string("ping"))
+                    do {
+                        try await Task.sleep(for: .seconds(60))
+                        guard !Task.isCancelled else { break }
+                        try await socket.send(.string("ping"))
+                    } catch {
+                        if !Task.isCancelled {
+                            socket.cancel(with: .goingAway, reason: nil)
+                        }
+                        break
+                    }
                 }
             }
 
@@ -230,8 +237,11 @@ public final class URLSessionSyncRealtimeClient: SyncRealtimeListening, @uncheck
             socket.cancel(with: .goingAway, reason: nil)
             onConnectionChanged(false)
             guard !isStopped else { return }
-            try? await Task.sleep(for: .seconds(backoffSeconds))
-            backoffSeconds = min(backoffSeconds * 2, 60)
+            let statusCode = (socket.response as? HTTPURLResponse)?.statusCode
+            let isAuthFailure = statusCode == 401 || statusCode == 403
+            let delaySeconds: UInt64 = isAuthFailure ? 300 : backoffSeconds
+            try? await Task.sleep(for: .seconds(delaySeconds))
+            backoffSeconds = isAuthFailure ? 300 : min(backoffSeconds * 2, 60)
         }
     }
 

@@ -276,6 +276,17 @@ public struct SyncStateSnapshot: Codable, Equatable, Sendable {
     public var lastSyncedAt: Date?
     public var items: [String: SyncedEntityBaseline]
     public var localConfigUpdatedAt: [String: Date]
+    public var knownRemoteBlobHashes: Set<String>
+
+    private enum CodingKeys: String, CodingKey {
+        case schemaVersion
+        case serverOrigin
+        case lastPulledRevision
+        case lastSyncedAt
+        case items
+        case localConfigUpdatedAt
+        case knownRemoteBlobHashes
+    }
 
     public init(
         schemaVersion: Int = Self.currentSchemaVersion,
@@ -283,7 +294,8 @@ public struct SyncStateSnapshot: Codable, Equatable, Sendable {
         lastPulledRevision: Int64 = 0,
         lastSyncedAt: Date? = nil,
         items: [String: SyncedEntityBaseline] = [:],
-        localConfigUpdatedAt: [String: Date] = [:]
+        localConfigUpdatedAt: [String: Date] = [:],
+        knownRemoteBlobHashes: Set<String> = []
     ) {
         self.schemaVersion = schemaVersion
         self.serverOrigin = serverOrigin
@@ -291,6 +303,18 @@ public struct SyncStateSnapshot: Codable, Equatable, Sendable {
         self.lastSyncedAt = lastSyncedAt
         self.items = items
         self.localConfigUpdatedAt = localConfigUpdatedAt
+        self.knownRemoteBlobHashes = knownRemoteBlobHashes
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        schemaVersion = try container.decode(Int.self, forKey: .schemaVersion)
+        serverOrigin = try container.decode(String.self, forKey: .serverOrigin)
+        lastPulledRevision = try container.decode(Int64.self, forKey: .lastPulledRevision)
+        lastSyncedAt = try container.decodeIfPresent(Date.self, forKey: .lastSyncedAt)
+        items = try container.decode([String: SyncedEntityBaseline].self, forKey: .items)
+        localConfigUpdatedAt = try container.decode([String: Date].self, forKey: .localConfigUpdatedAt)
+        knownRemoteBlobHashes = try container.decodeIfPresent(Set<String>.self, forKey: .knownRemoteBlobHashes) ?? []
     }
 }
 

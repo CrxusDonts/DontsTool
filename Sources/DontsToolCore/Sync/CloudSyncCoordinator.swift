@@ -21,13 +21,20 @@ public final class CloudSyncCoordinator: ObservableObject {
     private let snapshotBuilder: CloudSyncSnapshotBuilder
     private let remoteApplier: CloudSyncRemoteApplier
 
+    private enum SyncTrigger {
+        case full
+        case localChange
+    }
+
     private var subscriptions: Set<AnyCancellable> = []
     private var debounceTask: Task<Void, Never>?
     private var realtimeClient: (any SyncRealtimeListening)?
     private var activeOriginString: String?
     private var activeToken: String?
     private var isSyncing = false
-    private var pendingFollowUpSync = false
+    private var pendingSyncTrigger: SyncTrigger?
+    private var highestNotifiedRemoteRevision: Int64 = 0
+    private var hasPulledInActiveRealtimeSession = false
     private var isApplyingRemote = false
     private var isStarted = false
 
@@ -43,7 +50,7 @@ public final class CloudSyncCoordinator: ObservableObject {
             URLSessionSyncRealtimeClient(origin: $0, token: $1)
         },
         deviceNameProvider: @escaping () -> String = { Host.current().localizedName ?? "Mac" },
-        debounceDuration: Duration = .milliseconds(1500)
+        debounceDuration: Duration = .milliseconds(5000)
     ) {
         self.settings = settings
         self.websites = websites
@@ -105,8 +112,15 @@ public final class CloudSyncCoordinator: ObservableObject {
 
     @discardableResult
     public func syncNow() async -> Bool {
+        await sync(trigger: .full)
+    }
+
+    @discardableResult
+    private func sync(trigger: SyncTrigger) async -> Bool {
         if isSyncing {
-            pendingFollowUpSync = true
+            if pendingSyncTrigger != .full {
+                pendingSyncTrigger = trigger
+            }
             return true
         }
         guard let credentials = resolvedCredentials() else {
@@ -120,32 +134,57 @@ public final class CloudSyncCoordinator: ObservableObject {
         defer { isSyncing = false }
 
         var overallSuccess = true
-        repeat {
-            pendingFollowUpSync = false
+        var currentTrigger: SyncTrigger? = trigger
+        while let activeTrigger = currentTrigger {
+            pendingSyncTrigger = nil
             do {
-                try await performSingleSyncPass(origin: credentials.origin, token: credentials.token)
+                try await performSingleSyncPass(
+                    origin: credentials.origin,
+                    token: credentials.token,
+                    trigger: activeTrigger
+                )
                 status = .idle(lastSyncedAt: stateStore.state.lastSyncedAt)
+                if highestNotifiedRemoteRevision > stateStore.state.lastPulledRevision {
+                    currentTrigger = .full
+                } else {
+                    currentTrigger = pendingSyncTrigger
+                }
             } catch {
                 overallSuccess = false
                 status = .failed(error.localizedDescription)
-                pendingFollowUpSync = false
+                pendingSyncTrigger = nil
                 break
             }
-        } while pendingFollowUpSync
+        }
 
         return overallSuccess
     }
 
-    private func performSingleSyncPass(origin: CloudSyncOrigin, token: String) async throws {
+    private func performSingleSyncPass(origin: CloudSyncOrigin, token: String, trigger: SyncTrigger) async throws {
         await prepareNotesForSync()
         let client = CloudSyncClient(origin: origin, token: token, httpClient: httpClient)
+        let previousOrigin = stateStore.state.serverOrigin
         stateStore.ensureOrigin(origin.originString)
+        if previousOrigin != origin.originString {
+            highestNotifiedRemoteRevision = 0
+            hasPulledInActiveRealtimeSession = false
+        }
 
-        // 1. Pull remote revisions first.
-        let appliedAnyRemoteNote = try await pullRemoteChanges(with: client)
-        try stateStore.save()
-        if appliedAnyRemoteNote {
-            didApplyRemoteNotes()
+        // 1. Pull remote revisions first unless an active realtime session is already caught up.
+        let canSkipInitialPull = trigger == .localChange
+            && isRealtimeConnected
+            && hasPulledInActiveRealtimeSession
+            && highestNotifiedRemoteRevision <= stateStore.state.lastPulledRevision
+
+        if !canSkipInitialPull {
+            let appliedAnyRemoteNote = try await pullRemoteChanges(with: client)
+            try stateStore.save()
+            if appliedAnyRemoteNote {
+                didApplyRemoteNotes()
+            }
+            if isRealtimeConnected {
+                hasPulledInActiveRealtimeSession = true
+            }
         }
 
         // 2. Diff local state against synced baselines and push local mutations.
@@ -180,23 +219,39 @@ public final class CloudSyncCoordinator: ObservableObject {
             return
         }
 
-        if !requiredBlobs.isEmpty {
-            let missing = try await client.checkMissingBlobs(Array(requiredBlobs.keys).sorted())
-            for hash in missing {
-                guard let data = requiredBlobs[hash] else { continue }
-                try await client.uploadBlob(sha256: hash, data: data)
-            }
-        }
+        try await ensureBlobsUploaded(requiredBlobs, client: client)
 
         let batchSize = 100
-        var latestRevision = stateStore.state.lastPulledRevision
+        var contiguousRevision = stateStore.state.lastPulledRevision
+        var detectedRemoteGap = false
+        var didRetryMissingBlobs = false
+
         for start in stride(from: 0, to: wireMutations.count, by: batchSize) {
             let end = min(start + batchSize, wireMutations.count)
             let batch = Array(wireMutations[start..<end])
-            let response = try await client.push(
-                SyncPushRequest(deviceId: settings.cloudSyncDeviceID, mutations: batch)
-            )
-            latestRevision = max(latestRevision, response.revision)
+            let request = SyncPushRequest(deviceId: settings.cloudSyncDeviceID, mutations: batch)
+            let response: SyncPushResponse
+            do {
+                response = try await client.push(request)
+            } catch CloudSyncError.conflict(_) where !requiredBlobs.isEmpty && !didRetryMissingBlobs {
+                didRetryMissingBlobs = true
+                stateStore.state.knownRemoteBlobHashes.removeAll()
+                try await ensureBlobsUploaded(requiredBlobs, client: client, forceCheckAll: true)
+                response = try await client.push(request)
+            }
+
+            let appliedCount = Int64(response.appliedKeys.count)
+            if !detectedRemoteGap {
+                if response.revision == contiguousRevision + appliedCount {
+                    contiguousRevision = response.revision
+                } else if response.revision > contiguousRevision + appliedCount {
+                    detectedRemoteGap = true
+                    highestNotifiedRemoteRevision = max(highestNotifiedRemoteRevision, response.revision)
+                }
+            } else {
+                highestNotifiedRemoteRevision = max(highestNotifiedRemoteRevision, response.revision)
+            }
+
             for mutation in batch {
                 stateStore.state.items[mutation.entityKey] = SyncedEntityBaseline(
                     revision: response.revision,
@@ -208,9 +263,35 @@ public final class CloudSyncCoordinator: ObservableObject {
             }
         }
 
-        stateStore.state.lastPulledRevision = latestRevision
+        stateStore.state.lastPulledRevision = max(stateStore.state.lastPulledRevision, contiguousRevision)
         stateStore.state.lastSyncedAt = Date()
         try stateStore.save()
+    }
+
+    private func ensureBlobsUploaded(
+        _ requiredBlobs: [String: Data],
+        client: CloudSyncClient,
+        forceCheckAll: Bool = false
+    ) async throws {
+        let candidateHashes = forceCheckAll
+            ? Array(requiredBlobs.keys).sorted()
+            : requiredBlobs.keys.filter { !stateStore.state.knownRemoteBlobHashes.contains($0) }.sorted()
+        guard !candidateHashes.isEmpty else { return }
+
+        for start in stride(from: 0, to: candidateHashes.count, by: 500) {
+            let end = min(start + 500, candidateHashes.count)
+            let chunk = Array(candidateHashes[start..<end])
+            let missing = try await client.checkMissingBlobs(chunk)
+            let missingSet = Set(missing)
+            for hash in chunk where !missingSet.contains(hash) {
+                stateStore.state.knownRemoteBlobHashes.insert(hash)
+            }
+            for hash in missing {
+                guard let data = requiredBlobs[hash] else { continue }
+                try await client.uploadBlob(sha256: hash, data: data)
+                stateStore.state.knownRemoteBlobHashes.insert(hash)
+            }
+        }
     }
 
     private func performLocalWrite(_ operation: @MainActor () throws -> Void) throws {
@@ -277,7 +358,7 @@ public final class CloudSyncCoordinator: ObservableObject {
                 return
             }
             guard !Task.isCancelled else { return }
-            await self.syncNow()
+            await self.sync(trigger: .localChange)
         }
     }
 
@@ -296,17 +377,27 @@ public final class CloudSyncCoordinator: ObservableObject {
             onSyncEvent: { [weak self] revision, sourceDeviceID in
                 Task { @MainActor [weak self] in
                     guard let self else { return }
-                    if sourceDeviceID == currentDeviceID, revision <= self.stateStore.state.lastPulledRevision {
+                    // Ignore our own device's push broadcast so WS echo arriving before the
+                    // HTTP push response never schedules a redundant follow-up pull.
+                    if !sourceDeviceID.isEmpty, sourceDeviceID == currentDeviceID {
                         return
                     }
-                    if revision > self.stateStore.state.lastPulledRevision {
-                        await self.syncNow()
+                    self.highestNotifiedRemoteRevision = max(self.highestNotifiedRemoteRevision, revision)
+                    guard revision > self.stateStore.state.lastPulledRevision else {
+                        return
+                    }
+                    if !self.isSyncing {
+                        await self.sync(trigger: .full)
                     }
                 }
             },
             onConnectionChanged: { [weak self] connected in
                 Task { @MainActor [weak self] in
-                    self?.isRealtimeConnected = connected
+                    guard let self else { return }
+                    self.isRealtimeConnected = connected
+                    if !connected {
+                        self.hasPulledInActiveRealtimeSession = false
+                    }
                 }
             }
         )
@@ -318,6 +409,8 @@ public final class CloudSyncCoordinator: ObservableObject {
         activeOriginString = nil
         activeToken = nil
         isRealtimeConnected = false
+        hasPulledInActiveRealtimeSession = false
+        highestNotifiedRemoteRevision = 0
     }
 
     private func refreshIdleStatus() {

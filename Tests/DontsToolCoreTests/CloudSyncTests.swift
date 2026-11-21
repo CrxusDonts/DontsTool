@@ -46,26 +46,83 @@ struct CloudSyncTests {
         private var blobs: [String: Data] = [:]
         private var items: [String: SyncItemRecord] = [:]
         private var blobUploadCount = 0
+        private var blobDownloadCount = 0
+        private var blobCheckCount = 0
+        private var pushCount = 0
+        private var pullCount = 0
+        private var pushedKeysLog: [[String]] = []
+        private var onPushResponseHook: (@Sendable (Int64, String) async -> Void)?
 
         init(token: String) {
             expectedToken = token
         }
 
-        var totalBlobUploads: Int {
-            lock.withLock { blobUploadCount }
+        var totalBlobUploads: Int { lock.withLock { blobUploadCount } }
+        var totalBlobDownloads: Int { lock.withLock { blobDownloadCount } }
+        var totalBlobChecks: Int { lock.withLock { blobCheckCount } }
+        var totalPushes: Int { lock.withLock { pushCount } }
+        var totalPulls: Int { lock.withLock { pullCount } }
+        var pushedKeyBatches: [[String]] { lock.withLock { pushedKeysLog } }
+        var currentRevision: Int64 { lock.withLock { revision } }
+
+        func setOnPushResponseHook(_ hook: (@Sendable (Int64, String) async -> Void)?) {
+            lock.withLock { onPushResponseHook = hook }
+        }
+
+        func clearBlobs() {
+            lock.withLock { blobs.removeAll() }
+        }
+
+        @discardableResult
+        func injectRawItem(
+            entityKey: String,
+            kind: SyncEntityKind,
+            deleted: Bool = false,
+            updatedAt: Date = Date(),
+            deviceId: String = "other-device",
+            payload: String? = nil,
+            payloadBlobSha256: String? = nil
+        ) -> Int64 {
+            lock.withLock {
+                revision += 1
+                let hashSource = deleted ? "deleted:\(entityKey)" : (payload ?? payloadBlobSha256 ?? "")
+                let contentHash = SyncDigest.sha256Hex(hashSource)
+                items[entityKey] = SyncItemRecord(
+                    entityKey: entityKey,
+                    kind: kind,
+                    revision: revision,
+                    deleted: deleted,
+                    updatedAt: updatedAt,
+                    contentHash: contentHash,
+                    deviceId: deviceId,
+                    payload: deleted ? nil : payload,
+                    payloadBlobSha256: deleted ? nil : payloadBlobSha256
+                )
+                return revision
+            }
         }
 
         func data(for request: URLRequest) async throws -> (Data, URLResponse) {
-            try handle(request)
+            let result = try handle(request)
+            if let pushHook = result.pushHook {
+                await pushHook.callback(pushHook.revision, pushHook.deviceId)
+            }
+            return (result.data, result.response)
         }
 
-        private func handle(_ request: URLRequest) throws -> (Data, URLResponse) {
+        private struct PushHookInvocation: Sendable {
+            let revision: Int64
+            let deviceId: String
+            let callback: @Sendable (Int64, String) async -> Void
+        }
+
+        private func handle(_ request: URLRequest) throws -> (data: Data, response: URLResponse, pushHook: PushHookInvocation?) {
             try lock.withLock {
                 let url = request.url!
                 let path = url.path
-                func makeResponse(_ status: Int, body: Data) -> (Data, URLResponse) {
+                func makeResponse(_ status: Int, body: Data, pushHook: PushHookInvocation? = nil) -> (Data, URLResponse, PushHookInvocation?) {
                     let response = HTTPURLResponse(url: url, statusCode: status, httpVersion: "1.1", headerFields: nil)!
-                    return (body, response)
+                    return (body, response, pushHook)
                 }
 
                 guard request.value(forHTTPHeaderField: "Authorization") == "Bearer \(expectedToken)" else {
@@ -78,6 +135,7 @@ struct CloudSyncTests {
                 }
 
                 if request.httpMethod == "POST" && path == "/v1/blobs/check" {
+                    blobCheckCount += 1
                     let req = try SyncJSON.makeDecoder().decode(SyncBlobsCheckRequest.self, from: request.httpBody ?? Data())
                     let missing = req.hashes.filter { blobs[$0] == nil }
                     return makeResponse(200, body: try SyncJSON.makeEncoder().encode(SyncBlobsCheckResponse(missing: missing)))
@@ -98,12 +156,19 @@ struct CloudSyncTests {
                         guard let data = blobs[sha] else {
                             return makeResponse(404, body: Data("{\"error\":\"Not found\"}".utf8))
                         }
+                        blobDownloadCount += 1
                         return makeResponse(200, body: data)
                     }
                 }
 
                 if request.httpMethod == "POST" && path == "/v1/sync/push" {
+                    pushCount += 1
                     let req = try SyncJSON.makeDecoder().decode(SyncPushRequest.self, from: request.httpBody ?? Data())
+                    for mutation in req.mutations {
+                        if !mutation.deleted, let blobSha = mutation.payloadBlobSha256, blobs[blobSha] == nil {
+                            return makeResponse(409, body: Data("{\"error\":\"Missing referenced blob\"}".utf8))
+                        }
+                    }
                     var applied: [String] = []
                     for mutation in req.mutations {
                         if let existing = items[mutation.entityKey],
@@ -124,10 +189,15 @@ struct CloudSyncTests {
                         )
                         applied.append(mutation.entityKey)
                     }
-                    return makeResponse(200, body: try SyncJSON.makeEncoder().encode(SyncPushResponse(revision: revision, appliedKeys: applied)))
+                    pushedKeysLog.append(applied)
+                    let hook = (!applied.isEmpty ? onPushResponseHook : nil).map {
+                        PushHookInvocation(revision: revision, deviceId: req.deviceId, callback: $0)
+                    }
+                    return makeResponse(200, body: try SyncJSON.makeEncoder().encode(SyncPushResponse(revision: revision, appliedKeys: applied)), pushHook: hook)
                 }
 
                 if request.httpMethod == "GET" && path == "/v1/sync/pull" {
+                    pullCount += 1
                     let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
                     let since = Int64(components?.queryItems?.first(where: { $0.name == "since" })?.value ?? "0") ?? 0
                     let limit = Int(components?.queryItems?.first(where: { $0.name == "limit" })?.value ?? "100") ?? 100
@@ -139,6 +209,39 @@ struct CloudSyncTests {
 
                 return makeResponse(404, body: Data("{\"error\":\"Not found\"}".utf8))
             }
+        }
+    }
+
+    private final class FakeRealtimeClient: SyncRealtimeListening, @unchecked Sendable {
+        private let lock = NSLock()
+        private var onSyncEvent: (@Sendable (Int64, String) -> Void)?
+        private var onConnectionChanged: (@Sendable (Bool) -> Void)?
+
+        func start(
+            onSyncEvent: @escaping @Sendable (Int64, String) -> Void,
+            onConnectionChanged: @escaping @Sendable (Bool) -> Void
+        ) {
+            lock.withLock {
+                self.onSyncEvent = onSyncEvent
+                self.onConnectionChanged = onConnectionChanged
+            }
+        }
+
+        func stop() {
+            lock.withLock {
+                onSyncEvent = nil
+                onConnectionChanged = nil
+            }
+        }
+
+        func emitConnected(_ connected: Bool) {
+            let callback = lock.withLock { onConnectionChanged }
+            callback?(connected)
+        }
+
+        func emitSyncEvent(revision: Int64, sourceDeviceID: String) {
+            let callback = lock.withLock { onSyncEvent }
+            callback?(revision, sourceDeviceID)
         }
     }
 
@@ -454,5 +557,234 @@ struct CloudSyncTests {
             // Secrets remain local to Keychain and never sync over the wire
             #expect(macB.settings.apiKey(for: gemini, secrets: macB.secrets) == nil)
         }
+    }
+
+    @Test func crossVersionSettingsSyncDoesNotPingPong() async throws {
+        try await withTempDir { dir in
+            let server = InMemorySyncServer(token: "sync-secret")
+            let macA = ClientFixture(root: dir, name: "MacA-Compat")
+            defer { macA.cleanup() }
+
+            macA.settings.setCloudSyncEnabled(true)
+            macA.settings.setCloudSyncServerURL("https://sync.example.com")
+            macA.secrets.setSecret("sync-secret", for: SecretAccount.cloudSyncToken)
+
+            let coordA = CloudSyncCoordinator(
+                settings: macA.settings, websites: macA.websites, searchEngines: macA.searchEngines,
+                notes: macA.notes, secrets: macA.secrets, httpClient: server, stateStore: macA.stateStore,
+                realtimeClientFactory: nil, deviceNameProvider: { "MacA" }
+            )
+
+            // 1. Legacy payload omitting newer fields (aiAPIFormat, preferredTerminalBundleID, aiModelProfiles...).
+            let legacyPayload = """
+            {
+              "applicationSortOrder": "frequency",
+              "enabledProviderIDs": ["applications", "notes"],
+              "fileSearchEnabled": true,
+              "hotKey": {"keyCode": 49, "kind": "combination", "modifiers": 2048},
+              "selectionHoldDelayRawValue": 2,
+              "selectionTranslationEnabled": false,
+              "translationAPIBaseURL": "https://legacy.example.com/v1",
+              "translationAPIModel": "gpt-4o-mini",
+              "translationTarget": "en"
+            }
+            """
+            server.injectRawItem(entityKey: SyncEntityKey.settings, kind: .config, payload: legacyPayload)
+
+            #expect(await coordA.syncNow())
+            #expect(macA.settings.translationTarget == "en")
+            #expect(macA.settings.translationAPIModel == "gpt-4o-mini")
+            // First sync may push initial websites/searchEngines baselines, but must NOT push settings back.
+            let pushesAfterLegacyPull = server.totalPushes
+            #expect(!server.pushedKeyBatches.flatMap { $0 }.contains(SyncEntityKey.settings))
+
+            // Second sync pass must remain completely quiet (no ping-pong).
+            #expect(await coordA.syncNow())
+            #expect(server.totalPushes == pushesAfterLegacyPull)
+
+            // 2. Future payload containing extra unknown fields.
+            let futurePayload = """
+            {
+              "aiAPIFormat": "gemini",
+              "applicationSortOrder": "recent",
+              "enabledProviderIDs": ["applications", "calculator"],
+              "fileSearchEnabled": false,
+              "futureFlag": true,
+              "hotKey": {"keyCode": 49, "kind": "combination", "modifiers": 2048},
+              "preferredTerminalBundleID": "com.apple.Terminal",
+              "selectionHoldDelayRawValue": 2,
+              "selectionTranslationEnabled": true,
+              "translationAPIBaseURL": "https://future.example.com/v1",
+              "translationAPIModel": "gemini-3-flash",
+              "translationTarget": "ja"
+            }
+            """
+            server.injectRawItem(entityKey: SyncEntityKey.settings, kind: .config, payload: futurePayload)
+
+            #expect(await coordA.syncNow())
+            #expect(macA.settings.translationTarget == "ja")
+            #expect(macA.settings.aiAPIFormat == .gemini)
+            #expect(server.totalPushes == pushesAfterLegacyPull)
+
+            #expect(await coordA.syncNow())
+            #expect(server.totalPushes == pushesAfterLegacyPull)
+        }
+    }
+
+    @Test func realtimeSelfEchoDoesNotTriggerDuplicatePullAndConnectedLocalEditSkipsPrePull() async throws {
+        try await withTempDir { dir in
+            let server = InMemorySyncServer(token: "sync-secret")
+            let macA = ClientFixture(root: dir, name: "MacA-RT")
+            defer { macA.cleanup() }
+
+            macA.settings.setCloudSyncEnabled(true)
+            macA.settings.setCloudSyncServerURL("https://sync.example.com")
+            macA.secrets.setSecret("sync-secret", for: SecretAccount.cloudSyncToken)
+
+            let fakeRealtime = FakeRealtimeClient()
+            let coordA = CloudSyncCoordinator(
+                settings: macA.settings, websites: macA.websites, searchEngines: macA.searchEngines,
+                notes: macA.notes, secrets: macA.secrets, httpClient: server, stateStore: macA.stateStore,
+                realtimeClientFactory: { _, _ in fakeRealtime },
+                deviceNameProvider: { "MacA" },
+                debounceDuration: .milliseconds(50)
+            )
+            defer { coordA.stop() }
+
+            coordA.start()
+            for _ in 0..<50 where server.totalPulls == 0 {
+                try await Task.sleep(for: .milliseconds(10))
+            }
+            fakeRealtime.emitConnected(true)
+            for _ in 0..<50 where !coordA.isRealtimeConnected {
+                try await Task.sleep(for: .milliseconds(10))
+            }
+            #expect(coordA.isRealtimeConnected)
+            #expect(await coordA.syncNow())
+            let baselinePulls = server.totalPulls
+
+            // Simulate WS push broadcast arriving BEFORE HTTP push returns.
+            server.setOnPushResponseHook { rev, src in
+                fakeRealtime.emitSyncEvent(revision: rev, sourceDeviceID: src)
+                try? await Task.sleep(for: .milliseconds(30))
+            }
+
+            _ = try macA.notes.create(title: "本地实时编辑", content: noteContent("第一条本地正文"))
+            for _ in 0..<100 where server.totalPushes < 1 || coordA.status == .syncing {
+                try await Task.sleep(for: .milliseconds(10))
+            }
+            try await Task.sleep(for: .milliseconds(40))
+
+            #expect(server.totalPushes == 1)
+            #expect(server.totalPulls == baselinePulls)
+
+            // Inject an out-of-band remote note without WS notification to verify revision-gap safety net.
+            server.setOnPushResponseHook(nil)
+            let remoteNoteID = UUID()
+            let remoteRecord = LocalNoteRecord(
+                id: remoteNoteID,
+                title: "远端漏网便笺",
+                content: noteContent("来自远端")
+            )
+            let remotePayload = String(
+                decoding: try SyncJSON.makeEncoder().encode(
+                    SyncedNotePayload(record: remoteRecord, isTrashed: false, assets: [])
+                ),
+                as: UTF8.self
+            )
+            server.injectRawItem(entityKey: SyncEntityKey.note(remoteNoteID), kind: .note, payload: remotePayload)
+
+            _ = try macA.notes.create(title: "本地第二条", content: noteContent("触发 revision gap 检测"))
+            for _ in 0..<100 where server.totalPushes < 2 || coordA.status == .syncing || macA.notes.note(remoteNoteID) == nil {
+                try await Task.sleep(for: .milliseconds(10))
+            }
+
+            #expect(macA.notes.note(remoteNoteID)?.content.plainText == "来自远端")
+            #expect(server.totalPulls == baselinePulls + 1)
+        }
+    }
+
+    @Test func unchangedNoteImagesSkipBlobCheckOnPushAndReuseLocalBlobOnPull() async throws {
+        try await withTempDir { dir in
+            let server = InMemorySyncServer(token: "sync-secret")
+            let macA = ClientFixture(root: dir, name: "MacA-Blob")
+            let macB = ClientFixture(root: dir, name: "MacB-Blob")
+            defer { macA.cleanup(); macB.cleanup() }
+
+            for fixture in [macA, macB] {
+                fixture.settings.setCloudSyncEnabled(true)
+                fixture.settings.setCloudSyncServerURL("https://sync.example.com")
+                fixture.secrets.setSecret("sync-secret", for: SecretAccount.cloudSyncToken)
+            }
+
+            let coordA = CloudSyncCoordinator(
+                settings: macA.settings, websites: macA.websites, searchEngines: macA.searchEngines,
+                notes: macA.notes, secrets: macA.secrets, httpClient: server, stateStore: macA.stateStore,
+                realtimeClientFactory: nil, deviceNameProvider: { "MacA" }
+            )
+            let coordB = CloudSyncCoordinator(
+                settings: macB.settings, websites: macB.websites, searchEngines: macB.searchEngines,
+                notes: macB.notes, secrets: macB.secrets, httpClient: server, stateStore: macB.stateStore,
+                realtimeClientFactory: nil, deviceNameProvider: { "MacB" }
+            )
+
+            let pngData = try samplePNG(fill: 180)
+            let note = try macA.notes.create(title: "图文便笺")
+            let asset = try macA.notes.importImage(pngData, for: note.id)
+            _ = try macA.notes.updateContent(note.id, content: noteContent("v1", imagePath: asset.relativePath))
+
+            #expect(await coordA.syncNow())
+            #expect(server.totalBlobChecks == 1)
+            #expect(server.totalBlobUploads == 1)
+            #expect(await coordB.syncNow())
+            #expect(server.totalBlobDownloads == 1)
+
+            // Text-only edit must skip /v1/blobs/check on push and reuse local asset on pull.
+            _ = try macA.notes.updateContent(note.id, content: noteContent("v2", imagePath: asset.relativePath))
+            #expect(await coordA.syncNow())
+            #expect(server.totalBlobChecks == 1)
+            #expect(server.totalBlobUploads == 1)
+            #expect(await coordB.syncNow())
+            #expect(server.totalBlobDownloads == 1)
+            #expect(macB.notes.note(note.id)?.content.plainText == "v2")
+
+            // Large (>64 KiB) note payload self-heals on HTTP 409 when cached blob disappears from server.
+            let largeText = String(repeating: "a", count: CloudSyncClient.inlinePayloadLimit + 2048)
+            let largeNote = try macA.notes.create(title: "超大正文便笺", content: noteContent(largeText))
+            #expect(await coordA.syncNow())
+            #expect(server.totalBlobUploads == 2)
+
+            server.clearBlobs()
+            macA.stateStore.state.items.removeValue(forKey: SyncEntityKey.note(largeNote.id))
+            #expect(await coordA.syncNow())
+            #expect(server.totalBlobUploads == 3)
+            #expect(await coordB.syncNow())
+            #expect(macB.notes.note(largeNote.id)?.content.plainText == largeText)
+        }
+    }
+
+    @Test func syncStateSnapshotDecodesLegacyStateWithoutKnownRemoteBlobHashes() throws {
+        let legacyJSON = """
+        {
+          "items": {
+            "config:settings": {
+              "contentHash": "abc123",
+              "deleted": false,
+              "revision": 42,
+              "updatedAt": "2026-11-21T18:48:28Z"
+            }
+          },
+          "lastPulledRevision": 42,
+          "lastSyncedAt": "2026-11-21T19:13:38Z",
+          "localConfigUpdatedAt": {},
+          "schemaVersion": 1,
+          "serverOrigin": "https://sync.example.com"
+        }
+        """
+        let decoded = try SyncJSON.makeDecoder().decode(SyncStateSnapshot.self, from: Data(legacyJSON.utf8))
+        #expect(decoded.schemaVersion == 1)
+        #expect(decoded.lastPulledRevision == 42)
+        #expect(decoded.items["config:settings"]?.revision == 42)
+        #expect(decoded.knownRemoteBlobHashes.isEmpty)
     }
 }
