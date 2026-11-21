@@ -1,85 +1,165 @@
-<p align="center">
-  <img src="docs/assets/banner.png" alt="DontsTool" width="100%">
-</p>
+<div align="center">
+  <img src="docs/assets/banner.png" alt="DontsTool" width="100%" />
 
-# DontsTool
+  <h1>DontsTool</h1>
 
-DontsTool 是一个原生 macOS 菜单栏效率启动器。`v0.3.0` 起采用微内核宿主加进程外 Sidecar 插件的架构：主程序保留应用启动、文本工作台、便笺、翻译与同步等核心热路径，文件搜索、Chrome、IDEA 项目、终端与访达、结束进程等扩展能力迁至官方插件仓库，按需在设置页安装和更新。
+  <p>原生 macOS 菜单栏效率启动器 · 微内核宿主 × 进程外插件生态</p>
 
-使用 Swift 6、AppKit 和 SwiftUI 构建，要求 **macOS 26+**，发布包为 Universal（支持 Apple Silicon 与 Intel）。应用常驻菜单栏，不显示 Dock 图标，默认按 `⌥ Space` 呼出。
+  <p>
+    <a href="https://github.com/CrxusDonts/DontsTool/releases/latest"><img src="https://img.shields.io/github/v/release/CrxusDonts/DontsTool?style=flat-square&label=Release&color=496c56&labelColor=283330" alt="Latest Release" /></a>
+    <img src="https://img.shields.io/badge/macOS-26%2B%20%C2%B7%20Universal-2c3b34?style=flat-square&labelColor=283330" alt="macOS 26+ Universal" />
+    <img src="https://img.shields.io/badge/Swift%206-AppKit%20%26%20SwiftUI-2c3b34?style=flat-square&labelColor=283330" alt="Swift 6 AppKit and SwiftUI" />
+    <img src="https://img.shields.io/badge/Developer%20ID-Apple%20Notarized-496c56?style=flat-square&labelColor=283330" alt="Developer ID Apple Notarized" />
+    <a href="https://github.com/CrxusDonts/DontsTool-Plugins"><img src="https://img.shields.io/badge/Plugins-DontsTool--Plugins-496c56?style=flat-square&labelColor=283330" alt="Official Plugins" /></a>
+  </p>
 
-## 微内核内置能力
+  <p>
+    <a href="#快速安装">快速安装</a> ·
+    <a href="#架构一览">架构一览</a> ·
+    <a href="#内置能力">内置能力</a> ·
+    <a href="#插件生态">插件生态</a> ·
+    <a href="#键盘交互">键盘交互</a> ·
+    <a href="#隐私安全">隐私安全</a> ·
+    <a href="#开发文档">开发文档</a>
+  </p>
+</div>
 
-| 功能 | 说明 |
-| --- | --- |
-| 应用启动 | 按英文名、中文名、全拼和首字母搜索本机应用；通过 FSEvents 监听应用目录变更，支持按最近打开、频率或名称排序 |
-| 即时计算与换算 | 在搜索框直接输入算式（如 `(128 + 64) * 3`、`sqrt(16)`）或单位换算（如 `10 km to mi`），回车复制结果 |
-| 快速打开 | 直接识别 `http(s)://`、`www.`、`~/`、绝对路径与 `file://`，回车打开，按 `⌘K` 可在默认终端打开或访达定位 |
-| 网址快捷入口 | 自定义层级跳转，支持多环境（如 `prod` / `test`）与子页面，提供表单编辑和 JSON 批量导入导出 |
-| 网页搜索 | 自定义搜索引擎快捷词；普通查询无本地结果时回退到默认搜索引擎 |
-| 文本工具工作台 | 输入 `json`、`b64`、`url`、`ts`、`uuid`、`md5`、`sha256` 打开独立工作窗口，支持多开、置顶、JSON 折叠与双栏对比 |
-| 翻译与长按划词 | 输入 `tr` 打开翻译窗口，或在设置中开启全局鼠标右键长按划词；对接 OpenAI Responses 兼容接口，密钥存本机钥匙串 |
-| 本地离线便笺 | 输入 `note` 或 `便笺` 检索与新建，支持离线 Tiptap 所见即所得和 Markdown 编辑、粘贴图片、置顶与回收站 |
-| Gemini 提问 | 输入 `gm 问题` 在已安装的 Gemini Mac 版中新建对话并发送（自动发送需辅助功能权限） |
-| 使用指南 | 输入 `help` 或 `?` 打开内置功能与快捷键速查，支持点击示例直接填入启动器 |
-| Cloudflare 多端同步与备份 | 可选部署自建 Cloudflare Worker（Durable Object + R2）跨 Mac 增量同步，也支持本地 `.zip` 完整备份与恢复 |
-| 应用内更新 | 接入 Sparkle 2.10.1 与 Ed25519 签名校验，通过菜单栏「检查更新」升级 |
+## 快速安装
 
-选中结果后按 `⌘K` 打开更多操作面板，按 `⌘↵` 执行次操作；在空搜索框粘贴文本、链接或 JSON，启动器会自动进入内容模式推荐对应工具。
-
-## 官方插件仓库与插件生态
-
-外部插件以独立子进程通过 NDJSON over stdio（JSON-RPC 2.0）与宿主通信，互不阻塞启动器热路径，支持热重载与独立启停。
-
-DontsTool 在 **设置 → 插件** 中默认内置官方插件仓库 [CrxusDonts/DontsTool-Plugins](https://github.com/CrxusDonts/DontsTool-Plugins)，你可以点击「安装全部推荐插件」一键装齐，也可以按需单独安装：
-
-| 插件 ID | 名称 | 触发关键词 | 说明 |
-| --- | --- | --- | --- |
-| `com.donts.kill-process` | 结束进程 | `kill`、`kp`、`进程` | 按名称、PID、命令行或 `:端口` 查找并结束进程，支持优雅退出与强杀 |
-| `com.donts.idea-projects` | IDEA 项目 | `idea` | 读取 IntelliJ IDEA 最近项目列表，支持模糊筛选与直接输入本地目录路径打开 |
-| `com.donts.file-search` | 文件搜索 | `file` | 在用户主目录内按需调用 Spotlight 检索本地文件，支持访达定位与 `⌘⇧C` 复制路径 |
-| `com.donts.chrome` | Google Chrome | `chrome`、`ch`、`tab`、`tabs`、`bm`、`书签`、`标签页` | 搜索、切换与关闭已打开标签页，同时检索多 Profile 书签与浏览历史 |
-| `com.donts.terminal-finder` | 终端与访达 | `tf`、`ft`、`term`、`终端` | 在访达与 Ghostty、Warp、iTerm2、系统终端等终端应用之间双向跳转当前目录 |
-| `com.example.hello-sidecar` | Hello Sidecar 示例 | `hello` | 无外部依赖的 Python 示例插件，演示多语言 Sidecar 协议与回调动作 |
-
-除了官方源，**设置 → 插件** 也支持添加自定义 GitHub 仓库（输入 `owner/repo`、仓库链接或 `catalog.json` HTTPS 地址，兼容单插件仓与多插件合集仓）。安装与更新前会校验宿主版本与 SHA-256，并在弹窗中列出插件申请的全部权限以及跨源同名冲突提示，确认后才落盘并热重载。详见 [插件使用与开发指南](docs/plugins.md)。
-
-## 安装与升级
-
-在终端运行安装脚本，无需登录 GitHub 或使用 `sudo`：
+在终端执行一行命令即可安装最新稳定版，无需登录 GitHub 或使用 `sudo`：
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/CrxusDonts/DontsTool/main/install.sh | /bin/bash
 ```
 
-脚本会拉取最新稳定版 Release，校验 SHA-256、Developer ID 签名与 Apple 公证票据后安装到 `/Applications/DontsTool.app`。指定目录或指定版本参数见 [安装与完整性校验](docs/installation.md)。
+> [!TIP]
+> 应用常驻菜单栏、不显示 Dock 图标。打开后按 <kbd>⌥</kbd> + <kbd>Space</kbd> 呼出启动器，前往 **设置 → 插件** 点击「安装全部推荐插件」即可装齐官方插件；已安装旧版的用户可直接在菜单栏点击「检查更新」升级。
 
-手动安装：
+<details>
+<summary>手动下载安装（Universal ZIP）与脚本参数</summary>
 
-1. 前往 [Releases](https://github.com/CrxusDonts/DontsTool/releases/latest) 下载 `DontsTool-版本号-macos-universal.zip`。
-2. 解压并将 `DontsTool.app` 拖入「应用程序」目录。
-3. 打开应用后按 `⌥ Space` 呼出启动器，前往 **设置 → 插件** 安装需要的官方插件。
+1. 前往 [GitHub Releases](https://github.com/CrxusDonts/DontsTool/releases/latest) 下载 `DontsTool-版本号-macos-universal.zip`。
+2. 解压后将 `DontsTool.app` 拖入「应用程序」目录（更新前先保存草稿并正常退出旧版）。
+3. 脚本支持 `--dir "$HOME/Applications"` 和 `--version v0.3.0` 等选项，校验流程详见 [安装与完整性校验](docs/installation.md)。
 
-已安装旧版的用户可以直接在菜单栏选择「检查更新」升级到最新稳定版。
+</details>
 
-### 签名与公证说明
+<a id="签名与公证说明"></a>
 
-自 `0.2.10` 起，正式发布包使用 Apple Developer ID（Team ID：`Q2K3CAKGG2`）签名、开启 Hardened Runtime 并经 Apple 公证及离线钉票，下载后可直接通过系统 Gatekeeper 打开。
+<details>
+<summary>签名与公证说明（含 0.2.9 及更早历史版本）</summary>
 
-如果使用 `0.2.9` 或更早的历史版本（采用 ad-hoc 本地签名），首次打开被系统拦截时，先尝试打开一次，再到 **系统设置 → 隐私与安全性** 选择「仍要打开」。
+- **0.2.10 及之后版本**：使用 Apple Developer ID（Team ID：`Q2K3CAKGG2`）签名、开启 Hardened Runtime 并经 Apple 公证与离线钉票，安装后可直接通过系统 Gatekeeper 打开。
+- **0.2.9 及更早历史版本**：采用 ad-hoc 本地签名；首次打开如被拦截，先尝试打开一次，再到 **系统设置 → 隐私与安全性** 选择「仍要打开」。
 
-## 权限与隐私边界
+</details>
 
-- 无遥测，不上报使用数据。
-- 不在后台监听剪贴板；仅在用户主动复制/粘贴或触发右键长按划词翻译时访问剪贴板。
-- 翻译 API 密钥、Cloudflare 同步密钥及插件私密配置存放在 macOS 登录钥匙串，不写入 `UserDefaults`、日志或本地备份包。
-- 网络请求仅在主动执行网页搜索、翻译、检查应用更新、拉取/安装插件或启用自建云同步时发生。
-- 系统权限按需申请：组合键热键与双击修饰键不需要辅助功能权限；仅 Gemini 自动发送与右键长按划词翻译需要「辅助功能」，Chrome / 终端访达插件需要「自动化」，文件搜索插件在受保护目录可按需授权「完全磁盘访问」。
-- 外部插件运行前强制校验 `manifest.json` 权限声明，未声明的宿主动作会被拦截。
+## 架构一览
 
-## 开发与构建
+DontsTool 将启动器热路径、原生工作窗口、离线便笺与云同步留在 Swift 微内核中，外部集成以独立子进程插件运行，按需安装并热重载：
 
-工程配置以 `project.yml` 为源，`DontsTool.xcodeproj` 由 XcodeGen 生成且不入库。本地开发需要 macOS 26、Xcode 26+ 和 XcodeGen：
+```mermaid
+flowchart LR
+    Trigger["快捷键唤起 (⌥ Space / 双击修饰键)"] --> Host
+
+    subgraph Host["DontsTool 微内核宿主 (Swift 6)"]
+        Core["搜索热路径 · 应用索引 · 计算 · 快速打开"]
+        Workspace["文本工具窗口 · 离线便笺 · 翻译与划词 · Gemini"]
+        Sync["Cloudflare 多端同步 · 本地备份 · Sparkle 更新"]
+        Runtime["Sidecar 运行时 · 插件源与两步校验安装器"]
+    end
+
+    Runtime -->|"NDJSON / stdio (JSON-RPC 2.0)"| Official["官方插件仓 CrxusDonts/DontsTool-Plugins (5 个官方插件)"]
+    Runtime -->|"NDJSON / stdio (JSON-RPC 2.0)"| Custom["自定义 GitHub 插件源 (任意语言)"]
+```
+
+## 内置能力
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <h3>搜索与跳转</h3>
+      <ul>
+        <li><strong>应用启动</strong>：支持英文、中文、全拼与首字母搜索，FSEvents 实时监听目录变更，按最近打开、频率或名称排序。</li>
+        <li><strong>快速打开</strong>：直接识别 <code>http(s)://</code>、<code>www.</code>、<code>~/</code>、绝对路径与 <code>file://</code>，支持在默认终端打开。</li>
+        <li><strong>网址快捷入口</strong>：支持多环境（如 <code>prod</code> / <code>test</code>）与子页面层级跳转，提供表单编辑和 JSON 批量导入导出。</li>
+        <li><strong>网页搜索</strong>：自定义搜索引擎快捷词；无本地匹配时自动回退到默认引擎。</li>
+      </ul>
+    </td>
+    <td width="50%" valign="top">
+      <h3>研发工作台</h3>
+      <ul>
+        <li><strong>独立文本工具窗口</strong>：输入 <code>json</code>、<code>b64</code>、<code>url</code>、<code>ts</code>、<code>uuid</code>、<code>md5</code>、<code>sha256</code> 新建具名窗口，支持多开、重命名与置顶。</li>
+        <li><strong>JSON 深度编辑</strong>：支持格式化、压缩、转义、代码折叠与双栏 Diff 对比。</li>
+        <li><strong>即时计算与换算</strong>：直接计算算式（如 <code>(128 + 64) * 3</code>）与常用单位换算（如 <code>10 km to mi</code>），回车复制结果。</li>
+        <li><strong>粘贴内容模式</strong>：在空搜索框粘贴文本、链接或 JSON，自动匹配适用工具并保留原文带入。</li>
+      </ul>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <h3>便笺、翻译与 AI</h3>
+      <ul>
+        <li><strong>本地离线便笺</strong>：输入 <code>note</code> 或 <code>便笺</code> 检索与新建，内置离线 Tiptap 所见即所得与 Markdown 编辑，支持粘贴图片、置顶与回收站。</li>
+        <li><strong>翻译与长按划词</strong>：输入 <code>tr</code> 打开翻译窗口，或开启全局鼠标右键长按划词；对接 OpenAI Responses 兼容接口，密钥存本机钥匙串。</li>
+        <li><strong>Gemini 提问</strong>：输入 <code>gm</code> 或 <code>gemini</code> 向本机 Gemini Mac 版发起新对话并发送问题。</li>
+      </ul>
+    </td>
+    <td width="50%" valign="top">
+      <h3>同步与更新</h3>
+      <ul>
+        <li><strong>Cloudflare 多端同步</strong>：可选部署自建 Worker（Durable Object + R2）跨 Mac 实时增量同步设置、网址、搜索引擎与便笺附件。</li>
+        <li><strong>本地完整备份</strong>：一键导出带 SHA-256 校验的 <code>.zip</code> 快照，恢复前自动留存当前状态备份。</li>
+        <li><strong>应用内自动更新</strong>：集成 Sparkle 2.10.1 与 Ed25519 签名验证，菜单栏点击「检查更新」即可升级。</li>
+        <li><strong>内置使用指南</strong>：输入 <code>help</code> 或 <code>?</code> 速查全部触发词、示例与当前快捷键。</li>
+      </ul>
+    </td>
+  </tr>
+</table>
+
+## 插件生态
+
+官方插件仓库 [CrxusDonts/DontsTool-Plugins](https://github.com/CrxusDonts/DontsTool-Plugins) 已内置在 **设置 → 插件**，包含 5 个外迁官方 Swift 插件和 1 个脚本示例插件：
+
+| 插件 | ID | 触发关键词 | 说明 |
+| --- | --- | --- | --- |
+| 结束进程 | `com.donts.kill-process` | `kill` `kp` `进程` | 按名称、PID、命令或 `:端口` 查找并结束进程，支持优雅退出与强杀 |
+| IDEA 项目 | `com.donts.idea-projects` | `idea` | 列出 IntelliJ IDEA 最近项目，支持模糊筛选与直接输入本地目录路径打开 |
+| 文件搜索 | `com.donts.file-search` | `file` | 在用户主目录内按需调用 Spotlight 检索本地文件，支持定位与复制路径 |
+| Google Chrome | `com.donts.chrome` | `chrome` `ch` `tab` `tabs` `bm` `书签` `标签页` | 搜索、切换与关闭已打开标签页，并检索多 Profile 书签与浏览历史 |
+| 终端与访达 | `com.donts.terminal-finder` | `tf` `ft` `term` `终端` | 在访达与 Ghostty、Warp、iTerm2、系统终端之间双向跳转当前目录 |
+| Hello Sidecar 示例 | `com.example.hello-sidecar` | `hello` | 无依赖 Python 示例，演示多语言 NDJSON 协议与回调动作 |
+
+- **进程隔离**：插件以独立子进程（`oneshot` / `daemon`）通过 NDJSON over stdio 通信，支持超时截断、取消与热重载，不拖慢启动器本地热路径。
+- **零后端 GitHub 源**：除官方源外，支持在设置中输入 `owner/repo`、GitHub 链接或 HTTPS `catalog.json` 添加自定义单插件仓与多插件合集仓。
+- **两步安全安装**：安装与更新前先校验宿主版本和 SHA-256，弹窗展示全部申请权限及跨源同名冲突提示，用户确认后原子落盘并立即生效。
+
+安装细节、协议规范与开发示例见 [插件使用与开发指南](docs/plugins.md)。
+
+## 键盘交互
+
+| 快捷键 | 作用 |
+| --- | --- |
+| <kbd>⌥</kbd> <kbd>Space</kbd> | 呼出或收起启动器（可在设置中修改为其他组合键或双击修饰键） |
+| <kbd>↵</kbd> | 执行当前选中结果的主操作 |
+| <kbd>⌘</kbd> <kbd>↵</kbd> | 执行次操作（访达定位文件、强制结束进程、新建独立便笺等） |
+| <kbd>⌘</kbd> <kbd>K</kbd> | 打开更多操作面板（在终端打开、无痕打开、复制链接或路径） |
+| <kbd>⌘</kbd> <kbd>⇧</kbd> <kbd>C</kbd> | 复制选中文件或路径条目的完整路径 |
+| <kbd>⌘</kbd> <kbd>V</kbd> | 在空搜索框粘贴文本、网址或 JSON，进入内容模式匹配工具 |
+| <kbd>Esc</kbd> | 依次关闭操作面板、清空粘贴内容或隐藏面板并恢复原应用焦点 |
+
+## 隐私安全
+
+> [!NOTE]
+> DontsTool 无任何遥测或统计上报，不在后台监听剪贴板；翻译 API 密钥、Cloudflare 同步密钥与插件私密配置仅保存在本机 macOS 登录钥匙串中，不写入配置文件、日志或本地备份包。
+
+- **网络最小化**：仅在主动执行网页搜索、翻译、检查应用更新、拉取/安装插件或开启自建云同步时联网。
+- **权限按需申请**：组合键与双击修饰键不需要辅助功能权限；仅 Gemini 自动发送与右键长按划词需要「辅助功能」，Chrome / 终端访达插件需要「自动化」，文件搜索插件在受保护目录可按需授权「完全磁盘访问」。
+- **插件权限门控**：宿主执行插件动作前强制校验 `manifest.json` 权限声明，未声明的动作直接拦截。
+
+## 开发文档
+
+工程由 `project.yml` 通过 XcodeGen 生成（`DontsTool.xcodeproj` 不入库），本地构建需要 macOS 26、Xcode 26+ 与 XcodeGen：
 
 ```bash
 brew install xcodegen
@@ -87,24 +167,24 @@ make build
 open build/Build/Products/Debug/DontsTool.app
 ```
 
-常用验证命令：
+<details>
+<summary>查看全部测试与验证命令</summary>
 
 ```bash
-make test            # Core 核心单元测试
+make test            # Core 核心单元测试（含插件运行时、源管理与安装器）
 make test-bridge     # 原生窗口、系统事件与 WebKit 桥接测试
 make test-editor     # 离线便笺编辑器测试并重新生成资源
-make test-updater    # 解析依赖并测试更新源签名脚本
-make test-installer  # 安装脚本完整性与回滚测试
+make test-updater    # 解析 Sparkle 依赖并验证更新源签名脚本
+make test-installer  # 安装脚本完整性、回滚与并发锁测试
 ```
 
-## 详细文档
+</details>
 
-- [插件使用与开发指南](docs/plugins.md)
-- [安装与完整性校验](docs/installation.md)
-- [网址快捷入口配置说明](docs/website-shortcuts.md)
-- [本地便笺使用指南](docs/local-notes.md)
-- [划词翻译与配置说明](docs/selection-translation.md)
-- [应用动作（Gemini 与外迁说明）](docs/application-actions.md)
-- [架构总览](docs/architecture.md)
-- [ADR 架构决策记录](docs/adr/)
-- [版本发布与打包流程](docs/releasing.md)
+| 使用指南 | 架构与工程 |
+| --- | --- |
+| [插件使用与开发指南](docs/plugins.md) | [架构总览](docs/architecture.md) |
+| [安装与完整性校验](docs/installation.md) | [ADR 架构决策记录](docs/adr/) |
+| [网址快捷入口配置说明](docs/website-shortcuts.md) | [版本发布与打包流程](docs/releasing.md) |
+| [本地便笺使用指南](docs/local-notes.md) | [仓库协作指南](AGENTS.md) |
+| [划词翻译与配置说明](docs/selection-translation.md) | |
+| [应用动作（Gemini 与 IDEA 外迁说明）](docs/application-actions.md) | |
