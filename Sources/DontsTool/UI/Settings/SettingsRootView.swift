@@ -14,6 +14,7 @@ struct SettingsRootView: View {
         case search = "搜索"
         case websites = "网址快捷入口"
         case tools = "工具"
+        case plugins = "插件"
         case translation = "翻译"
         case sync = "同步与备份"
         case index = "索引"
@@ -28,6 +29,7 @@ struct SettingsRootView: View {
             case .search: "magnifyingglass"
             case .websites: "link"
             case .tools: "wrench.and.screwdriver"
+            case .plugins: "puzzlepiece.extension"
             case .translation: "character.bubble"
             case .sync: "icloud"
             case .index: "folder"
@@ -47,8 +49,13 @@ struct SettingsRootView: View {
     let secrets: SecretStoring
     @ObservedObject var appIndex: AppIndex
     @ObservedObject var selectionTranslation: SelectionTranslationController
+    @ObservedObject var pluginManager: PluginManager
+    @ObservedObject var pluginSettings: PluginSettingsStore
+    @ObservedObject var pluginSources: PluginSourceStore
+    @ObservedObject var pluginInstaller: PluginInstaller
     @ObservedObject var navigation: SettingsNavigationState
     let onRescan: () -> Void
+    let onReloadPlugins: () -> Void
     let onHotKeyRecordingChanged: (Bool) -> Void
     let onTryGuideQuery: (String) -> Void
     let prepareBackup: @MainActor () async -> Void
@@ -160,7 +167,16 @@ struct SettingsRootView: View {
                     ToolsSettingsTabView(
                         settings: settings,
                         appIndex: appIndex,
-                        selectionTranslation: selectionTranslation
+                        selectionTranslation: selectionTranslation,
+                        onOpenPlugins: { navigation.tab = .plugins }
+                    )
+                case .plugins:
+                    PluginsSettingsTabView(
+                        pluginManager: pluginManager,
+                        pluginSettings: pluginSettings,
+                        pluginSources: pluginSources,
+                        pluginInstaller: pluginInstaller,
+                        onReloadPlugins: onReloadPlugins
                     )
                 case .translation:
                     TranslationSettingsTabView(

@@ -66,7 +66,19 @@ struct SearchCoordinatorTests {
         let usage = UsageStore(defaults: defaults)
         let notesStore = LocalNoteStore(rootURL: notesDir)
         let notesOpener = CoordinatorNoteOpener()
-        let killProvider = KillProcessProvider(settings: settings, usage: usage)
+        let homeEntryKey = "process:entry"
+        let killProvider = MockProvider(
+            id: "plugin.com.donts.kill-process",
+            displayName: "结束进程",
+            keywords: ["kill"],
+            homeEntryItem: makeItem(
+                providerID: "plugin.com.donts.kill-process",
+                group: .tool,
+                title: "结束进程",
+                score: 899,
+                canonicalKey: homeEntryKey
+            )
+        )
         let providers: [ToolProvider] = [
             NotesProvider(settings: settings, store: notesStore, opener: notesOpener, usage: usage),
             TextToolsProvider(settings: settings, toolOpener: opener),
@@ -82,20 +94,20 @@ struct SearchCoordinatorTests {
         await coordinator.waitForPendingSearch()
         let initialKeys = updates().last?.items.map(\.canonicalKey) ?? []
         #expect(initialKeys.count == 8)
-        #expect(!initialKeys.contains(KillProcessProvider.entryCanonicalKey))
+        #expect(!initialKeys.contains(homeEntryKey))
 
         // 按时间先后使用：先高频用 url，再较新用 base64，最后刚用结束进程。
         let now = Date()
         for _ in 0..<5 { usage.recordUse(of: "tool:url", at: now.addingTimeInterval(-300)) }
         usage.recordUse(of: "tool:base64", at: now.addingTimeInterval(-60))
-        usage.recordUse(of: KillProcessProvider.entryCanonicalKey, at: now.addingTimeInterval(-10))
+        usage.recordUse(of: homeEntryKey, at: now.addingTimeInterval(-10))
 
         coordinator.submit("")
         await coordinator.waitForPendingSearch()
         let recentKeys = updates().last?.items.map(\.canonicalKey) ?? []
         #expect(recentKeys.count == 8)
         #expect(Array(recentKeys.prefix(3)) == [
-            KillProcessProvider.entryCanonicalKey,
+            homeEntryKey,
             "tool:base64",
             "tool:url"
         ])
@@ -276,5 +288,24 @@ struct SearchCoordinatorTests {
 
         #expect(slow.receivedQueries.isEmpty)
         #expect(updates().last?.items.count == 1)
+    }
+
+    @Test func slowPluginPublishesPluginSearchingStatus() async {
+        let slowPlugin = MockProvider(
+            id: "plugin.com.example.demo",
+            displayName: "Demo",
+            keywords: ["demo"],
+            phase: .slow,
+            searchHandler: { _ in [makeItem(providerID: "plugin.com.example.demo", canonicalKey: "demo:1")] }
+        )
+        let coordinator = makeCoordinator([slowPlugin])
+        let updates = collect(coordinator)
+
+        coordinator.submit("demo q")
+        await coordinator.waitForPendingSearch()
+
+        #expect(updates().count == 2)
+        #expect(updates().first?.status == .searchingPlugin("Demo"))
+        #expect(updates().last?.status == .idle)
     }
 }

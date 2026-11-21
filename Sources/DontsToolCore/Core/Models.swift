@@ -84,6 +84,7 @@ public enum ItemIcon: Equatable, Sendable {
     case file(path: String)
     case symbol(name: String, tint: IconTint)
     case glyph(text: String, tint: IconTint)
+    case image(path: String)
 }
 
 public enum ActionPresentation: Sendable {
@@ -196,6 +197,7 @@ public protocol ToolProvider: AnyObject {
     var isEnabled: Bool { get set }
     var phase: SearchPhase { get }
     var supportsGlobalSearch: Bool { get }
+    var runsSlowSearchOnEmptyKeywordArgument: Bool { get }
     var statusNotice: String? { get }
 
     func search(_ context: SearchContext) async -> [SearchItem]
@@ -206,6 +208,7 @@ public protocol ToolProvider: AnyObject {
 extension ToolProvider {
     public var phase: SearchPhase { .fast }
     public var supportsGlobalSearch: Bool { true }
+    public var runsSlowSearchOnEmptyKeywordArgument: Bool { false }
     public var statusNotice: String? { nil }
     public func homeToolEntry() -> SearchItem? { nil }
 }

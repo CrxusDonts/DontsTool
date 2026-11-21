@@ -14,6 +14,8 @@ final class AppController {
         return await noteWindows?.prepareToTerminate() ?? true
     })
     private let settings = SettingsStore()
+    private let pluginSettings = PluginSettingsStore()
+    private let pluginSources = PluginSourceStore()
     private let usage = UsageStore()
     private let searchEngines = SearchEngineStore()
     private lazy var websites = WebsiteShortcutStore(reservedKeywords: { [weak self] in
@@ -29,6 +31,8 @@ final class AppController {
     private var menuBar: MenuBarController?
     private var panel: LauncherPanelController?
     private var coordinator: SearchCoordinator?
+    private var pluginManager: PluginManager?
+    private var pluginInstaller: PluginInstaller?
     private var toolWindows: ToolWindowManager?
     private var selectionTranslation: SelectionTranslationController?
     private var cloudSync: CloudSyncCoordinator?
@@ -93,35 +97,18 @@ final class AppController {
             clipboard: clipboard,
             unavailableKeywords: { [weak websites] in Set(websites?.configuration.groups.map(\.keyword) ?? []) }
         )
-        let terminalFinderProvider = TerminalFinderProvider(
-            settings: settings,
-            prefill: prefiller,
-            clipboard: clipboard,
-            feedback: toast,
-            usage: usage,
-            unavailableKeywords: { [weak self] in
-                guard let self else { return [] }
-                return Set(self.websites.configuration.groups.map(\.keyword) + self.searchEngines.configuration.engines.map(\.keyword))
-            }
-        )
-        let openInTerminal: @MainActor (URL) async throws -> Void = { [weak terminalFinderProvider] url in
-            guard let terminalFinderProvider else { return }
-            try await terminalFinderProvider.openPathInPreferredTerminal(url)
+        let terminalService = SystemTerminalFinderService()
+        let openInTerminal: @MainActor (URL) async throws -> Void = { [weak settings] url in
+            let preferred = settings?.preferredTerminalBundleID ?? ""
+            try await terminalService.openPathInPreferredTerminal(url, configuredBundleID: preferred)
         }
-        let fileProvider = FileProvider(
-            settings: settings,
-            usage: usage,
-            launcher: SystemAppLauncher(),
-            feedback: toast,
-            clipboard: clipboard,
-            openInTerminal: openInTerminal
-        )
         let translationProvider = TranslationProvider(settings: settings, toolOpener: toolWindows)
         let calculatorProvider = CalculatorProvider(settings: settings, clipboard: clipboard, feedback: toast)
+        let appLauncher = SystemAppLauncher()
         let quickOpenProvider = QuickOpenProvider(
             settings: settings,
             usage: usage,
-            launcher: SystemAppLauncher(),
+            launcher: appLauncher,
             opener: SystemURLOpener(),
             clipboard: clipboard,
             feedback: toast,
@@ -137,38 +124,6 @@ final class AppController {
             usage: usage,
             prefill: prefiller
         )
-        let ideaProvider = IDEProjectProvider(
-            index: appIndex,
-            settings: settings,
-            usage: usage,
-            feedback: toast,
-            prefill: prefiller,
-            openInTerminal: openInTerminal
-        )
-        let appLauncher = SystemAppLauncher()
-        let killProcessProvider = KillProcessProvider(
-            settings: settings,
-            prefill: prefiller,
-            clipboard: clipboard,
-            feedback: toast,
-            usage: usage,
-            revealInFinder: { appLauncher.revealInFinder($0) },
-            unavailableKeywords: { [weak self] in
-                guard let self else { return [] }
-                return Set(self.websites.configuration.groups.map(\.keyword) + self.searchEngines.configuration.engines.map(\.keyword))
-            }
-        )
-        let chromeProvider = ChromeProvider(
-            settings: settings,
-            prefill: prefiller,
-            clipboard: clipboard,
-            feedback: toast,
-            usage: usage,
-            unavailableKeywords: { [weak self] in
-                guard let self else { return [] }
-                return Set(self.websites.configuration.groups.map(\.keyword) + self.searchEngines.configuration.engines.map(\.keyword))
-            }
-        )
         let helpGuideProvider = HelpGuideProvider(
             openGuide: { [weak self] query in
                 self?.settingsWindow?.showGuide(query: query)
@@ -180,10 +135,9 @@ final class AppController {
             }
         )
         let registry = ToolRegistry(providers: [
-            appProvider, fileProvider, textProvider, webProvider, translationProvider,
+            appProvider, textProvider, webProvider, translationProvider,
             notesProvider, websiteProvider, calculatorProvider, quickOpenProvider,
-            geminiProvider, ideaProvider, killProcessProvider, chromeProvider,
-            terminalFinderProvider, helpGuideProvider
+            geminiProvider, helpGuideProvider
         ])
         let coordinator = SearchCoordinator(registry: registry, usage: usage)
         let contentProvider = ContentActionProvider(
@@ -201,13 +155,40 @@ final class AppController {
             settings: settings,
             contentProvider: contentProvider
         )
+        let hostContext = PluginHostContext(
+            settings: settings,
+            pluginSettings: pluginSettings,
+            usage: usage,
+            clipboard: clipboard,
+            urlOpener: SystemURLOpener(),
+            appLauncher: appLauncher,
+            feedback: toast,
+            prefill: prefiller,
+            secrets: secrets,
+            unavailableKeywords: { [weak self] in
+                guard let self else { return [] }
+                return Set(self.websites.configuration.groups.map(\.keyword) + self.searchEngines.configuration.engines.map(\.keyword))
+            },
+            refreshSearch: { [weak panel] in
+                panel?.refreshSearch()
+            },
+            openInTerminal: openInTerminal,
+            hostVersion: AppInfo.version
+        )
+        let pluginManager = PluginManager(
+            bundledDirectory: Bundle.main.resourceURL?.appendingPathComponent("BundledPlugins", isDirectory: true),
+            userDirectory: PluginManager.defaultUserPluginsDirectory(),
+            helpersDirectory: Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers", isDirectory: true),
+            registry: registry,
+            hostContext: hostContext
+        )
+        self.pluginManager = pluginManager
+        pluginManager.loadAll()
+
+        let pluginInstaller = PluginInstaller(pluginManager: pluginManager)
+        self.pluginInstaller = pluginInstaller
+
         prefiller.panel = panel
-        killProcessProvider.onProcessesChanged = { [weak panel] in
-            panel?.refreshSearch()
-        }
-        chromeProvider.onTabsChanged = { [weak panel] in
-            panel?.refreshSearch()
-        }
         selectionTranslation.onSuppressedMouseDown = { [weak panel] in
             panel?.hide(restorePreviousApp: false)
         }
@@ -229,7 +210,17 @@ final class AppController {
             secrets: secrets,
             appIndex: appIndex,
             selectionTranslation: selectionTranslation,
+            pluginManager: pluginManager,
+            pluginSettings: pluginSettings,
+            pluginSources: pluginSources,
+            pluginInstaller: pluginInstaller,
             onRescan: { [weak self] in self?.rescanApps() },
+            onReloadPlugins: { [weak pluginManager, weak toast] in
+                guard let pluginManager else { return }
+                pluginManager.reload()
+                let loadedCount = pluginManager.records.filter { $0.status == .loaded }.count
+                toast?.show("已重新加载 \(loadedCount) 个插件")
+            },
             onHotKeyRecordingChanged: { [weak hotKeyCoordinator] isRecording in
                 hotKeyCoordinator?.setRecording(isRecording)
             },
@@ -269,7 +260,7 @@ final class AppController {
         }
         self.coordinator = coordinator
         self.panel = panel
-        bindSearchRefresh(panel: panel, toolWindows: toolWindows)
+        bindSearchRefresh(panel: panel, toolWindows: toolWindows, registry: registry)
 
         let menuBar = MenuBarController()
         menuBar.updates = updateController
@@ -312,13 +303,16 @@ final class AppController {
         searchRefreshCancellables.removeAll()
         selectionTranslation?.shutdown()
         hotKeyCoordinator?.stop()
+        pluginManager?.shutdownSync()
         usage.flush()
         noteWindows?.shutdown()
         toolWindows?.shutdown()
     }
 
-    private func bindSearchRefresh(panel: LauncherPanelController, toolWindows: ToolWindowManager) {
+    private func bindSearchRefresh(panel: LauncherPanelController, toolWindows: ToolWindowManager, registry: ToolRegistry) {
         observeRefresh(settings.$enabledProviderIDs, panel: panel)
+        observeRefresh(registry.$pluginProviders, panel: panel)
+        observeRefresh(pluginSettings.$disabledPluginIDs, panel: panel)
         observeRefresh(notes.$notes, panel: panel)
         observeRefresh(websites.$configuration, panel: panel)
         observeRefresh(searchEngines.$configuration, panel: panel)

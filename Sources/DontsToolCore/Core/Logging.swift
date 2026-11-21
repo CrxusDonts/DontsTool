@@ -7,4 +7,5 @@ public enum Log {
     public static let provider = Logger(subsystem: subsystem, category: "provider")
     public static let translation = Logger(subsystem: subsystem, category: "translation")
     public static let index = Logger(subsystem: subsystem, category: "index")
+    public static let plugin = Logger(subsystem: subsystem, category: "plugin")
 }

@@ -59,6 +59,9 @@ struct ShortcutTag: View {
 /// 20pt 克制图标：应用/文件用真实图标，工具符号统一用单色线形图标（无彩色底块）。
 struct IconTile: View {
     let icon: ItemIcon
+    var size: CGFloat = Metrics.iconSize
+    var symbolSize: CGFloat = 14
+    var glyphSize: CGFloat = 11
 
     var body: some View {
         Group {
@@ -69,15 +72,26 @@ struct IconTile: View {
                     .scaledToFit()
             case .symbol(let name, _):
                 Image(systemName: name)
-                    .font(.system(size: 14, weight: .regular))
+                    .font(.system(size: symbolSize, weight: .regular))
                     .foregroundStyle(Theme.secondary)
             case .glyph(let text, _):
                 Text(text)
-                    .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                    .font(.system(size: glyphSize, weight: .semibold, design: .monospaced))
                     .foregroundStyle(Theme.secondary)
+            case .image(let path):
+                if let image = FileIconImage.pluginImage(for: path) {
+                    Image(nsImage: image)
+                        .resizable()
+                        .scaledToFit()
+                        .clipShape(RoundedRectangle(cornerRadius: 4))
+                } else {
+                    Image(systemName: "puzzlepiece.extension")
+                        .font(.system(size: symbolSize, weight: .regular))
+                        .foregroundStyle(Theme.secondary)
+                }
             }
         }
-        .frame(width: Metrics.iconSize, height: Metrics.iconSize)
+        .frame(width: size, height: size)
     }
 }
 

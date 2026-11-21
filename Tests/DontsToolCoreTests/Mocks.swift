@@ -10,6 +10,7 @@ final class MockProvider: ToolProvider {
     var isEnabled: Bool
     var phase: SearchPhase
     var statusNotice: String?
+    var homeEntryItem: SearchItem?
     var searchHandler: (SearchContext) async -> [SearchItem]
     private(set) var receivedQueries: [String] = []
 
@@ -21,6 +22,7 @@ final class MockProvider: ToolProvider {
         isEnabled: Bool = true,
         phase: SearchPhase = .fast,
         statusNotice: String? = nil,
+        homeEntryItem: SearchItem? = nil,
         searchHandler: @escaping (SearchContext) async -> [SearchItem] = { _ in [] }
     ) {
         self.id = id
@@ -30,7 +32,12 @@ final class MockProvider: ToolProvider {
         self.isEnabled = isEnabled
         self.phase = phase
         self.statusNotice = statusNotice
+        self.homeEntryItem = homeEntryItem
         self.searchHandler = searchHandler
+    }
+
+    func homeToolEntry() -> SearchItem? {
+        isEnabled ? homeEntryItem : nil
     }
 
     func search(_ context: SearchContext) async -> [SearchItem] {

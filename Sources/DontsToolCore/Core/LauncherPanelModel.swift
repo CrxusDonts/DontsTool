@@ -80,7 +80,7 @@ public final class LauncherPanelModel: ObservableObject {
     }
 
     public var showsEmptyState: Bool {
-        !isComposing && items.isEmpty && status != .searchingFiles
+        !isComposing && items.isEmpty && !status.isSearching
     }
 
     /// 底栏状态文本：进行中的进度优先，其次是搜索状态提示。
@@ -92,13 +92,15 @@ public final class LauncherPanelModel: ObservableObject {
             return nil
         case .searchingFiles:
             return "正在搜索文件…"
+        case .searchingPlugin(let name):
+            return "正在运行 \(name)…"
         case .message(let message):
             return message
         }
     }
 
     public var statusIsWarning: Bool {
-        !isComposing && progressMessage == nil && status != .idle && status != .searchingFiles
+        !isComposing && progressMessage == nil && status != .idle && !status.isSearching
     }
 
     public func item(at index: Int) -> SearchItem? {

@@ -1,7 +1,7 @@
 # DontsTool 架构总览
 
-> 状态：当前实现（V1 + 启动器扩展）。最后更新：2026-11-17。
-> 详细行为与验收标准见 [V1 详细设计](superpowers/specs/2026-10-18-dontstool-design.md)。
+> 状态：当前实现（微内核宿主 + 外部 Sidecar 插件与 GitHub 插件源）。最后更新：2026-11-21。
+> 详细行为与验收标准见 [V1 详细设计](superpowers/specs/2026-10-18-dontstool-design.md) 与 [ADR 0008](adr/0008-microkernel-sidecar-plugins.md)。
 
 ## 1. 项目定位
 
@@ -30,7 +30,7 @@ V1 非目标：跨平台、第三方插件市场、启动器自身账号与云�
 | UI | SwiftUI 承载全部界面内容（面板、设置、Toast），AppKit 只做薄壳（NSPanel、热键、搜索框键盘/IME、菜单栏）；设计令牌层 `UI/DesignSystem` |
 | 全局热键 | Carbon `RegisterEventHotKey` |
 | 应用启动 | `NSWorkspace` |
-| 文件搜索 | Spotlight（`mdfind`） |
+| 文件搜索 | 官方外部插件 `com.donts.file-search`（Spotlight `mdfind`，可从设置「插件」页安装） |
 | 翻译 | 用户配置的 OpenAI Responses 兼容 HTTP API（`URLSession`）；密钥存钥匙串 |
 | 开机启动 | `SMAppService` |
 | Hash | `CryptoKit` |
@@ -57,7 +57,6 @@ flowchart TD
     Field --> Coord[SearchCoordinator]
     Coord --> Registry[ToolRegistry]
     Registry --> AppP[AppProvider]
-    Registry --> FileP[FileProvider]
     Registry --> TextP[TextToolsProvider]
     Registry --> WebP[WebSearchProvider]
     Registry --> TransP[TranslationProvider]
@@ -65,30 +64,35 @@ flowchart TD
     Registry --> QuickP[QuickOpenProvider]
     Registry --> SiteP[WebsiteShortcutProvider]
     Registry --> NoteP[NotesProvider]
+    Registry --> GeminiP[GeminiProvider]
+    Registry --> GuideP[HelpGuideProvider]
+    Registry --> SidecarP[SidecarProvider / 外部插件]
+    SidecarP --> PluginMgr[PluginManager / PluginInstaller]
     NoteP --> Notes[LocalNoteWindowManager / LocalNoteSession]
     Notes --> NoteStore[LocalNoteStore / note.json / assets]
     Notes --> NoteWeb[本地 Tiptap / WKWebView]
     AppP --> Index[AppIndex]
-    FileP --> Spotlight[mdfind / Spotlight]
     TransP --> RemoteAPI[Responses API]
     CalcP --> Calc[CalculatorEngine]
     QuickP --> QParser[QuickOpenParser]
     Coord --> List[LauncherPanelModel / LauncherPanelView]
     List -->|Enter / ⌘K| Action[ItemAction]
-    Action --> System[NSWorkspace / NSPasteboard / Browser]
+    Action --> System[NSWorkspace / NSPasteboard / Terminal / Browser]
 ```
 
 | 模块 | 职责 | 关键类型 |
 | --- | --- | --- |
 | AppShell | 应用生命周期、菜单栏、浮动面板、热键、焦点管理、独立工具与便笺窗口 | `AppDelegate`、`HotKeyManager`、`ModifierDoubleTapMonitor`、`LauncherPanelController`、`MenuBarController` |
 | Core | 查询解析、路由、聚合、排序、注册、设置与使用统计、即时计算与路径识别 | `SearchCoordinator`、`QueryParser`、`ToolRegistry`、`FuzzyMatcher`、`UsageStore`、`SettingsStore`、`CalculatorEngine`、`QuickOpenParser` |
-| Index | 应用索引与文件搜索 | `AppIndex`、`FileSearchService` |
-| Providers | 各类结果提供者，统一实现 `ToolProvider` | `AppProvider`、`FileProvider`、`TextToolsProvider`、`WebSearchProvider`、`TranslationProvider`、`CalculatorProvider`、`QuickOpenProvider`、`WebsiteShortcutProvider`、`NotesProvider` |
+| Index | 本机应用索引与目录变更监听 | `AppIndex`、`AppScanner`、`AppDirectoryMonitor` |
+| Terminal | 首选终端识别与在终端中打开目录（供快速打开及外部插件复用） | `SystemTerminalFinderService`、`TerminalAppCatalog`、`TerminalAppDescriptor` |
+| Providers | 微内核内置结果提供者，统一实现 `ToolProvider` | `AppProvider`、`TextToolsProvider`、`WebSearchProvider`、`TranslationProvider`、`CalculatorProvider`、`QuickOpenProvider`、`WebsiteShortcutProvider`、`NotesProvider`、`GeminiProvider`、`HelpGuideProvider` |
+| Plugins | 微内核进程外 Sidecar 插件运行时、GitHub 插件源管理与校验安装更新器 | `PluginManager`、`SidecarProvider`、`SidecarTransport`、`PluginHostContext`、`PluginManifest`、`PluginCatalog`、`PluginSourceStore`、`PluginInstaller`、`PluginSettingsStore` |
 | Tools | 独立工具窗口与文本处理 | `ToolDefinition`、`ToolSession`、`ToolWindowManager`、`JSONDocument` |
 | Notes | 本地便笺、离线富文本、自动保存与独立附件 | `LocalNoteStore`、`LocalNoteSession`、`LocalNoteEditorBridge`、`LocalNoteWindowManager` |
 | Sync | Cloudflare 多端增量同步与本地快照备份 | `CloudSyncCoordinator`、`CloudSyncClient`、`SyncStateStore`、`BackupArchiveService` |
 | Services | 外部 API、钥匙串、登录项、系统动作 | `RemoteTranslationService`、`SecretStore`、`LoginItemManager`、`SystemAppLauncher` |
-| Settings | 设置界面、网址配置、热键录制 | `SettingsWindowController`、`SettingsRootView` |
+| Settings | 设置界面、网址配置、插件商店与源管理、热键录制 | `SettingsWindowController`、`SettingsRootView`、`PluginsSettingsTabView` |
 
 ## 5. 关键流程
 
@@ -149,7 +153,18 @@ protocol ToolProvider: AnyObject {
 3. 为它补充单元测试。
 4. 如引入新的交互模式，更新详细设计文档。
 
-V1 没有运行时插件加载、插件市场或进程隔离。增加工具需要重新编译 App；这是有意的取舍，原因见 [ADR 0002](adr/0002-built-in-modules-over-plugin-runtime.md)。
+自微内核插件化落地起（见 [ADR 0008](adr/0008-microkernel-sidecar-plugins.md)），宿主仅保留高频热路径与核心工作台（应用启动、文本工具、网页搜索、翻译、本地便笺、网址快捷入口、计算器、快速打开、Gemini 提问、使用指南、Cloudflare 多端同步、划词监听与首选终端启动服务），其余扩展以进程外 Sidecar 插件运行（NDJSON over stdio，`oneshot` / `daemon`）：
+
+- **外迁至官方仓库 `CrxusDonts/DontsTool-Plugins` 的 5 个官方插件**：
+  - `com.donts.kill-process`（结束进程：`kill` / `kp` / `进程`）
+  - `com.donts.idea-projects`（IDEA 最近项目：`idea`）
+  - `com.donts.file-search`（Spotlight 文件搜索：`file`，结果落入原生 `.file` 分组并支持定位与 `⌘⇧C` 复制路径）
+  - `com.donts.chrome`（Google Chrome 标签页、书签与历史：`chrome` / `ch` / `tab` / `bm`）
+  - `com.donts.terminal-finder`（访达与终端双向跳转：`tf` / `ft` / `term` / `终端`）
+- **GitHub `catalog.json` 插件源与安全安装流程**：
+  - `PluginSourceStore` 默认订阅官方仓库 `CrxusDonts/DontsTool-Plugins`，同时支持用户在设置「插件」页添加自定义 GitHub 仓库（`owner/repo`、仓库链接，兼容单插件脚本仓与多插件合集仓）或直接 `catalog.json` HTTPS 链接。
+  - `PluginInstaller` 按 `releases/latest/download/catalog.json` → `raw/.../main/catalog.json` → `raw/.../master/catalog.json` → 单插件 `manifest.json` 顺序拉取目录，提供两步安装流程：`inspectPackage` 下载压缩包、校验 `minHostVersion` 与 `SHA-256`、`ditto` 解压、校验无逃逸符号链接与可执行位并检查跨源同名冲突；设置页弹出权限确认 Sheet 展示申请权限（`PluginPermission.displayName`）、SHA-256 状态与冲突警告，用户显式确认后由 `commitInstall` 写入 `.install-meta.json`、原子替换至 `~/Library/Application Support/DontsTool/Plugins/<pluginID>/` 并触发 `PluginManager.reload()` 热重载生效。
+- 宿主保留 `ProviderID` 枚举值、`SettingsStore` 迁移逻辑、`CloudSync` 与 `FeatureGuideCatalog`，确保老用户设置与云同步快照完全兼容。早期 V1 内置模块取舍背景见 [ADR 0002](adr/0002-built-in-modules-over-plugin-runtime.md)。
 
 ## 7. 性能设计
 
@@ -191,7 +206,8 @@ DontsTool/
 ├── DontsTool.xcodeproj/           # 生成物，不手改
 ├── Makefile
 ├── Resources/
-│   └── Info.plist
+│   ├── Info.plist
+│   └── NotesEditor/               # 离线便笺编辑器构建产物
 ├── Sources/
 │   ├── DontsTool/                 # App target：生命周期与全部 UI
 │   │   ├── DontsToolMain.swift
@@ -212,7 +228,7 @@ DontsTool/
 │   │   │   ├── DesignSystem/          # Theme / Metrics / Motion 令牌
 │   │   │   ├── Components/            # 行、图标块、键帽、底栏、Toast
 │   │   │   ├── Launcher/              # LauncherPanelView
-│   │   │   └── Settings/              # SettingsRootView、组件、热键录制、引导
+│   │   │   └── Settings/              # SettingsRootView、插件页 PluginsSettingsTabView、组件、热键录制、引导
 │   └── DontsToolCore/             # 静态库 target：可独立测试的逻辑
 │       ├── Core/
 │       │   ├── Models.swift
@@ -236,10 +252,13 @@ DontsTool/
 │       ├── Index/
 │       │   ├── AppScanner.swift
 │       │   ├── AppIndex.swift
-│       │   └── FileSearchService.swift
+│       │   └── AppDirectoryMonitor.swift
+│       ├── Terminal/              # 首选终端识别与在终端打开服务
+│       │   ├── TerminalModels.swift
+│       │   └── SystemTerminalFinderService.swift
+│       ├── Plugins/               # Sidecar 插件运行时、manifest/catalog 契约、GitHub 插件源与安装更新器
 │       ├── Providers/
 │       │   ├── AppProvider.swift
-│       │   ├── FileProvider.swift
 │       │   ├── TextToolsProvider.swift
 │       │   ├── TextTransformers.swift
 │       │   ├── WebSearchProvider.swift
@@ -247,7 +266,10 @@ DontsTool/
 │       │   ├── CalculatorProvider.swift
 │       │   ├── QuickOpenProvider.swift
 │       │   ├── WebsiteShortcutProvider.swift
-│       │   └── NotesProvider.swift
+│       │   ├── NotesProvider.swift
+│       │   ├── GeminiProvider.swift
+│       │   ├── HelpGuideProvider.swift
+│       │   └── ContentActionProvider.swift
 │       ├── Sync/
 │       │   ├── SyncModels.swift
 │       │   ├── CloudSyncClient.swift
@@ -262,7 +284,8 @@ DontsTool/
 │           ├── SecretStore.swift
 │           └── LoginItemManager.swift
 ├── Tests/
-│   └── DontsToolCoreTests/
+│   ├── DontsToolCoreTests/
+│   └── DontsToolBridgeTests/
 ├── build/                         # 构建产物，不提交
 └── docs/
 ```
@@ -327,11 +350,9 @@ DontsTool/
 
 ## 应用动作与翻译服务
 
-`GeminiProvider` 与 `IDEProjectProvider` 仅关键词路由，不参与普通全局查询。新增内置入口通过一次性默认启用迁移接入，保留原有禁用项；执行时再次检查当前开关。
+`GeminiProvider` 仅关键词路由，不参与普通全局查询。新增内置入口通过一次性默认启用迁移接入，保留原有禁用项；执行时再次检查当前开关。IDEA 项目检索与打开已作为外部插件 `com.donts.idea-projects` 迁移至官方插件仓库 `CrxusDonts/DontsTool-Plugins`。
 
 Gemini 的 Core `GeminiConversationService` 在首次打开时等待应用完成激活；写入及发送前确认前台，用户切走会取消；发送已执行后的结果确认可在后台只读进行，仍绑定原窗口。随后验证草稿、新对话、精确问题和单次提交；Shell adapter 限定应用完整路径、PID与绑定窗口，后台 AX 遍历跳过历史列表，按已识别控件写入与提交。Esc监听仅在本次交接期间安装并清理；阶段等待和单次遍历分别有墙钟上限。用户输入只在明确执行时传递，不写URL、剪贴板或日志。
-
-IDEA Discovery actor 按当前安装版本解析最近项目 XML，缓存文件指纹，过滤不存在或远程目录；官方应用参数启动通过 NSWorkspace 完成。执行前和异步路径校验后重新检查禁用/取消状态。
 
 
 ## 多端同步与备份

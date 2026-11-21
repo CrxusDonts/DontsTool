@@ -109,6 +109,17 @@ dt_sign "$dt_sparkle/Versions/B/XPCServices/Installer.xpc"
 dt_sign "$dt_sparkle/Versions/B/Autoupdate"
 dt_sign "$dt_sparkle/Versions/B/Updater.app"
 dt_sign "$dt_sparkle"
+
+dt_helpers_dir="$dt_app/Contents/Helpers"
+if [[ -d "$dt_helpers_dir" ]]; then
+  while IFS= read -r -d '' dt_helper; do
+    for dt_arch in arm64 x86_64; do
+      lipo "$dt_helper" -verify_arch "$dt_arch"
+    done
+    dt_sign "$dt_helper"
+  done < <(find "$dt_helpers_dir" -maxdepth 1 -type f -perm -111 -print0)
+fi
+
 dt_sign "$dt_app" --entitlements "$dt_root/Resources/DontsTool.entitlements"
 
 codesign --verify --deep --strict -R="$dt_req" "$dt_app"

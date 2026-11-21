@@ -137,3 +137,43 @@ public protocol TerminalFinderControlling: Sendable {
     func openInTerminal(directory: URL, terminalBundleID: String) async throws
     func openInFinder(directory: URL) async throws
 }
+
+public extension TerminalFinderControlling {
+    /// Resolves the best terminal to open a directory in (respecting user preference, frontmost terminal, running terminals, and installed order).
+    func preferredTerminal(
+        configuredBundleID: String = "",
+        frontmostBundleID: String? = nil
+    ) -> TerminalAppDescriptor? {
+        let installed = installedTerminals()
+        guard !installed.isEmpty else { return nil }
+
+        let configured = configuredBundleID.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !configured.isEmpty, let matched = installed.first(where: { $0.matches(bundleID: configured) }) {
+            return matched
+        }
+        if let frontmostBundleID, let matched = installed.first(where: { $0.matches(bundleID: frontmostBundleID) }) {
+            return matched
+        }
+        let running = runningTerminalBundleIDs()
+        if let firstRunning = running.first,
+           let matched = installed.first(where: { $0.matches(bundleID: firstRunning) }) {
+            return matched
+        }
+        return installed.first
+    }
+
+    /// Opens a local directory (or parent directory of a file) in the preferred terminal.
+    func openPathInPreferredTerminal(
+        _ url: URL,
+        configuredBundleID: String = "",
+        frontmostBundleID: String? = nil
+    ) async throws {
+        guard let target = preferredTerminal(
+            configuredBundleID: configuredBundleID,
+            frontmostBundleID: frontmostBundleID
+        ) else {
+            throw TerminalFinderError.terminalNotInstalled("终端")
+        }
+        try await openInTerminal(directory: url, terminalBundleID: target.bundleID)
+    }
+}

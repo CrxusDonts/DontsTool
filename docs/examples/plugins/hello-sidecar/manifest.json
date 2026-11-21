@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "id": "com.example.hello-sidecar",
+  "name": "Hello Sidecar",
+  "version": "1.0.0",
+  "description": "演示外部 Sidecar 插件：支持快速输出与回调动作",
+  "keywords": ["hello"],
+  "supportsGlobalSearch": false,
+  "globalAliases": ["hello", "sidecar", "插件示例"],
+  "phase": "slow",
+  "runsOnEmptyArgument": true,
+  "priority": 30,
+  "homeEntry": {
+    "canonicalKey": "hello:entry",
+    "title": "Hello Sidecar",
+    "subtitle": "输入 hello 加内容体验外部插件协议",
+    "symbol": "puzzlepiece.extension",
+    "tint": "teal",
+    "score": 820
+  },
+  "runtime": {
+    "mode": "oneshot",
+    "command": ["/usr/bin/env", "python3", "bin/run"],
+    "timeoutMs": 1500
+  },
+  "permissions": [
+    "clipboard.write",
+    "prefill",
+    "toast",
+    "refresh"
+  ],
+  "preferences": [
+    {
+      "key": "greeting",
+      "type": "string",
+      "title": "默认问候语",
+      "required": false,
+      "defaultValue": "你好"
+    }
+  ]
+}

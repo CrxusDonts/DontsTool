@@ -3,7 +3,7 @@ import os
 import Testing
 @testable import DontsToolCore
 
-@Suite("TerminalFinder")
+@Suite("TerminalService")
 @MainActor
 struct TerminalFinderTests {
     private final class MockTerminalService: TerminalFinderControlling, @unchecked Sendable {
@@ -17,7 +17,6 @@ struct TerminalFinderTests {
             var running: [String] = []
             var finderDirectory = URL(fileURLWithPath: "/Users/test/Projects/Demo", isDirectory: true)
             var terminalDirectory = URL(fileURLWithPath: "/Users/test/Workspace/App", isDirectory: true)
-            var lastRequestedTerminalBundleID: String?
             var openedInTerminal: [(URL, String)] = []
             var openedInFinder: [URL] = []
         }
@@ -32,10 +31,7 @@ struct TerminalFinderTests {
         }
 
         func currentTerminalDirectory(preferredBundleID: String?) async throws -> URL {
-            state.withLock {
-                $0.lastRequestedTerminalBundleID = preferredBundleID
-                return $0.terminalDirectory
-            }
+            state.withLock(\.terminalDirectory)
         }
 
         func openInTerminal(directory: URL, terminalBundleID: String) async throws {
@@ -93,108 +89,49 @@ struct TerminalFinderTests {
         #expect(cwd?.hasPrefix("/") == true)
     }
 
-    // MARK: - Contextual Ranking & Terminal Preference
+    // MARK: - Preferred Terminal Selection & Opening
 
-    @Test func prioritizesFinderToTerminalWhenInvokedFromFinder() async throws {
-        let (settings, defaults, suite) = makeSettings()
-        defer { defaults.removePersistentDomain(forName: suite) }
-
+    @Test func resolvesPreferredTerminalRespectingConfiguredFrontmostRunningAndInstalledOrder() async throws {
         let service = MockTerminalService()
         service.state.withLock { $0.running = [TerminalAppCatalog.warpBundleID] }
-        let usage = UsageStore(defaults: defaults)
-        let clipboard = SpyClipboard()
-        let provider = TerminalFinderProvider(
-            settings: settings,
-            service: service,
-            clipboard: clipboard,
-            feedback: SpyFeedback(),
-            usage: usage
+
+        // 1. Explicit configured preference wins over frontmost and running.
+        #expect(
+            service.preferredTerminal(
+                configuredBundleID: TerminalAppCatalog.iterm2BundleID,
+                frontmostBundleID: TerminalAppCatalog.ghosttyBundleID
+            )?.bundleID == TerminalAppCatalog.iterm2BundleID
         )
 
-        let items = await provider.search(SearchContext(
-            rawQuery: "tf ",
-            mode: .keyword(providerID: provider.id, keyword: "tf", argument: ""),
-            frontmostBundleID: TerminalAppCatalog.finderBundleID
-        ))
+        // 2. When configured is empty, frontmost terminal wins over other running terminals.
+        #expect(
+            service.preferredTerminal(
+                configuredBundleID: "",
+                frontmostBundleID: TerminalAppCatalog.ghosttyBundleID
+            )?.bundleID == TerminalAppCatalog.ghosttyBundleID
+        )
 
-        let first = try #require(items.first)
-        #expect(first.title == "在 Warp 中打开当前访达目录")
-        #expect(first.badge?.text == "当前访达")
+        // 3. When neither configured nor frontmost is a terminal, running terminal wins.
+        #expect(
+            service.preferredTerminal(
+                configuredBundleID: "",
+                frontmostBundleID: TerminalAppCatalog.finderBundleID
+            )?.bundleID == TerminalAppCatalog.warpBundleID
+        )
 
-        // Execute primary action -> opens Finder directory in Warp and records usage
-        try await first.primaryAction?.run()
+        // 4. openPathInPreferredTerminal forwards to the resolved terminal.
+        let targetDir = URL(fileURLWithPath: "/tmp", isDirectory: true)
+        try await service.openPathInPreferredTerminal(
+            targetDir,
+            configuredBundleID: TerminalAppCatalog.iterm2BundleID
+        )
         let opened = service.state.withLock(\.openedInTerminal)
         #expect(opened.count == 1)
-        #expect(opened[0].0.path == "/Users/test/Projects/Demo")
-        #expect(opened[0].1 == TerminalAppCatalog.warpBundleID)
-        #expect(usage.record(for: TerminalFinderProvider.entryCanonicalKey)?.count == 1)
-
-        // Alternative terminal action in action palette (Ghostty)
-        let ghosttyAction = try #require(first.actions.first { $0.id == "tf.finderToTerminal.\(TerminalAppCatalog.ghosttyBundleID)" })
-        try await ghosttyAction.run()
-        #expect(service.state.withLock(\.openedInTerminal).last?.1 == TerminalAppCatalog.ghosttyBundleID)
+        #expect(opened[0].0.path == "/tmp")
+        #expect(opened[0].1 == TerminalAppCatalog.iterm2BundleID)
     }
 
-    @Test func prioritizesTerminalToFinderWhenInvokedFromGhostty() async throws {
-        let (settings, defaults, suite) = makeSettings()
-        defer { defaults.removePersistentDomain(forName: suite) }
-
-        let service = MockTerminalService()
-        let usage = UsageStore(defaults: defaults)
-        let provider = TerminalFinderProvider(
-            settings: settings,
-            service: service,
-            clipboard: SpyClipboard(),
-            feedback: SpyFeedback(),
-            usage: usage
-        )
-
-        let items = await provider.search(SearchContext(
-            rawQuery: "tf ",
-            mode: .keyword(providerID: provider.id, keyword: "tf", argument: ""),
-            frontmostBundleID: TerminalAppCatalog.ghosttyBundleID
-        ))
-
-        let first = try #require(items.first)
-        #expect(first.title == "在访达中打开Ghostty当前目录")
-        #expect(first.badge?.text == "当前终端")
-
-        try await first.primaryAction?.run()
-        #expect(service.state.withLock(\.lastRequestedTerminalBundleID) == TerminalAppCatalog.ghosttyBundleID)
-        #expect(service.state.withLock(\.openedInFinder).map(\.path) == ["/Users/test/Workspace/App"])
-        #expect(usage.record(for: TerminalFinderProvider.entryCanonicalKey)?.count == 1)
-    }
-
-    @Test func respectsPreferredTerminalSettingAndSupportsExplicitTerminalFilteringAndPaths() async throws {
-        let (settings, defaults, suite) = makeSettings()
-        defer { defaults.removePersistentDomain(forName: suite) }
-        settings.setPreferredTerminalBundleID(TerminalAppCatalog.iterm2BundleID)
-
-        let service = MockTerminalService()
-        let provider = TerminalFinderProvider(settings: settings, service: service)
-
-        #expect(provider.preferredTerminal()?.bundleID == TerminalAppCatalog.iterm2BundleID)
-
-        // Explicit terminal alias `otty` resolves Ghostty
-        let ottyItems = await provider.search(SearchContext(
-            rawQuery: "tf otty",
-            mode: .keyword(providerID: provider.id, keyword: "tf", argument: "otty")
-        ))
-        #expect(ottyItems.first?.title == "在 Ghostty 中打开当前访达目录")
-
-        // Direct path argument opens that directory in preferred terminal (iTerm2)
-        let pathItems = await provider.search(SearchContext(
-            rawQuery: "tf /tmp",
-            mode: .keyword(providerID: provider.id, keyword: "tf", argument: "/tmp")
-        ))
-        let pathItem = try #require(pathItems.first)
-        #expect(pathItem.title == "在 iTerm2 中打开 tmp")
-        try await pathItem.primaryAction?.run()
-        #expect(service.state.withLock(\.openedInTerminal).last?.0.path == "/tmp")
-        #expect(service.state.withLock(\.openedInTerminal).last?.1 == TerminalAppCatalog.iterm2BundleID)
-    }
-
-    @Test func fileAndQuickOpenProvidersExposeOpenInTerminalAction() async throws {
+    @Test func quickOpenProviderExposesOpenInTerminalAction() async throws {
         let (settings, defaults, suite) = makeSettings()
         defer { defaults.removePersistentDomain(forName: suite) }
 

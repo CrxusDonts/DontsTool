@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "sourceName": "DontsTool 示例插件源",
+  "plugins": [
+    {
+      "id": "com.example.hello-sidecar",
+      "name": "Hello Sidecar",
+      "summary": "演示外部 Sidecar 插件：支持快速输出与回调动作",
+      "version": "1.0.0",
+      "minHostVersion": "0.2.14",
+      "subpath": "plugins/hello-sidecar",
+      "official": false
+    }
+  ]
+}

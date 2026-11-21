@@ -1,0 +1,88 @@
+#!/usr/bin/env python3
+import json
+import sys
+
+
+def handle_search(params: dict) -> dict:
+    query = (params.get("query") or "").strip()
+    prefs = params.get("preferences") or {}
+    greeting = (prefs.get("greeting") or "你好").strip() or "你好"
+    text = f"{greeting}，{query}" if query else f"{greeting}，DontsTool Sidecar！"
+
+    items = [
+        {
+            "title": text,
+            "subtitle": "回车直接复制问候语（零二次进程调用）",
+            "score": 1500,
+            "canonicalKey": "hello:copy",
+            "icon": {"kind": "symbol", "value": "sparkles", "tint": "teal"},
+            "badge": {"text": "ONESHOT", "tint": "teal"},
+            "actions": [
+                {
+                    "id": "hello.copy",
+                    "title": "复制问候语",
+                    "symbol": "doc.on.doc",
+                    "presentation": "dismissThenRun",
+                    "effect": {
+                        "kind": "copy",
+                        "value": text,
+                        "toast": f"已复制：{text}",
+                        "recordUsageKey": "hello:entry",
+                    },
+                },
+                {
+                    "id": "hello.callback",
+                    "title": "触发插件回调并刷新",
+                    "symbol": "arrow.clockwise",
+                    "presentation": "keepPanelOpen",
+                    "callback": True,
+                    "payload": {"message": text},
+                },
+            ],
+        }
+    ]
+    return {"items": items, "notice": None}
+
+
+def handle_execute(params: dict) -> dict:
+    payload = params.get("payload") or {}
+    message = payload.get("message") or ""
+    return {
+        "effect": {"kind": "copy", "value": message},
+        "toast": f"回调已处理并复制：{message}",
+        "refresh": True,
+        "recordUsageKey": "hello:entry",
+    }
+
+
+def main() -> int:
+    raw = sys.stdin.readline()
+    if not raw:
+        return 0
+    req = json.loads(raw)
+    req_id = req.get("id")
+    method = req.get("method")
+    params = req.get("params") or {}
+
+    if method == "search":
+        result = handle_search(params)
+    elif method == "execute":
+        result = handle_execute(params)
+    else:
+        resp = {
+            "jsonrpc": "2.0",
+            "id": req_id,
+            "error": {"code": -32601, "message": f"Unsupported method: {method}"},
+        }
+        sys.stdout.write(json.dumps(resp, ensure_ascii=False) + "\n")
+        sys.stdout.flush()
+        return 0
+
+    resp = {"jsonrpc": "2.0", "id": req_id, "result": result}
+    sys.stdout.write(json.dumps(resp, ensure_ascii=False) + "\n")
+    sys.stdout.flush()
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -1,11 +1,22 @@
+import Combine
 import Foundation
 
 @MainActor
-public final class ToolRegistry {
-    public let providers: [ToolProvider]
+public final class ToolRegistry: ObservableObject {
+    public let builtInProviders: [ToolProvider]
+    @Published public private(set) var pluginProviders: [ToolProvider]
 
-    public init(providers: [ToolProvider]) {
-        self.providers = providers
+    public var providers: [ToolProvider] {
+        builtInProviders + pluginProviders
+    }
+
+    public init(providers: [ToolProvider], pluginProviders: [ToolProvider] = []) {
+        self.builtInProviders = providers
+        self.pluginProviders = pluginProviders
+    }
+
+    public func replacePluginProviders(_ providers: [ToolProvider]) {
+        pluginProviders = providers
     }
 
     public var enabledProviders: [ToolProvider] {

@@ -5,7 +5,15 @@ public final class SearchCoordinator {
     public enum Status: Equatable, Sendable {
         case idle
         case searchingFiles
+        case searchingPlugin(String)
         case message(String)
+
+        public var isSearching: Bool {
+            switch self {
+            case .searchingFiles, .searchingPlugin: true
+            case .idle, .message: false
+            }
+        }
     }
 
     public struct Update {
@@ -71,7 +79,16 @@ public final class SearchCoordinator {
         }
 
         let fastProviders = selected.filter { $0.phase == .fast }
-        let slowProviders = context.query.isEmpty ? [] : selected.filter { $0.phase == .slow }
+        let slowProviders: [ToolProvider]
+        if context.query.isEmpty {
+            if case .keyword = context.mode {
+                slowProviders = selected.filter { $0.phase == .slow && $0.runsSlowSearchOnEmptyKeywordArgument }
+            } else {
+                slowProviders = []
+            }
+        } else {
+            slowProviders = selected.filter { $0.phase == .slow }
+        }
 
         var fastItems: [SearchItem] = []
         var fastNotice: String?
@@ -86,9 +103,16 @@ public final class SearchCoordinator {
         }
 
         let fastMerged = merge(fastItems, context: context, allowWeb: slowProviders.isEmpty)
+        let pendingStatus: Status = if slowProviders.isEmpty {
+            fastNotice.map(Status.message) ?? .idle
+        } else if slowProviders.allSatisfy({ $0.id.hasPrefix("plugin.") }) {
+            .searchingPlugin(slowProviders[0].displayName)
+        } else {
+            .searchingFiles
+        }
         publish(
             fastMerged,
-            status: slowProviders.isEmpty ? (fastNotice.map(Status.message) ?? .idle) : .searchingFiles,
+            status: pendingStatus,
             generation: generation
         )
 

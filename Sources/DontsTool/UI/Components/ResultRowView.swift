@@ -18,7 +18,7 @@ struct ResultRowView: View {
         switch item.icon {
         case .symbol, .glyph:
             return true
-        case .application, .file:
+        case .application, .file, .image:
             return false
         }
     }
@@ -175,8 +175,7 @@ struct AppDockTileView: View {
     var body: some View {
         Button(action: onExecute) {
             HStack(spacing: 8) {
-                tileIcon
-                    .frame(width: 20, height: 20)
+                IconTile(icon: item.icon, size: 20)
                 Text(item.title)
                     .font(.system(size: 12.5, weight: isSelected ? .medium : .regular))
                     .foregroundStyle(Theme.ink)
@@ -203,24 +202,6 @@ struct AppDockTileView: View {
         .help(item.subtitle.map { "\(item.title)\n\($0)" } ?? item.title)
         .accessibilityLabel("\(item.title)，打开")
         .accessibilityAddTraits(isSelected ? .isSelected : [])
-    }
-
-    @ViewBuilder
-    private var tileIcon: some View {
-        switch item.icon {
-        case .application(let path), .file(let path):
-            Image(nsImage: FileIconImage.image(for: path))
-                .resizable()
-                .scaledToFit()
-        case .symbol(let name, _):
-            Image(systemName: name)
-                .font(.system(size: 14, weight: .regular))
-                .foregroundStyle(Theme.secondary)
-        case .glyph(let text, _):
-            Text(text)
-                .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                .foregroundStyle(Theme.secondary)
-        }
     }
 }
 
@@ -249,8 +230,7 @@ struct ToolGridTileView: View {
     var body: some View {
         Button(action: onExecute) {
             HStack(spacing: 7) {
-                tileIcon
-                    .frame(width: 18, height: 18)
+                IconTile(icon: item.icon, size: 18, symbolSize: 15, glyphSize: 11.5)
                 Text(compactTitle)
                     .font(.system(size: 12.5, weight: isSelected ? .medium : .regular))
                     .foregroundStyle(Theme.ink)
@@ -284,23 +264,5 @@ struct ToolGridTileView: View {
         .help(item.subtitle.map { "\(item.title)\n\($0)" } ?? item.title)
         .accessibilityLabel("\(item.title)，\(item.primaryAction?.title ?? "打开")")
         .accessibilityAddTraits(isSelected ? .isSelected : [])
-    }
-
-    @ViewBuilder
-    private var tileIcon: some View {
-        switch item.icon {
-        case .application(let path), .file(let path):
-            Image(nsImage: FileIconImage.image(for: path))
-                .resizable()
-                .scaledToFit()
-        case .symbol(let name, _):
-            Image(systemName: name)
-                .font(.system(size: 15, weight: .regular))
-                .foregroundStyle(Theme.secondary)
-        case .glyph(let text, _):
-            Text(text)
-                .font(.system(size: 11.5, weight: .semibold, design: .monospaced))
-                .foregroundStyle(Theme.secondary)
-        }
     }
 }
