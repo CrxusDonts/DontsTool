@@ -48,6 +48,7 @@ struct SettingsRootView: View {
     @ObservedObject var login: LoginItemManager
     let secrets: SecretStoring
     let aiService: RemoteAIChatService
+    @ObservedObject var aiConsumers: AIConsumerRegistry
     @ObservedObject var appIndex: AppIndex
     @ObservedObject var selectionTranslation: SelectionTranslationController
     @ObservedObject var pluginManager: PluginManager
@@ -178,6 +179,7 @@ struct SettingsRootView: View {
                 case .aiModels:
                     AIModelsSettingsTabView(
                         settings: settings,
+                        aiConsumers: aiConsumers,
                         secrets: secrets,
                         aiService: aiService
                     )

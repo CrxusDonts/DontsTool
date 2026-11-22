@@ -641,4 +641,55 @@ struct AIChatServiceTests {
             _ = try await errService.testConnection(for: geminiDraft, apiKey: "AIza-bad")
         }
     }
+
+    @Test func scopedRemoteAIChatServiceRoutesDistinctPluginConsumersAndFallback() async throws {
+        let suite = "ScopedAIConsumer-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+
+        let settings = SettingsStore(defaults: defaults, systemLanguageCode: "zh")
+        let secrets = MemorySecretStore()
+
+        let defaultProfile = AIModelProfile(
+            id: "p-default",
+            name: "Default OpenAI",
+            format: .openAIResponses,
+            baseURL: "https://api.openai.com/v1",
+            model: "gpt-4.1-mini"
+        )
+        let reviewerProfile = AIModelProfile(
+            id: "p-review",
+            name: "DeepSeek Reviewer",
+            format: .openAIChatCompletions,
+            baseURL: "https://api.deepseek.com/v1",
+            model: "deepseek-reasoner"
+        )
+        settings.upsertAIModelProfile(defaultProfile, makeDefault: true)
+        settings.upsertAIModelProfile(reviewerProfile)
+        settings.saveAPIKey("sk-default-secret", for: defaultProfile, secrets: secrets)
+        settings.saveAPIKey("sk-review-secret", for: reviewerProfile, secrets: secrets)
+        settings.setAIModelProfileID(reviewerProfile.id, forConsumerID: AIConsumerID.plugin("com.example.reviewer"))
+
+        let http = MockHTTPClient()
+        let baseService = RemoteAIChatService(settings: settings, secrets: secrets, http: http)
+        let reviewerService = baseService.scoped(toConsumerID: AIConsumerID.plugin("com.example.reviewer"))
+        let unboundService = baseService.scoped(toConsumerID: AIConsumerID.plugin("com.example.other"))
+
+        #expect(baseService.activeProfileName == "Default OpenAI")
+        #expect(unboundService.activeProfileName == "Default OpenAI")
+        #expect(reviewerService.activeProfileName == "DeepSeek Reviewer")
+        #expect(reviewerService.activeFormat == .openAIChatCompletions)
+
+        http.responseData = Data(#"{"choices":[{"message":{"content":"审查完成"}}]}"#.utf8)
+        let reviewAnswer = try await reviewerService.complete(messages: [AIChatMessage(role: .user, content: "Review diff")])
+        #expect(reviewAnswer == "审查完成")
+        #expect(http.requests.last?.url?.absoluteString == "https://api.deepseek.com/v1/chat/completions")
+        #expect(http.requests.last?.value(forHTTPHeaderField: "Authorization") == "Bearer sk-review-secret")
+
+        http.responseData = Data(#"{"status":"completed","output_text":"默认回复"}"#.utf8)
+        let unboundAnswer = try await unboundService.complete(messages: [AIChatMessage(role: .user, content: "Hi")])
+        #expect(unboundAnswer == "默认回复")
+        #expect(http.requests.last?.url?.absoluteString == "https://api.openai.com/v1/responses")
+        #expect(http.requests.last?.value(forHTTPHeaderField: "Authorization") == "Bearer sk-default-secret")
+    }
 }

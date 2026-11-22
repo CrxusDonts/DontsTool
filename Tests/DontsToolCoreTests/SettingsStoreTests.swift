@@ -401,4 +401,63 @@ struct SettingsStoreTests {
         #expect(reloaded.translationAPIModel == "gpt-4.1-mini")
         #expect(reloaded.aiAPIFormat == .openAIResponses)
     }
+
+    @Test func dynamicConsumerBindingsMigrateLegacyKeysPersistAndCleanUpOnProfileDeletion() throws {
+        let (defaults, name) = makeDefaults()
+        defer { defaults.removePersistentDomain(forName: name) }
+
+        let profA = AIModelProfile(
+            id: "prof-a",
+            name: "模型 A",
+            format: .gemini,
+            baseURL: "https://generativelanguage.googleapis.com",
+            model: "gemini-2.5-flash"
+        )
+        let profB = AIModelProfile(
+            id: "prof-b",
+            name: "模型 B",
+            format: .openAIResponses,
+            baseURL: "https://api.openai.com/v1",
+            model: "gpt-4.1-mini"
+        )
+        let profC = AIModelProfile(
+            id: "prof-c",
+            name: "模型 C",
+            format: .openAIChatCompletions,
+            baseURL: "https://api.deepseek.com/v1",
+            model: "deepseek-chat"
+        )
+
+        // Simulate v0.4.2 / v0.4.3 UserDefaults without dontstool.aiConsumerModelBindings
+        let profilesData = try JSONEncoder().encode([profA, profB, profC])
+        defaults.set(profilesData, forKey: "dontstool.aiModelProfiles")
+        defaults.set(profA.id, forKey: "dontstool.aiDefaultModelProfileID")
+        defaults.set(profB.id, forKey: "dontstool.aiTranslationModelProfileID")
+        defaults.set(profC.id, forKey: "dontstool.aiQuickAIModelProfileID")
+
+        let migrated = SettingsStore(defaults: defaults, systemLanguageCode: "zh")
+        #expect(migrated.aiModelProfileID(forConsumerID: AIConsumerID.translation) == profB.id)
+        #expect(migrated.aiModelProfileID(forConsumerID: AIConsumerID.legacyQuickAIPlugin) == profC.id)
+        #expect(migrated.resolvedAIConfiguration(forConsumerID: AIConsumerID.translation).profileID == profB.id)
+        #expect(migrated.resolvedAIConfiguration(forConsumerID: AIConsumerID.legacyQuickAIPlugin).profileID == profC.id)
+        #expect(defaults.data(forKey: "dontstool.aiConsumerModelBindings") != nil)
+
+        // Dynamic third-party plugin consumer binding
+        let customPluginConsumer = AIConsumerID.plugin("com.example.reviewer")
+        migrated.setAIModelProfileID(profB.id, forConsumerID: customPluginConsumer)
+        #expect(migrated.resolvedAIConfiguration(forConsumerID: customPluginConsumer).profileID == profB.id)
+        #expect(migrated.resolvedAIConfiguration(forConsumerID: "plugin.com.example.unbound").profileID == profA.id)
+
+        // Reload preserves all dynamic bindings
+        let reloaded = SettingsStore(defaults: defaults, systemLanguageCode: "zh")
+        #expect(reloaded.aiModelProfileID(forConsumerID: customPluginConsumer) == profB.id)
+        #expect(reloaded.aiModelProfileID(forConsumerID: AIConsumerID.legacyQuickAIPlugin) == profC.id)
+
+        // Deleting profB clears all bindings pointing to profB, leaving profC untouched
+        reloaded.deleteAIModelProfile(id: profB.id)
+        #expect(reloaded.aiModelProfileID(forConsumerID: customPluginConsumer) == nil)
+        #expect(reloaded.aiModelProfileID(forConsumerID: AIConsumerID.translation) == nil)
+        #expect(reloaded.aiModelProfileID(forConsumerID: AIConsumerID.legacyQuickAIPlugin) == profC.id)
+        #expect(reloaded.resolvedAIConfiguration(forConsumerID: customPluginConsumer).profileID == profA.id)
+    }
 }

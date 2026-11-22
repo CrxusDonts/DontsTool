@@ -266,6 +266,86 @@ struct QuickAIWindowTests {
         #expect(session.activeModelDisplay == "主力模型 · gpt-4.1-mini")
     }
 
+    @Test func windowManagerRoutesDifferentPluginConsumersToDistinctProfiles() throws {
+        _ = NSApplication.shared
+        let suiteName = "dontstool.quickai.consumers.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let settings = SettingsStore(defaults: defaults)
+        let secrets = InMemoryQuickAISecrets()
+
+        let defaultProfile = AIModelProfile(
+            id: "prof-default",
+            name: "默认 OpenAI",
+            format: .openAIResponses,
+            baseURL: "https://api.openai.com/v1",
+            model: "gpt-4.1-mini"
+        )
+        let quickAIProfile = AIModelProfile(
+            id: "prof-quick",
+            name: "Gemini 问答",
+            format: .gemini,
+            baseURL: "https://generativelanguage.googleapis.com",
+            model: "gemini-2.5-flash"
+        )
+        let reviewProfile = AIModelProfile(
+            id: "prof-review",
+            name: "DeepSeek 审查",
+            format: .openAIChatCompletions,
+            baseURL: "https://api.deepseek.com/v1",
+            model: "deepseek-reasoner"
+        )
+        settings.upsertAIModelProfile(defaultProfile, makeDefault: true)
+        settings.upsertAIModelProfile(quickAIProfile)
+        settings.upsertAIModelProfile(reviewProfile)
+        settings.saveAPIKey("sk-def", for: defaultProfile, secrets: secrets)
+        settings.saveAPIKey("AIza-qa", for: quickAIProfile, secrets: secrets)
+        settings.saveAPIKey("sk-rev", for: reviewProfile, secrets: secrets)
+
+        settings.setAIModelProfileID(quickAIProfile.id, forConsumerID: AIConsumerID.plugin("com.donts.quick-ai"))
+        settings.setAIModelProfileID(reviewProfile.id, forConsumerID: AIConsumerID.plugin("com.example.code-review"))
+
+        let baseService = RemoteAIChatService(settings: settings, secrets: secrets, purpose: .general)
+        let manager = QuickAIWindowManager(aiService: baseService)
+        defer { manager.shutdown() }
+
+        let builtinSession = manager.open(QuickAIRequest(title: "AI 对话", prompt: "", autoSend: false, consumerID: nil))
+        let quickSession = manager.open(QuickAIRequest(
+            title: "AI 快问",
+            prompt: "",
+            autoSend: false,
+            consumerID: AIConsumerID.plugin("com.donts.quick-ai")
+        ))
+        let reviewSession = manager.open(QuickAIRequest(
+            title: "代码审查",
+            prompt: "",
+            autoSend: false,
+            consumerID: AIConsumerID.plugin("com.example.code-review")
+        ))
+
+        #expect(builtinSession.consumerID == nil)
+        #expect(builtinSession.activeProfileName == "默认 OpenAI")
+        #expect(builtinSession.activeFormat == .openAIResponses)
+
+        #expect(quickSession.consumerID == "plugin.com.donts.quick-ai")
+        #expect(quickSession.activeProfileName == "Gemini 问答")
+        #expect(quickSession.activeFormat == .gemini)
+
+        #expect(reviewSession.consumerID == "plugin.com.example.code-review")
+        #expect(reviewSession.activeProfileName == "DeepSeek 审查")
+        #expect(reviewSession.activeFormat == .openAIChatCompletions)
+
+        let reviewController = try #require(manager.window(for: reviewSession.id)?.windowController as? QuickAIWindowController)
+        reviewController.createQuickAIWindow()
+        #expect(manager.openWindowCount == 4)
+        let spawnedReviewSession = manager.openSessions.first {
+            $0.id != builtinSession.id && $0.id != quickSession.id && $0.id != reviewSession.id
+        }
+        #expect(spawnedReviewSession?.consumerID == "plugin.com.example.code-review")
+        #expect(spawnedReviewSession?.activeProfileName == "DeepSeek 审查")
+    }
+
     private func waitUntil(
         maxAttempts: Int = 100,
         condition: @MainActor () -> Bool

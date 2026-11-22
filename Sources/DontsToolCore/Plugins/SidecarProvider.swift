@@ -156,7 +156,7 @@ public final class SidecarProvider: ToolProvider {
             rawQuery: rawQuery,
             frontmostBundleID: frontmostBundleID,
             preferences: host.resolvePreferences(for: manifest),
-            hostContext: host.resolveHostContext()
+            hostContext: host.resolveHostContext(for: manifest)
         )
 
         do {
@@ -296,7 +296,7 @@ public final class SidecarProvider: ToolProvider {
                     actionId: dto.id,
                     payload: dto.payload ?? [:],
                     preferences: host.resolvePreferences(for: manifest),
-                    hostContext: host.resolveHostContext()
+                    hostContext: host.resolveHostContext(for: manifest)
                 )
                 let paramsData = try JSONEncoder().encode(params)
                 let responseLine = try await transport.request(

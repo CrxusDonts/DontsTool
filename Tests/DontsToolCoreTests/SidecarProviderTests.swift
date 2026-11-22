@@ -568,10 +568,11 @@ struct SidecarProviderTests {
         try await items[0].actions[1].run()
         try await items[0].actions[2].run()
 
+        let expectedQuickAIConsumer = AIConsumerID.plugin("com.donts.quick-ai")
         #expect(capturedRequests == [
-            QuickAIRequest(title: "解释代码", prompt: "解释 Swift 6", systemPrompt: "请简明解释", autoSend: true),
-            QuickAIRequest(title: "AI 快问", prompt: "待确认问题", systemPrompt: nil, autoSend: false),
-            QuickAIRequest(title: nil, prompt: "", systemPrompt: nil, autoSend: false)
+            QuickAIRequest(title: "解释代码", prompt: "解释 Swift 6", systemPrompt: "请简明解释", autoSend: true, consumerID: expectedQuickAIConsumer),
+            QuickAIRequest(title: "AI 快问", prompt: "待确认问题", systemPrompt: nil, autoSend: false, consumerID: expectedQuickAIConsumer),
+            QuickAIRequest(title: nil, prompt: "", systemPrompt: nil, autoSend: false, consumerID: expectedQuickAIConsumer)
         ])
 
         // Verify permission denial when plugin lacks .openAI
@@ -593,10 +594,10 @@ struct SidecarProviderTests {
         secrets.setSecret(nil, for: SecretAccount.translationAPIKey)
         #expect(host.resolveHostContext()["aiConfigured"] == "false")
 
-        // Verify multi-profile hostContext resolves specifically from .quickAI binding and leaks zero keys
-        let transProfile = AIModelProfile(
-            id: "trans-p",
-            name: "Gemini 翻译",
+        // Verify multi-profile hostContext resolves per plugin manifest binding and leaks zero keys
+        let defaultProfile = AIModelProfile(
+            id: "default-p",
+            name: "默认 Gemini",
             format: .gemini,
             baseURL: "https://generativelanguage.googleapis.com",
             model: "gemini-2.5-flash"
@@ -608,21 +609,48 @@ struct SidecarProviderTests {
             baseURL: "https://api.deepseek.com/v1",
             model: "deepseek-chat"
         )
-        settings.upsertAIModelProfile(transProfile, makeDefault: true)
+        let reviewProfile = AIModelProfile(
+            id: "review-p",
+            name: "OpenAI 审查",
+            format: .openAIResponses,
+            baseURL: "https://api.openai.com/v1",
+            model: "gpt-4.1"
+        )
+        settings.upsertAIModelProfile(defaultProfile, makeDefault: true)
         settings.upsertAIModelProfile(qaProfile)
-        settings.saveAPIKey("AIza-TRANS-SECRET", for: transProfile, secrets: secrets)
+        settings.upsertAIModelProfile(reviewProfile)
+        settings.saveAPIKey("AIza-DEFAULT-SECRET", for: defaultProfile, secrets: secrets)
         settings.saveAPIKey("sk-QA-SECRET-DO-NOT-LEAK", for: qaProfile, secrets: secrets)
-        settings.setTranslationAIModelProfileID(transProfile.id)
+        settings.saveAPIKey("sk-REVIEW-SECRET-DO-NOT-LEAK", for: reviewProfile, secrets: secrets)
         settings.setQuickAIAIModelProfileID(qaProfile.id)
+        settings.setAIModelProfileID(reviewProfile.id, forConsumerID: AIConsumerID.plugin("com.example.reviewer"))
 
-        let multiContext = host.resolveHostContext()
-        #expect(multiContext["aiConfigured"] == "true")
-        #expect(multiContext["aiFormat"] == "openai_chat")
-        #expect(multiContext["aiModel"] == "deepseek-chat")
-        #expect(!multiContext.values.contains { $0.contains("SECRET") })
+        let quickAIManifest = makeManifest(id: "com.donts.quick-ai", keywords: ["ai"], permissions: [.openAI])
+        let reviewerManifest = makeManifest(id: "com.example.reviewer", keywords: ["rev"], permissions: [.openAI])
+        let unboundManifest = makeManifest(id: "com.example.unbound", keywords: ["ub"], permissions: [.openAI])
 
-        // Clearing only quickAI profile's key marks quickAI unconfigured even while translation profile remains configured
+        let qaContext = host.resolveHostContext(for: quickAIManifest)
+        #expect(qaContext["aiConfigured"] == "true")
+        #expect(qaContext["aiFormat"] == "openai_chat")
+        #expect(qaContext["aiModel"] == "deepseek-chat")
+        #expect(!qaContext.values.contains { $0.contains("SECRET") })
+
+        let reviewContext = host.resolveHostContext(for: reviewerManifest)
+        #expect(reviewContext["aiConfigured"] == "true")
+        #expect(reviewContext["aiFormat"] == "openai_responses")
+        #expect(reviewContext["aiModel"] == "gpt-4.1")
+        #expect(!reviewContext.values.contains { $0.contains("SECRET") })
+
+        let unboundContext = host.resolveHostContext(for: unboundManifest)
+        #expect(unboundContext["aiConfigured"] == "true")
+        #expect(unboundContext["aiFormat"] == "gemini")
+        #expect(unboundContext["aiModel"] == "gemini-2.5-flash")
+
+        #expect(host.resolveHostContext()["aiModel"] == "gemini-2.5-flash")
+
+        // Clearing only quickAI profile's key marks quickAI unconfigured while reviewer & default remain configured
         settings.saveAPIKey(nil, for: qaProfile, secrets: secrets)
-        #expect(host.resolveHostContext()["aiConfigured"] == "false")
+        #expect(host.resolveHostContext(for: quickAIManifest)["aiConfigured"] == "false")
+        #expect(host.resolveHostContext(for: reviewerManifest)["aiConfigured"] == "true")
     }
 }

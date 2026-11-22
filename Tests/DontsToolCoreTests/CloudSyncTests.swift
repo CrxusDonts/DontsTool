@@ -541,10 +541,12 @@ struct CloudSyncTests {
                 baseURL: "https://api.openai.com/v1",
                 model: "gpt-4.1-mini"
             )
+            let customPluginConsumer = AIConsumerID.plugin("com.example.code-review")
             macA.settings.upsertAIModelProfile(gemini, makeDefault: true)
             macA.settings.upsertAIModelProfile(openai)
             macA.settings.setTranslationAIModelProfileID(gemini.id)
             macA.settings.setQuickAIAIModelProfileID(openai.id)
+            macA.settings.setAIModelProfileID(openai.id, forConsumerID: customPluginConsumer)
             macA.settings.saveAPIKey("AIza-local-key-only", for: gemini, secrets: macA.secrets)
 
             #expect(await coordA.syncNow())
@@ -554,8 +556,72 @@ struct CloudSyncTests {
             #expect(macB.settings.defaultAIModelProfileID == gemini.id)
             #expect(macB.settings.translationAIModelProfileID == gemini.id)
             #expect(macB.settings.quickAIAIModelProfileID == openai.id)
+            #expect(macB.settings.aiModelProfileID(forConsumerID: customPluginConsumer) == openai.id)
             // Secrets remain local to Keychain and never sync over the wire
             #expect(macB.settings.apiKey(for: gemini, secrets: macB.secrets) == nil)
+        }
+    }
+
+    @Test func preConsumerRegistryProfilesSnapshotMigratesWithoutPingPong() async throws {
+        try await withTempDir { dir in
+            let server = InMemorySyncServer(token: "sync-secret")
+            let macA = ClientFixture(root: dir, name: "MacA-MigratedBindings")
+            defer { macA.cleanup() }
+
+            macA.settings.setCloudSyncEnabled(true)
+            macA.settings.setCloudSyncServerURL("https://sync.example.com")
+            macA.secrets.setSecret("sync-secret", for: SecretAccount.cloudSyncToken)
+
+            let coordA = CloudSyncCoordinator(
+                settings: macA.settings, websites: macA.websites, searchEngines: macA.searchEngines,
+                notes: macA.notes, secrets: macA.secrets, httpClient: server, stateStore: macA.stateStore,
+                realtimeClientFactory: nil, deviceNameProvider: { "MacA" }
+            )
+
+            // Snapshot from v0.4.2 / v0.4.3 with aiModelProfiles & legacy per-scene IDs, omitting aiConsumerModelBindings
+            let v043Payload = """
+            {
+              "aiAPIFormat": "gemini",
+              "aiModelProfiles": [
+                {
+                  "baseURL": "https://generativelanguage.googleapis.com/v1beta",
+                  "format": "gemini",
+                  "id": "p-gemini",
+                  "model": "gemini-2.5-flash",
+                  "name": "Gemini"
+                },
+                {
+                  "baseURL": "https://api.openai.com/v1",
+                  "format": "openai_responses",
+                  "id": "p-openai",
+                  "model": "gpt-4.1-mini",
+                  "name": "OpenAI"
+                }
+              ],
+              "applicationSortOrder": "recent",
+              "defaultAIModelProfileID": "p-gemini",
+              "enabledProviderIDs": ["applications", "translation"],
+              "fileSearchEnabled": true,
+              "hotKey": {"keyCode": 49, "kind": "combination", "modifiers": 2048},
+              "quickAIAIModelProfileID": "p-openai",
+              "selectionHoldDelayRawValue": 2,
+              "selectionTranslationEnabled": true,
+              "translationAIModelProfileID": "p-gemini",
+              "translationAPIBaseURL": "https://generativelanguage.googleapis.com/v1beta",
+              "translationAPIModel": "gemini-2.5-flash",
+              "translationTarget": "zh-Hans"
+            }
+            """
+            server.injectRawItem(entityKey: SyncEntityKey.settings, kind: .config, payload: v043Payload)
+
+            #expect(await coordA.syncNow())
+            #expect(macA.settings.aiModelProfileID(forConsumerID: AIConsumerID.translation) == "p-gemini")
+            #expect(macA.settings.aiModelProfileID(forConsumerID: AIConsumerID.legacyQuickAIPlugin) == "p-openai")
+            #expect(!server.pushedKeyBatches.flatMap { $0 }.contains(SyncEntityKey.settings))
+
+            let pushesAfterPull = server.totalPushes
+            #expect(await coordA.syncNow())
+            #expect(server.totalPushes == pushesAfterPull)
         }
     }
 

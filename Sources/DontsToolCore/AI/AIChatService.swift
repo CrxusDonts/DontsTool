@@ -31,6 +31,7 @@ public final class RemoteAIChatService: AIChatServicing {
     private let secrets: SecretStoring
     private let http: HTTPRequesting
     private let timeout: Duration
+    public let consumerID: String?
     public let purpose: AIUsagePurpose
 
     public init(
@@ -38,30 +39,66 @@ public final class RemoteAIChatService: AIChatServicing {
         secrets: SecretStoring,
         http: HTTPRequesting = URLSessionHTTPClient(),
         timeout: Duration = .seconds(60),
-        purpose: AIUsagePurpose = .quickAI
+        consumerID: String?
     ) {
+        let normalizedConsumer = consumerID?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let resolvedConsumer = (normalizedConsumer?.isEmpty == false) ? normalizedConsumer : nil
         self.settings = settings
         self.secrets = secrets
         self.http = http
         self.timeout = timeout
-        self.purpose = purpose
+        self.consumerID = resolvedConsumer
+        switch resolvedConsumer {
+        case AIConsumerID.translation:
+            self.purpose = .translation
+        case AIConsumerID.legacyQuickAIPlugin:
+            self.purpose = .quickAI
+        default:
+            self.purpose = .general
+        }
+    }
+
+    public convenience init(
+        settings: SettingsStore,
+        secrets: SecretStoring,
+        http: HTTPRequesting = URLSessionHTTPClient(),
+        timeout: Duration = .seconds(60),
+        purpose: AIUsagePurpose = .general
+    ) {
+        self.init(
+            settings: settings,
+            secrets: secrets,
+            http: http,
+            timeout: timeout,
+            consumerID: purpose.consumerID
+        )
+    }
+
+    public func scoped(toConsumerID consumerID: String?) -> RemoteAIChatService {
+        RemoteAIChatService(
+            settings: settings,
+            secrets: secrets,
+            http: http,
+            timeout: timeout,
+            consumerID: consumerID
+        )
     }
 
     public var isConfigured: Bool {
-        let config = settings.resolvedAIConfiguration(for: purpose)
+        let config = settings.resolvedAIConfiguration(forConsumerID: consumerID)
         return config.isEndpointComplete && settings.apiKey(for: config, secrets: secrets) != nil
     }
 
     public var activeFormat: AIAPIFormat {
-        settings.resolvedAIConfiguration(for: purpose).format
+        settings.resolvedAIConfiguration(forConsumerID: consumerID).format
     }
 
     public var activeProfileName: String? {
-        settings.resolvedAIConfiguration(for: purpose).profileName
+        settings.resolvedAIConfiguration(forConsumerID: consumerID).profileName
     }
 
     public var activeModelDisplay: String {
-        settings.resolvedAIConfiguration(for: purpose).displaySummary
+        settings.resolvedAIConfiguration(forConsumerID: consumerID).displaySummary
     }
 
     public func complete(messages: [AIChatMessage], systemPrompt: String? = nil) async throws -> String {
@@ -170,7 +207,7 @@ public final class RemoteAIChatService: AIChatServicing {
     }
 
     private func captureConfiguration(messages: [AIChatMessage]) throws -> RequestConfiguration {
-        let resolved = settings.resolvedAIConfiguration(for: purpose)
+        let resolved = settings.resolvedAIConfiguration(forConsumerID: consumerID)
         guard resolved.isEndpointComplete else {
             throw AIChatError.notConfigured
         }

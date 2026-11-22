@@ -13,6 +13,7 @@ public final class QuickAISession: ObservableObject, Identifiable {
     @Published public var isPinned: Bool = false
     @Published public private(set) var lastError: String?
 
+    public let consumerID: String?
     private let service: any AIChatServicing
     private var generation: UInt64 = 0
     private var streamTask: Task<Void, Never>?
@@ -21,11 +22,13 @@ public final class QuickAISession: ObservableObject, Identifiable {
         id: UUID = UUID(),
         title: String = "AI 快问",
         systemPrompt: String? = nil,
+        consumerID: String? = nil,
         service: any AIChatServicing
     ) {
         self.id = id
         self.title = title
         self.systemPrompt = systemPrompt
+        self.consumerID = consumerID
         self.service = service
     }
 

@@ -127,7 +127,7 @@ public final class ContentActionProvider {
             canonicalKey: key,
             actions: [
                 ItemAction(id: key, title: "在 AI 窗口中提问", presentation: .openWindow, symbol: "sparkles") {
-                    openAI(QuickAIRequest(title: "AI 快问", prompt: text, systemPrompt: nil, autoSend: false))
+                    openAI(QuickAIRequest(title: "AI 对话", prompt: text, systemPrompt: nil, autoSend: false, consumerID: nil))
                 }
             ],
             keyword: "ai"

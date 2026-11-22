@@ -325,8 +325,7 @@ public final class CloudSyncCoordinator: ObservableObject {
             settings.$preferredTerminalBundleID.dropFirst().map { _ in () }.eraseToAnyPublisher(),
             settings.$aiModelProfiles.dropFirst().map { _ in () }.eraseToAnyPublisher(),
             settings.$defaultAIModelProfileID.dropFirst().map { _ in () }.eraseToAnyPublisher(),
-            settings.$translationAIModelProfileID.dropFirst().map { _ in () }.eraseToAnyPublisher(),
-            settings.$quickAIAIModelProfileID.dropFirst().map { _ in () }.eraseToAnyPublisher()
+            settings.$aiConsumerModelBindings.dropFirst().map { _ in () }.eraseToAnyPublisher()
         ]
         Publishers.MergeMany(syncableSettingsChanges)
             .sink { [weak self] _ in self?.recordConfigChange(SyncEntityKey.settings) }

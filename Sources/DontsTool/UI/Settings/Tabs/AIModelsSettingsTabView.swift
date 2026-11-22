@@ -3,6 +3,7 @@ import SwiftUI
 
 struct AIModelsSettingsTabView: View {
     @ObservedObject var settings: SettingsStore
+    @ObservedObject var aiConsumers: AIConsumerRegistry
     let secrets: SecretStoring
     let aiService: RemoteAIChatService
 
@@ -81,7 +82,7 @@ struct AIModelsSettingsTabView: View {
         SettingsGroup(caption: "场景绑定") {
             SettingsRow(
                 title: "默认模型",
-                subtitle: "未单独指定的功能与 AI 插件默认使用"
+                subtitle: "未单独指定的内置功能、粘贴「问 AI」与插件默认使用"
             ) {
                 Picker("默认模型", selection: Binding(
                     get: { resolvedDefaultProfileID },
@@ -95,41 +96,36 @@ struct AIModelsSettingsTabView: View {
                 .pickerStyle(.menu)
                 .frame(width: 220)
             }
-            SettingsDivider()
-            SettingsRow(
-                title: "翻译与划词",
-                subtitle: "翻译窗口与全局右键长按划词使用的模型"
-            ) {
-                Picker("翻译与划词", selection: Binding(
-                    get: { settings.translationAIModelProfileID ?? "" },
-                    set: { settings.setTranslationAIModelProfileID($0.isEmpty ? nil : $0) }
-                )) {
-                    Text("跟随默认（\(defaultProfileName)）").tag("")
-                    ForEach(settings.aiModelProfiles) { profile in
-                        Text(profile.name).tag(profile.id)
+
+            if aiConsumers.consumers.isEmpty {
+                SettingsDivider()
+                Text("暂无已注册的独立消费场景；开启「翻译」或安装声明 AI 能力的插件后，将自动出现在此列表。")
+                    .font(Theme.settingSubtitleFont)
+                    .foregroundStyle(Theme.tertiary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+            } else {
+                ForEach(aiConsumers.consumers) { consumer in
+                    SettingsDivider()
+                    SettingsRow(
+                        title: consumer.title,
+                        subtitle: consumer.subtitle
+                    ) {
+                        Picker(consumer.title, selection: Binding(
+                            get: { settings.aiModelProfileID(forConsumerID: consumer.id) ?? "" },
+                            set: { settings.setAIModelProfileID($0.isEmpty ? nil : $0, forConsumerID: consumer.id) }
+                        )) {
+                            Text("跟随默认（\(defaultProfileName)）").tag("")
+                            ForEach(settings.aiModelProfiles) { profile in
+                                Text(profile.name).tag(profile.id)
+                            }
+                        }
+                        .labelsHidden()
+                        .pickerStyle(.menu)
+                        .frame(width: 220)
                     }
                 }
-                .labelsHidden()
-                .pickerStyle(.menu)
-                .frame(width: 220)
-            }
-            SettingsDivider()
-            SettingsRow(
-                title: "AI 快问",
-                subtitle: "原生 AI 对话窗口与官方「AI 快问」插件使用的模型"
-            ) {
-                Picker("AI 快问", selection: Binding(
-                    get: { settings.quickAIAIModelProfileID ?? "" },
-                    set: { settings.setQuickAIAIModelProfileID($0.isEmpty ? nil : $0) }
-                )) {
-                    Text("跟随默认（\(defaultProfileName)）").tag("")
-                    ForEach(settings.aiModelProfiles) { profile in
-                        Text(profile.name).tag(profile.id)
-                    }
-                }
-                .labelsHidden()
-                .pickerStyle(.menu)
-                .frame(width: 220)
             }
         }
     }
@@ -142,7 +138,7 @@ struct AIModelsSettingsTabView: View {
                 title: settings.aiModelProfiles.isEmpty
                     ? "尚未添加模型服务"
                     : "已配置 \(settings.aiModelProfiles.count) 套模型服务",
-                subtitle: "可为翻译、划词与 AI 快问分别绑定不同接口和模型"
+                subtitle: "可为不同内置能力与已安装的 AI 插件分别绑定接口和模型"
             ) {
                 Button {
                     editorTarget = .create
@@ -193,8 +189,9 @@ struct AIModelsSettingsTabView: View {
         let _ = secretsRevision
         let hasKey = settings.apiKey(for: profile, secrets: secrets) != nil
         let isDefault = resolvedDefaultProfileID == profile.id
-        let isTranslationBound = settings.translationAIModelProfileID == profile.id
-        let isQuickAIBound = settings.quickAIAIModelProfileID == profile.id
+        let boundConsumers = aiConsumers.consumers.filter {
+            settings.aiModelProfileID(forConsumerID: $0.id) == profile.id
+        }
         let testState = testStates[profile.id]
         let isTesting = testState == .testing
 
@@ -209,11 +206,16 @@ struct AIModelsSettingsTabView: View {
                     if isDefault {
                         SettingsBadge(text: "默认", tone: .success)
                     }
-                    if isTranslationBound {
-                        sceneCapsule("翻译")
-                    }
-                    if isQuickAIBound {
-                        sceneCapsule("AI 快问")
+                    if boundConsumers.count <= 3 {
+                        ForEach(boundConsumers) { consumer in
+                            sceneCapsule(consumer.badgeTitle)
+                        }
+                    } else {
+                        ForEach(boundConsumers.prefix(2)) { consumer in
+                            sceneCapsule(consumer.badgeTitle)
+                        }
+                        sceneCapsule("+\(boundConsumers.count - 2)")
+                            .help(boundConsumers.map(\.title).joined(separator: "、"))
                     }
                     if !hasKey {
                         warningCapsule("缺少密钥")

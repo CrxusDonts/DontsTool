@@ -12,7 +12,7 @@
 
 | 插件 ID | 名称 | 触发关键词 | 运行模式 | 备注与系统授权 |
 | --- | --- | --- | --- | --- |
-| `com.donts.quick-ai` | AI 快问 | `ai`、`ask`、`问` | `daemon` | 需宿主 `≥ 0.4.0`；申请 `openAI` 与 `prefill` 权限，复用宿主「模型服务」配置（支持独立绑定 AI 快问模型），唤起原生流式对话窗口 |
+| `com.donts.quick-ai` | AI 快问 | `ai`、`ask`、`问` | `daemon` | 需宿主 `≥ 0.4.0`；申请 `openAI` 与 `prefill` 权限，启用后自动注册到「设置 → 模型服务 → 场景绑定」，复用宿主模型配置唤醒原生流式对话窗口 |
 | `com.donts.kill-process` | 结束进程 | `kill`、`kp`、`进程` | `daemon` | 自动排除宿主与自身 PID，支持 `:端口` 查找 |
 | `com.donts.idea-projects` | IDEA 项目 | `idea` | `daemon` | 读取本机 JetBrains 最近项目 XML，支持本地目录路径 |
 | `com.donts.file-search` | 文件搜索 | `file` | `oneshot` | 调用 `/usr/bin/mdfind`；检索受保护目录可按需授「完全磁盘访问」 |
@@ -170,7 +170,7 @@ com.example.my-plugin/
 | `revealInFinder` | 在访达中显示 | `effect.kind == "revealInFinder"` |
 | `openTerminal` | 在首选终端打开 | `effect.kind == "openInTerminal"` |
 | `openApplication` | 启动本机应用 | `effect.kind == "openApplication"` |
-| `openAI` | 调用宿主 AI 对话窗口 | `effect.kind == "openAI"`（仅由宿主直连大模型，不向插件暴露 API 密钥） |
+| `openAI` | 调用宿主 AI 对话窗口 | `effect.kind == "openAI"`；声明此权限并启用插件后自动注册到「设置 → 模型服务 → 场景绑定」按插件独立绑定模型，仅由宿主直连大模型，不向插件暴露 API 密钥 |
 | `prefill` | 回填搜索框 | `effect.kind == "prefill"` 及 `homeEntry` 回填关键词 |
 | `toast` | 显示通知提示 | `effect.kind == "toast"` 或响应附带 `toast` 文案 |
 | `secrets` | 读取插件专用钥匙串密钥 | 注入 `type == "secret"` 的 `preferences` |
@@ -213,7 +213,7 @@ com.example.my-plugin/
 }
 ```
 
-`hostContext` 始终包含 `hostVersion`、`aiConfigured`（`"true"` / `"false"`）与 `aiFormat`（`"openai_responses"` / `"gemini"` / `"openai_chat"`），按「AI 快问」场景（未单独绑定时跟随默认模型）动态解析；当用户在「设置 → 通用」选择了固定首选终端时额外包含 `preferredTerminalBundleID`，在「设置 → 模型服务」配置了可用模型时额外包含 `aiModel`。`hostContext` 仅提供非敏感状态字段，严禁透传 API 密钥。
+`hostContext` 始终包含 `hostVersion`、`aiConfigured`（`"true"` / `"false"`）与 `aiFormat`（`"openai_responses"` / `"gemini"` / `"openai_chat"`），由宿主按当前插件自身消费方标识（`plugin.<manifest.id>`，未单独绑定时跟随默认模型）动态解析；当用户在「设置 → 通用」选择了固定首选终端时额外包含 `preferredTerminalBundleID`，当所解析模型配置有效时额外包含 `aiModel`。`hostContext` 仅提供非敏感状态字段，严禁透传 API 密钥。
 
 响应（`items` 最多取前 30 条）：
 

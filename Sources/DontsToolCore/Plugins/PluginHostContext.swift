@@ -66,8 +66,9 @@ public final class PluginHostContext {
         self.openAI = openAI
     }
 
-    public func resolveHostContext() -> [String: String] {
-        let aiConfig = settings.resolvedAIConfiguration(for: .quickAI)
+    public func resolveHostContext(for manifest: ResolvedPluginManifest? = nil) -> [String: String] {
+        let consumerID = manifest.map { AIConsumerID.plugin($0.id) }
+        let aiConfig = settings.resolvedAIConfiguration(forConsumerID: consumerID)
         var context: [String: String] = [
             "hostVersion": hostVersion,
             "aiFormat": aiConfig.format.rawValue
@@ -187,7 +188,8 @@ public final class PluginHostContext {
                 title: title,
                 prompt: prompt,
                 systemPrompt: systemPrompt,
-                autoSend: autoSend
+                autoSend: autoSend,
+                consumerID: AIConsumerID.plugin(manifest.id)
             ))
         case "prefill":
             try requirePermission(.prefill, for: manifest)

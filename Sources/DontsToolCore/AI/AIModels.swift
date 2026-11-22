@@ -46,6 +46,51 @@ public enum AIUsagePurpose: String, CaseIterable, Identifiable, Codable, Sendabl
         case .quickAI: "AI 快问"
         }
     }
+
+    public var consumerID: String? {
+        switch self {
+        case .general: nil
+        case .translation: AIConsumerID.translation
+        case .quickAI: AIConsumerID.legacyQuickAIPlugin
+        }
+    }
+}
+
+public enum AIConsumerID {
+    public static let translation = "builtin.translation"
+    public static let legacyQuickAIPlugin = "plugin.com.donts.quick-ai"
+
+    public static func plugin(_ pluginID: String) -> String {
+        "plugin.\(pluginID.trimmingCharacters(in: .whitespacesAndNewlines))"
+    }
+}
+
+public enum AIConsumerSource: Equatable, Hashable, Sendable {
+    case builtIn
+    case plugin(id: String)
+}
+
+public struct AIConsumerDescriptor: Identifiable, Equatable, Hashable, Sendable {
+    public let id: String
+    public let title: String
+    public let subtitle: String
+    public let source: AIConsumerSource
+    public let badgeTitle: String
+
+    public init(
+        id: String,
+        title: String,
+        subtitle: String,
+        source: AIConsumerSource,
+        badgeTitle: String? = nil
+    ) {
+        self.id = id
+        self.title = title
+        self.subtitle = subtitle
+        self.source = source
+        let trimmedBadge = badgeTitle?.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.badgeTitle = (trimmedBadge?.isEmpty == false) ? trimmedBadge! : title
+    }
 }
 
 public struct AIModelProfile: Identifiable, Codable, Equatable, Sendable {
@@ -154,17 +199,20 @@ public struct QuickAIRequest: Equatable, Sendable {
     public let prompt: String
     public let systemPrompt: String?
     public let autoSend: Bool
+    public let consumerID: String?
 
     public init(
         title: String? = nil,
         prompt: String,
         systemPrompt: String? = nil,
-        autoSend: Bool = true
+        autoSend: Bool = true,
+        consumerID: String? = nil
     ) {
         self.title = title
         self.prompt = prompt
         self.systemPrompt = systemPrompt
         self.autoSend = autoSend
+        self.consumerID = consumerID
     }
 }
 

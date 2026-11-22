@@ -12,7 +12,7 @@ protocol NativeQuickAICreating: AnyObject {
 final class QuickAIWindowManager {
     static let usageCanonicalKey = "plugin.com.donts.quick-ai.home"
 
-    private let aiService: any AIChatServicing
+    private let serviceResolver: @MainActor (String?) -> any AIChatServicing
     private let usage: UsageStore?
     private var controllers: [UUID: QuickAIWindowController] = [:]
     private var cascadePoint = NSPoint.zero
@@ -22,8 +22,23 @@ final class QuickAIWindowManager {
     var openWindowCount: Int { controllers.count }
     var openSessions: [QuickAISession] { controllers.values.map(\.session) }
 
-    init(aiService: any AIChatServicing, usage: UsageStore? = nil) {
-        self.aiService = aiService
+    convenience init(aiService: any AIChatServicing, usage: UsageStore? = nil) {
+        self.init(
+            serviceResolver: { consumerID in
+                if let consumerID, let remote = aiService as? RemoteAIChatService {
+                    return remote.scoped(toConsumerID: consumerID)
+                }
+                return aiService
+            },
+            usage: usage
+        )
+    }
+
+    init(
+        serviceResolver: @escaping @MainActor (String?) -> any AIChatServicing,
+        usage: UsageStore? = nil
+    ) {
+        self.serviceResolver = serviceResolver
         self.usage = usage
     }
 
@@ -31,10 +46,12 @@ final class QuickAIWindowManager {
     func open(_ request: QuickAIRequest) -> QuickAISession {
         let initialTitle = request.title?.trimmingCharacters(in: .whitespacesAndNewlines)
         let resolvedTitle = (initialTitle?.isEmpty == false) ? initialTitle! : "AI 快问"
+        let resolvedService = serviceResolver(request.consumerID)
         let session = QuickAISession(
             title: resolvedTitle,
             systemPrompt: request.systemPrompt,
-            service: aiService
+            consumerID: request.consumerID,
+            service: resolvedService
         )
         let controller = QuickAIWindowController(session: session, manager: self)
 
@@ -62,8 +79,8 @@ final class QuickAIWindowManager {
     }
 
     @discardableResult
-    func newWindow() -> QuickAISession {
-        open(QuickAIRequest(prompt: "", autoSend: false))
+    func newWindow(consumerID: String? = nil) -> QuickAISession {
+        open(QuickAIRequest(prompt: "", autoSend: false, consumerID: consumerID))
     }
 
     func window(for sessionID: UUID) -> NSWindow? {
@@ -131,10 +148,11 @@ final class QuickAIWindowController: NSWindowController, NSWindowDelegate, Nativ
         super.init(window: window)
         window.delegate = self
 
+        let consumerID = session.consumerID
         let rootView = QuickAIWindowView(
             session: session,
             onOpenSettings: { [weak manager] in manager?.openSettings() },
-            onNewWindow: { [weak manager] in _ = manager?.newWindow() },
+            onNewWindow: { [weak manager] in _ = manager?.newWindow(consumerID: consumerID) },
             onCloseWindow: { [weak window] in window?.performClose(nil) }
         )
         let hostingView = NSHostingView(rootView: rootView)
@@ -155,7 +173,7 @@ final class QuickAIWindowController: NSWindowController, NSWindowDelegate, Nativ
     }
 
     func createQuickAIWindow() {
-        _ = manager?.newWindow()
+        _ = manager?.newWindow(consumerID: session.consumerID)
     }
 
     func windowWillClose(_ notification: Notification) {

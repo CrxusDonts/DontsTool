@@ -211,7 +211,7 @@ struct QuickAIWindowView: View {
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(Theme.ink)
 
-                Text("请在「设置 → 模型服务」添加模型配置并填写 API 密钥。\n支持 OpenAI Responses、Gemini 原生与 OpenAI Chat Completions 三种接口格式，并可为翻译与 AI 快问分别绑定模型。")
+                Text("请在「设置 → 模型服务」添加模型配置并填写 API 密钥。\n支持 OpenAI Responses、Gemini 原生与 OpenAI Chat Completions 三种接口格式，并可按功能或插件分别绑定模型。")
                     .font(.system(size: 12.5))
                     .foregroundStyle(Theme.secondary)
                     .multilineTextAlignment(.center)

@@ -151,7 +151,7 @@ struct ContentActionProviderTests {
         }
 
         #expect(aiRequests.count == 3)
-        #expect(aiRequests.allSatisfy { $0.autoSend == false })
+        #expect(aiRequests.allSatisfy { $0.autoSend == false && $0.consumerID == nil })
         #expect(aiRequests.map(\.prompt) == ["一段待分析日志", "{\"err\":500}", "https://example.com/docs"])
     }
 }

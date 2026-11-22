@@ -35,6 +35,7 @@ final class AppController {
     private var pluginInstaller: PluginInstaller?
     private var toolWindows: ToolWindowManager?
     private var quickAIWindows: QuickAIWindowManager?
+    private var aiConsumers: AIConsumerRegistry?
     private var selectionTranslation: SelectionTranslationController?
     private var cloudSync: CloudSyncCoordinator?
     private var wakeObserver: NSObjectProtocol?
@@ -57,7 +58,7 @@ final class AppController {
             clipboard: clipboard
         )
         let translator = RemoteTranslationService(settings: settings, secrets: secrets)
-        let aiService = RemoteAIChatService(settings: settings, secrets: secrets)
+        let aiService = RemoteAIChatService(settings: settings, secrets: secrets, purpose: .general)
         let toolWindows = ToolWindowManager(settings: settings, translator: translator, usage: usage)
         self.toolWindows = toolWindows
         let quickAIWindows = QuickAIWindowManager(aiService: aiService, usage: usage)
@@ -185,6 +186,15 @@ final class AppController {
         self.pluginManager = pluginManager
         pluginManager.loadAll()
 
+        let aiConsumers = AIConsumerRegistry()
+        aiConsumers.registerBuiltInTranslationConsumer(settings: settings)
+        aiConsumers.registerPluginConsumers(
+            pluginManager: pluginManager,
+            pluginSettings: pluginSettings,
+            settings: settings
+        )
+        self.aiConsumers = aiConsumers
+
         let pluginInstaller = PluginInstaller(pluginManager: pluginManager)
         self.pluginInstaller = pluginInstaller
 
@@ -209,6 +219,7 @@ final class AppController {
             login: login,
             secrets: secrets,
             aiService: aiService,
+            aiConsumers: aiConsumers,
             appIndex: appIndex,
             selectionTranslation: selectionTranslation,
             pluginManager: pluginManager,
