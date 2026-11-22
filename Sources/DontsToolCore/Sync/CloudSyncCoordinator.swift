@@ -5,6 +5,7 @@ import Foundation
 public final class CloudSyncCoordinator: ObservableObject {
     @Published public private(set) var status: SyncStatus = .disabled
     @Published public private(set) var isRealtimeConnected = false
+    @Published public private(set) var pendingConflicts: [SyncConfigConflict] = []
 
     public var prepareNotesForSync: @MainActor () async -> Void = {}
     public var didApplyRemoteNotes: @MainActor () -> Void = {}
@@ -16,6 +17,7 @@ public final class CloudSyncCoordinator: ObservableObject {
     private let secrets: any SecretStoring
     private let httpClient: any HTTPRequesting
     private let stateStore: SyncStateStore
+    private let historyStore: SyncConfigHistoryStore
     private let realtimeClientFactory: (@Sendable (CloudSyncOrigin, String) -> any SyncRealtimeListening)?
     private let debounceDuration: Duration
     private let snapshotBuilder: CloudSyncSnapshotBuilder
@@ -61,14 +63,19 @@ public final class CloudSyncCoordinator: ObservableObject {
         self.stateStore = stateStore
         self.realtimeClientFactory = realtimeClientFactory
         self.debounceDuration = debounceDuration
+        let history = SyncConfigHistoryStore(
+            directoryURL: stateStore.fileURL.deletingLastPathComponent().appendingPathComponent("History", isDirectory: true)
+        )
+        self.historyStore = history
         let builder = CloudSyncSnapshotBuilder(
             settings: settings, websites: websites, searchEngines: searchEngines, notes: notes, stateStore: stateStore
         )
         self.snapshotBuilder = builder
         self.remoteApplier = CloudSyncRemoteApplier(
             settings: settings, websites: websites, searchEngines: searchEngines, notes: notes,
-            stateStore: stateStore, snapshotBuilder: builder, deviceNameProvider: deviceNameProvider
+            stateStore: stateStore, snapshotBuilder: builder, historyStore: history, deviceNameProvider: deviceNameProvider
         )
+        publishPendingConflicts()
         refreshIdleStatus()
     }
 
@@ -95,7 +102,7 @@ public final class CloudSyncCoordinator: ObservableObject {
         }
         startRealtimeIfNeeded(origin: credentials.origin, token: credentials.token)
         if !isSyncing {
-            status = .idle(lastSyncedAt: stateStore.state.lastSyncedAt)
+            refreshIdleStatus()
         }
         if triggerSync {
             Task { [weak self] in
@@ -135,6 +142,7 @@ public final class CloudSyncCoordinator: ObservableObject {
 
         var overallSuccess = true
         var currentTrigger: SyncTrigger? = trigger
+        var revisionConflictRetries = 0
         while let activeTrigger = currentTrigger {
             pendingSyncTrigger = nil
             do {
@@ -143,12 +151,22 @@ public final class CloudSyncCoordinator: ObservableObject {
                     token: credentials.token,
                     trigger: activeTrigger
                 )
-                status = .idle(lastSyncedAt: stateStore.state.lastSyncedAt)
+                refreshIdleStatus()
                 if highestNotifiedRemoteRevision > stateStore.state.lastPulledRevision {
                     currentTrigger = .full
                 } else {
                     currentTrigger = pendingSyncTrigger
                 }
+            } catch CloudSyncError.revisionConflict(let conflicts, _) where revisionConflictRetries < 2 {
+                revisionConflictRetries += 1
+                if let rewindTarget = conflicts.map({ max(0, $0.currentRevision - 1) }).min(),
+                   rewindTarget < stateStore.state.lastPulledRevision {
+                    stateStore.state.lastPulledRevision = rewindTarget
+                }
+                let maxRemoteRevision = conflicts.map(\.currentRevision).max() ?? (stateStore.state.lastPulledRevision + 1)
+                highestNotifiedRemoteRevision = max(highestNotifiedRemoteRevision, maxRemoteRevision)
+                try? stateStore.save()
+                currentTrigger = .full
             } catch {
                 overallSuccess = false
                 status = .failed(error.localizedDescription)
@@ -160,6 +178,115 @@ public final class CloudSyncCoordinator: ObservableObject {
         return overallSuccess
     }
 
+    public func validateConfigJSON(_ json: String, for entityKey: String) -> String? {
+        remoteApplier.validateConfigJSON(json, for: entityKey)
+    }
+
+    public func resolveConflict(entityKey: String, resolution: SyncConflictResolution) async throws {
+        guard let conflict = stateStore.state.pendingConflicts[entityKey] else { return }
+
+        let currentLocalJSON = remoteApplier.currentConfigJSON(for: entityKey)
+        let resolutionLabel: String = switch resolution {
+        case .keepLocal: "解决同步冲突前自动备份（保留本机）"
+        case .useRemote: "解决同步冲突前自动备份（采用云端）"
+        case .useMergedJSON: "解决同步冲突前自动备份（应用合并）"
+        }
+
+        switch resolution {
+        case .keepLocal:
+            if !currentLocalJSON.isEmpty {
+                historyStore.recordSnapshot(entityKey: entityKey, json: currentLocalJSON, reason: resolutionLabel)
+            }
+            stateStore.state.items[entityKey] = SyncedEntityBaseline(
+                revision: conflict.remoteRevision,
+                contentHash: conflict.remoteContentHash,
+                deleted: false,
+                updatedAt: conflict.remoteUpdatedAt
+            )
+            stateStore.state.localConfigUpdatedAt[entityKey] = max(
+                Date(),
+                conflict.remoteUpdatedAt.addingTimeInterval(1)
+            )
+            stateStore.state.pendingConflicts.removeValue(forKey: entityKey)
+            try stateStore.save()
+            publishPendingConflicts()
+            refreshIdleStatus()
+            _ = await syncNow()
+
+        case .useRemote:
+            if !currentLocalJSON.isEmpty {
+                historyStore.recordSnapshot(entityKey: entityKey, json: currentLocalJSON, reason: resolutionLabel)
+            }
+            try remoteApplier.applyConfigJSON(conflict.remoteJSON, for: entityKey) { operation in
+                try self.performLocalWrite(operation)
+            }
+            let localHash = remoteApplier.currentConfigHash(for: entityKey) ?? conflict.remoteContentHash
+            stateStore.state.items[entityKey] = SyncedEntityBaseline(
+                revision: conflict.remoteRevision,
+                contentHash: localHash,
+                deleted: false,
+                updatedAt: conflict.remoteUpdatedAt
+            )
+            stateStore.state.localConfigUpdatedAt.removeValue(forKey: entityKey)
+            stateStore.state.pendingConflicts.removeValue(forKey: entityKey)
+            try stateStore.save()
+            publishPendingConflicts()
+            refreshIdleStatus()
+
+        case .useMergedJSON(let json):
+            try remoteApplier.applyConfigJSON(json, for: entityKey) { operation in
+                try self.performLocalWrite(operation)
+            }
+            if !currentLocalJSON.isEmpty {
+                historyStore.recordSnapshot(entityKey: entityKey, json: currentLocalJSON, reason: resolutionLabel)
+            }
+            stateStore.state.items[entityKey] = SyncedEntityBaseline(
+                revision: conflict.remoteRevision,
+                contentHash: conflict.remoteContentHash,
+                deleted: false,
+                updatedAt: conflict.remoteUpdatedAt
+            )
+            stateStore.state.localConfigUpdatedAt[entityKey] = max(
+                Date(),
+                conflict.remoteUpdatedAt.addingTimeInterval(1)
+            )
+            stateStore.state.pendingConflicts.removeValue(forKey: entityKey)
+            try stateStore.save()
+            publishPendingConflicts()
+            refreshIdleStatus()
+            _ = await syncNow()
+        }
+    }
+
+    public func configHistory(for entityKey: String? = nil) -> [SyncConfigHistoryEntry] {
+        historyStore.entries(for: entityKey)
+    }
+
+    public func restoreConfigHistory(_ entry: SyncConfigHistoryEntry) async throws {
+        let currentLocalJSON = remoteApplier.currentConfigJSON(for: entry.entityKey)
+        try remoteApplier.applyConfigJSON(entry.json, for: entry.entityKey) { operation in
+            try self.performLocalWrite(operation)
+        }
+        if !currentLocalJSON.isEmpty {
+            historyStore.recordSnapshot(entityKey: entry.entityKey, json: currentLocalJSON, reason: "恢复历史快照前自动备份")
+        }
+        if let conflict = stateStore.state.pendingConflicts.removeValue(forKey: entry.entityKey) {
+            let existingRevision = stateStore.state.items[entry.entityKey]?.revision ?? 0
+            stateStore.state.items[entry.entityKey] = SyncedEntityBaseline(
+                revision: max(existingRevision, conflict.remoteRevision),
+                contentHash: conflict.remoteContentHash,
+                deleted: false,
+                updatedAt: conflict.remoteUpdatedAt
+            )
+        }
+        let anchorDate = stateStore.state.items[entry.entityKey]?.updatedAt ?? .distantPast
+        stateStore.state.localConfigUpdatedAt[entry.entityKey] = max(Date(), anchorDate.addingTimeInterval(1))
+        try stateStore.save()
+        publishPendingConflicts()
+        refreshIdleStatus()
+        _ = await syncNow()
+    }
+
     private func performSingleSyncPass(origin: CloudSyncOrigin, token: String, trigger: SyncTrigger) async throws {
         await prepareNotesForSync()
         let client = CloudSyncClient(origin: origin, token: token, httpClient: httpClient)
@@ -168,6 +295,7 @@ public final class CloudSyncCoordinator: ObservableObject {
         if previousOrigin != origin.originString {
             highestNotifiedRemoteRevision = 0
             hasPulledInActiveRealtimeSession = false
+            publishPendingConflicts()
         }
 
         // 1. Pull remote revisions first unless an active realtime session is already caught up.
@@ -179,6 +307,7 @@ public final class CloudSyncCoordinator: ObservableObject {
         if !canSkipInitialPull {
             let appliedAnyRemoteNote = try await pullRemoteChanges(with: client)
             try stateStore.save()
+            publishPendingConflicts()
             if appliedAnyRemoteNote {
                 didApplyRemoteNotes()
             }
@@ -253,8 +382,16 @@ public final class CloudSyncCoordinator: ObservableObject {
             }
 
             for mutation in batch {
+                let itemRevision: Int64
+                if let explicit = response.itemRevisions?[mutation.entityKey] {
+                    itemRevision = explicit
+                } else if let appliedIndex = response.appliedKeys.lastIndex(of: mutation.entityKey) {
+                    itemRevision = response.revision - Int64(response.appliedKeys.count - 1 - appliedIndex)
+                } else {
+                    itemRevision = stateStore.state.items[mutation.entityKey]?.revision ?? response.revision
+                }
                 stateStore.state.items[mutation.entityKey] = SyncedEntityBaseline(
-                    revision: response.revision,
+                    revision: itemRevision,
                     contentHash: mutation.contentHash,
                     deleted: mutation.deleted,
                     updatedAt: mutation.updatedAt
@@ -343,6 +480,7 @@ public final class CloudSyncCoordinator: ObservableObject {
     private func recordConfigChange(_ key: String) {
         guard !isApplyingRemote else { return }
         stateStore.state.localConfigUpdatedAt[key] = Date()
+        try? stateStore.save()
         scheduleLocalChangeSync()
     }
 
@@ -412,11 +550,25 @@ public final class CloudSyncCoordinator: ObservableObject {
         highestNotifiedRemoteRevision = 0
     }
 
+    private func publishPendingConflicts() {
+        pendingConflicts = stateStore.state.pendingConflicts.values.sorted {
+            if $0.detectedAt != $1.detectedAt {
+                return $0.detectedAt > $1.detectedAt
+            }
+            return $0.entityKey < $1.entityKey
+        }
+    }
+
     private func refreshIdleStatus() {
         if !settings.cloudSyncEnabled {
             status = .disabled
         } else if resolvedCredentials() == nil {
             status = .unconfigured
+        } else if !stateStore.state.pendingConflicts.isEmpty {
+            status = .needsResolution(
+                conflictCount: stateStore.state.pendingConflicts.count,
+                lastSyncedAt: stateStore.state.lastSyncedAt
+            )
         } else {
             status = .idle(lastSyncedAt: stateStore.state.lastSyncedAt)
         }

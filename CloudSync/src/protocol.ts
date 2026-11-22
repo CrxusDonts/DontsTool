@@ -13,8 +13,15 @@ export interface SyncMutationInput {
   deleted: boolean;
   updatedAt: string;
   contentHash: string;
+  baseRevision?: number | null;
   payload?: string | null;
   payloadBlobSha256?: string | null;
+}
+
+export interface SyncRevisionConflict {
+  entityKey: string;
+  expectedRevision: number;
+  currentRevision: number;
 }
 
 export interface SyncItemRecord {
@@ -37,6 +44,7 @@ export interface PushRequest {
 export interface PushResponse {
   revision: number;
   appliedKeys: string[];
+  itemRevisions?: Record<string, number>;
 }
 
 export interface PullResponse {
@@ -54,10 +62,12 @@ export interface HealthResponse {
 
 export class SyncRequestError extends Error {
   readonly statusCode: number;
+  readonly details?: Record<string, unknown>;
 
-  constructor(statusCode: number, message: string) {
+  constructor(statusCode: number, message: string, details?: Record<string, unknown>) {
     super(message);
     this.statusCode = statusCode;
+    this.details = details;
   }
 }
 
@@ -118,6 +128,13 @@ function validateMutation(item: unknown): asserts item is SyncMutationInput {
   }
   if (!isValidSha256(m.contentHash)) {
     throw new SyncRequestError(400, `Invalid contentHash for "${m.entityKey}".`);
+  }
+  if (
+    m.baseRevision !== undefined &&
+    m.baseRevision !== null &&
+    (typeof m.baseRevision !== "number" || !Number.isInteger(m.baseRevision) || m.baseRevision < 0)
+  ) {
+    throw new SyncRequestError(400, `Invalid baseRevision for "${m.entityKey}".`);
   }
 
   const hasInline = typeof m.payload === "string";

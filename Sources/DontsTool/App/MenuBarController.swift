@@ -1,13 +1,18 @@
 import AppKit
 import Combine
+import DontsToolCore
 
 @MainActor
 final class MenuBarController: NSObject {
     weak var updates: AppUpdateController? {
         didSet { bindUpdates() }
     }
+    weak var cloudSync: CloudSyncCoordinator? {
+        didSet { bindCloudSync() }
+    }
     var onOpenLauncher: (() -> Void)?
     var onOpenGuide: (() -> Void)?
+    var onOpenSync: (() -> Void)?
     var onQuit: (() -> Void)?
     var hotKeyDisplay = "⌥Space" {
         didSet { refreshToolTip() }
@@ -15,8 +20,11 @@ final class MenuBarController: NSObject {
 
     private var statusItem: NSStatusItem?
     private var updateMenuItem: NSMenuItem?
+    private var syncConflictMenuItem: NSMenuItem?
     private var availableUpdateVersion: String?
+    private var pendingConflictCount = 0
     private var updateCancellable: AnyCancellable?
+    private var syncConflictCancellable: AnyCancellable?
 
     func install() {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -36,6 +44,11 @@ final class MenuBarController: NSObject {
         update.target = updates
         menu.addItem(update)
         updateMenuItem = update
+        let conflictItem = NSMenuItem(title: "同步冲突待处理…", action: #selector(openSync), keyEquivalent: "")
+        conflictItem.target = self
+        conflictItem.isHidden = true
+        menu.addItem(conflictItem)
+        syncConflictMenuItem = conflictItem
         menu.addItem(.separator())
         let quit = NSMenuItem(title: "退出 DontsTool", action: #selector(quit), keyEquivalent: "q")
         quit.target = self
@@ -44,6 +57,7 @@ final class MenuBarController: NSObject {
         item.menu = menu
         statusItem = item
         bindUpdates()
+        bindCloudSync()
         refreshToolTip()
     }
 
@@ -58,12 +72,35 @@ final class MenuBarController: NSObject {
             }
     }
 
+    private func bindCloudSync() {
+        syncConflictCancellable?.cancel()
+        syncConflictCancellable = cloudSync?.$pendingConflicts
+            .sink { [weak self] conflicts in
+                guard let self else { return }
+                self.pendingConflictCount = conflicts.count
+                if conflicts.isEmpty {
+                    self.syncConflictMenuItem?.isHidden = true
+                } else {
+                    self.syncConflictMenuItem?.title = "同步冲突待处理 (\(conflicts.count))…"
+                    self.syncConflictMenuItem?.isHidden = false
+                }
+                self.refreshToolTip()
+            }
+    }
+
     private func refreshToolTip() {
-        let base = "DontsTool（\(hotKeyDisplay)）"
-        statusItem?.button?.toolTip = availableUpdateVersion.map { "\(base) · 有新版本 \($0)" } ?? base
+        var parts = ["DontsTool（\(hotKeyDisplay)）"]
+        if pendingConflictCount > 0 {
+            parts.append("\(pendingConflictCount) 项同步冲突待处理")
+        }
+        if let availableUpdateVersion {
+            parts.append("有新版本 \(availableUpdateVersion)")
+        }
+        statusItem?.button?.toolTip = parts.joined(separator: " · ")
     }
 
     @objc private func openLauncher() { onOpenLauncher?() }
     @objc private func openGuide() { onOpenGuide?() }
+    @objc private func openSync() { onOpenSync?() }
     @objc private func quit() { onQuit?() }
 }

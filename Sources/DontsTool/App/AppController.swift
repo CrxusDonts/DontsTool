@@ -291,8 +291,10 @@ final class AppController {
 
         let menuBar = MenuBarController()
         menuBar.updates = updateController
+        menuBar.cloudSync = cloudSync
         menuBar.onOpenLauncher = { [weak panel] in panel?.toggle() }
         menuBar.onOpenGuide = { [weak settingsWindow] in settingsWindow?.showGuide() }
+        menuBar.onOpenSync = { [weak settingsWindow] in settingsWindow?.showSync() }
         menuBar.onQuit = { NSApp.terminate(nil) }
         menuBar.hotKeyDisplay = HotKeyFormatter.displayString(for: settings.hotKey)
         menuBar.install()

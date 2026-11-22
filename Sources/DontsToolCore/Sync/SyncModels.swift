@@ -143,6 +143,7 @@ public struct SyncMutationInput: Codable, Equatable, Sendable {
     public let deleted: Bool
     public let updatedAt: Date
     public let contentHash: String
+    public let baseRevision: Int64?
     public let payload: String?
     public let payloadBlobSha256: String?
 
@@ -152,6 +153,7 @@ public struct SyncMutationInput: Codable, Equatable, Sendable {
         deleted: Bool,
         updatedAt: Date,
         contentHash: String,
+        baseRevision: Int64? = nil,
         payload: String? = nil,
         payloadBlobSha256: String? = nil
     ) {
@@ -160,8 +162,150 @@ public struct SyncMutationInput: Codable, Equatable, Sendable {
         self.deleted = deleted
         self.updatedAt = updatedAt
         self.contentHash = contentHash
+        self.baseRevision = baseRevision
         self.payload = payload
         self.payloadBlobSha256 = payloadBlobSha256
+    }
+}
+
+public struct SyncRevisionConflict: Codable, Equatable, Sendable {
+    public let entityKey: String
+    public let expectedRevision: Int64
+    public let currentRevision: Int64
+
+    public init(entityKey: String, expectedRevision: Int64, currentRevision: Int64) {
+        self.entityKey = entityKey
+        self.expectedRevision = expectedRevision
+        self.currentRevision = currentRevision
+    }
+}
+
+public struct SyncConfigConflict: Codable, Equatable, Identifiable, Sendable {
+    public enum Reason: String, Codable, Equatable, Sendable {
+        case concurrentModification
+        case initialDivergence
+        case remoteDowngradeGuard
+    }
+
+    public var id: String { entityKey }
+    public let entityKey: String
+    public let reason: Reason
+    public let localJSON: String
+    public let remoteJSON: String
+    public let localUpdatedAt: Date?
+    public let remoteRevision: Int64
+    public let remoteUpdatedAt: Date
+    public let remoteContentHash: String
+    public let remoteDeviceId: String
+    public let detectedAt: Date
+
+    public init(
+        entityKey: String,
+        reason: Reason,
+        localJSON: String,
+        remoteJSON: String,
+        localUpdatedAt: Date?,
+        remoteRevision: Int64,
+        remoteUpdatedAt: Date,
+        remoteContentHash: String,
+        remoteDeviceId: String,
+        detectedAt: Date = Date()
+    ) {
+        self.entityKey = entityKey
+        self.reason = reason
+        self.localJSON = localJSON
+        self.remoteJSON = remoteJSON
+        self.localUpdatedAt = localUpdatedAt
+        self.remoteRevision = remoteRevision
+        self.remoteUpdatedAt = remoteUpdatedAt
+        self.remoteContentHash = remoteContentHash
+        self.remoteDeviceId = remoteDeviceId
+        self.detectedAt = detectedAt
+    }
+
+    public var displayTitle: String {
+        switch entityKey {
+        case SyncEntityKey.settings: "常规与模型设置"
+        case SyncEntityKey.searchEngines: "搜索引擎"
+        case SyncEntityKey.websites: "网址快捷入口"
+        default: entityKey
+        }
+    }
+
+    public var reasonSummary: String {
+        switch reason {
+        case .concurrentModification:
+            "本机和云端在同步前都修改过此配置，为避免互相覆盖已暂停自动合并"
+        case .initialDivergence:
+            "首次接入时本机已有自定义配置，且与云端版本不一致"
+        case .remoteDowngradeGuard:
+            "拦截到云端发来较旧时间或缺少模型配置字段的快照，疑似旧版本覆盖"
+        }
+    }
+}
+
+public enum SyncConflictResolution: Equatable, Sendable {
+    case keepLocal
+    case useRemote
+    case useMergedJSON(String)
+}
+
+public enum SyncFieldChoice: String, CaseIterable, Equatable, Sendable {
+    case local
+    case remote
+}
+
+public struct SyncConfigFieldDiff: Identifiable, Equatable, Sendable {
+    public var id: String { key }
+    public let key: String
+    public let displayName: String
+    public let kind: JSONDifference.Kind
+    public let localPreview: String
+    public let remotePreview: String
+
+    public init(
+        key: String,
+        displayName: String,
+        kind: JSONDifference.Kind,
+        localPreview: String,
+        remotePreview: String
+    ) {
+        self.key = key
+        self.displayName = displayName
+        self.kind = kind
+        self.localPreview = localPreview
+        self.remotePreview = remotePreview
+    }
+}
+
+public struct SyncConfigHistoryEntry: Codable, Equatable, Identifiable, Sendable {
+    public let id: String
+    public let entityKey: String
+    public let savedAt: Date
+    public let reason: String
+    public let json: String
+
+    public init(
+        id: String = UUID().uuidString,
+        entityKey: String,
+        savedAt: Date = Date(),
+        reason: String,
+        json: String
+    ) {
+        self.id = id
+        self.entityKey = entityKey
+        self.savedAt = savedAt
+        self.reason = reason
+        self.json = json
+    }
+
+    public var displayTitle: String {
+        switch entityKey {
+        case SyncEntityKey.settings: "常规与模型设置"
+        case SyncEntityKey.searchEngines: "搜索引擎"
+        case SyncEntityKey.websites: "网址快捷入口"
+        default: entityKey
+        }
     }
 }
 
@@ -212,10 +356,12 @@ public struct SyncPushRequest: Codable, Equatable, Sendable {
 public struct SyncPushResponse: Codable, Equatable, Sendable {
     public let revision: Int64
     public let appliedKeys: [String]
+    public let itemRevisions: [String: Int64]?
 
-    public init(revision: Int64, appliedKeys: [String]) {
+    public init(revision: Int64, appliedKeys: [String], itemRevisions: [String: Int64]? = nil) {
         self.revision = revision
         self.appliedKeys = appliedKeys
+        self.itemRevisions = itemRevisions
     }
 }
 
@@ -277,6 +423,8 @@ public struct SyncStateSnapshot: Codable, Equatable, Sendable {
     public var items: [String: SyncedEntityBaseline]
     public var localConfigUpdatedAt: [String: Date]
     public var knownRemoteBlobHashes: Set<String>
+    public var pendingConflicts: [String: SyncConfigConflict]
+    public var preservedUnknownSettingsJSON: String?
 
     private enum CodingKeys: String, CodingKey {
         case schemaVersion
@@ -286,6 +434,8 @@ public struct SyncStateSnapshot: Codable, Equatable, Sendable {
         case items
         case localConfigUpdatedAt
         case knownRemoteBlobHashes
+        case pendingConflicts
+        case preservedUnknownSettingsJSON
     }
 
     public init(
@@ -295,7 +445,9 @@ public struct SyncStateSnapshot: Codable, Equatable, Sendable {
         lastSyncedAt: Date? = nil,
         items: [String: SyncedEntityBaseline] = [:],
         localConfigUpdatedAt: [String: Date] = [:],
-        knownRemoteBlobHashes: Set<String> = []
+        knownRemoteBlobHashes: Set<String> = [],
+        pendingConflicts: [String: SyncConfigConflict] = [:],
+        preservedUnknownSettingsJSON: String? = nil
     ) {
         self.schemaVersion = schemaVersion
         self.serverOrigin = serverOrigin
@@ -304,6 +456,8 @@ public struct SyncStateSnapshot: Codable, Equatable, Sendable {
         self.items = items
         self.localConfigUpdatedAt = localConfigUpdatedAt
         self.knownRemoteBlobHashes = knownRemoteBlobHashes
+        self.pendingConflicts = pendingConflicts
+        self.preservedUnknownSettingsJSON = preservedUnknownSettingsJSON
     }
 
     public init(from decoder: Decoder) throws {
@@ -315,6 +469,8 @@ public struct SyncStateSnapshot: Codable, Equatable, Sendable {
         items = try container.decode([String: SyncedEntityBaseline].self, forKey: .items)
         localConfigUpdatedAt = try container.decode([String: Date].self, forKey: .localConfigUpdatedAt)
         knownRemoteBlobHashes = try container.decodeIfPresent(Set<String>.self, forKey: .knownRemoteBlobHashes) ?? []
+        pendingConflicts = try container.decodeIfPresent([String: SyncConfigConflict].self, forKey: .pendingConflicts) ?? [:]
+        preservedUnknownSettingsJSON = try container.decodeIfPresent(String.self, forKey: .preservedUnknownSettingsJSON)
     }
 }
 
@@ -323,6 +479,7 @@ public enum SyncStatus: Equatable, Sendable {
     case unconfigured
     case idle(lastSyncedAt: Date?)
     case syncing
+    case needsResolution(conflictCount: Int, lastSyncedAt: Date?)
     case failed(String)
 }
 

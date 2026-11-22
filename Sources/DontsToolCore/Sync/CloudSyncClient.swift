@@ -3,6 +3,7 @@ import Foundation
 public enum CloudSyncError: LocalizedError, Equatable {
     case unauthorized
     case conflict(String)
+    case revisionConflict(conflicts: [SyncRevisionConflict], message: String)
     case payloadTooLarge
     case serverError(statusCode: Int, message: String)
     case invalidResponse
@@ -13,6 +14,8 @@ public enum CloudSyncError: LocalizedError, Equatable {
             "同步认证失败，请检查同步密钥（Sync Token）是否正确。"
         case .conflict(let message):
             "同步数据依赖异常：\(message)"
+        case .revisionConflict(_, let message):
+            message.isEmpty ? "同步版本已过期，存在远端更新冲突。" : "同步版本冲突：\(message)"
         case .payloadTooLarge:
             "单条同步内容超出大小限制（最大 20 MB）。"
         case .serverError(let statusCode, let message):
@@ -103,12 +106,26 @@ public struct CloudSyncClient: Sendable {
         case 401, 403:
             throw CloudSyncError.unauthorized
         case 409:
-            throw CloudSyncError.conflict(serverMessage(from: data))
+            let errorEnvelope = try? SyncJSON.makeDecoder().decode(Sync409ResponseBody.self, from: data)
+            let message = errorEnvelope?.error ?? serverMessage(from: data)
+            if errorEnvelope?.code == "revision_conflict" {
+                throw CloudSyncError.revisionConflict(
+                    conflicts: errorEnvelope?.conflicts ?? [],
+                    message: message
+                )
+            }
+            throw CloudSyncError.conflict(message)
         case 413:
             throw CloudSyncError.payloadTooLarge
         default:
             throw CloudSyncError.serverError(statusCode: http.statusCode, message: serverMessage(from: data))
         }
+    }
+
+    private struct Sync409ResponseBody: Decodable {
+        let error: String?
+        let code: String?
+        let conflicts: [SyncRevisionConflict]?
     }
 
     private func decode<T: Decodable>(_ type: T.Type, from data: Data) throws -> T {

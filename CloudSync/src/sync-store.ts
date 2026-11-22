@@ -8,6 +8,7 @@ import {
   type SyncEntityKind,
   type SyncItemRecord,
   SyncRequestError,
+  type SyncRevisionConflict,
   isValidSha256,
   validatePushRequest,
 } from "./protocol.ts";
@@ -27,6 +28,7 @@ export interface SqlExecutor {
 }
 
 interface ExistingItemRow extends Record<string, SqlValue> {
+  revision: number;
   content_hash: string;
   deleted: number;
 }
@@ -167,27 +169,64 @@ export class SyncStore {
         throw new SyncRequestError(
           409,
           `Referenced blob ${mutation.payloadBlobSha256} must be uploaded before pushing "${mutation.entityKey}".`,
+          { code: "missing_blob", missingBlobSha256: mutation.payloadBlobSha256 },
         );
       }
+    }
+
+    const existingByKey = new Map<string, ExistingItemRow | undefined>();
+    const revisionConflicts: SyncRevisionConflict[] = [];
+    for (const mutation of req.mutations) {
+      const existing = this.sql
+        .exec<ExistingItemRow>(
+          "SELECT revision, content_hash, deleted FROM items WHERE entity_key = ?",
+          mutation.entityKey,
+        )
+        .toArray()[0];
+      existingByKey.set(mutation.entityKey, existing);
+
+      const isIdempotent =
+        existing &&
+        existing.content_hash === mutation.contentHash &&
+        Boolean(existing.deleted) === mutation.deleted;
+      if (isIdempotent) {
+        continue;
+      }
+
+      if (mutation.baseRevision !== undefined && mutation.baseRevision !== null) {
+        const currentRevision = existing ? existing.revision : 0;
+        if (currentRevision > mutation.baseRevision) {
+          revisionConflicts.push({
+            entityKey: mutation.entityKey,
+            expectedRevision: mutation.baseRevision,
+            currentRevision,
+          });
+        }
+      }
+    }
+
+    if (revisionConflicts.length > 0) {
+      throw new SyncRequestError(
+        409,
+        `Revision conflict on ${revisionConflicts.map((c) => c.entityKey).join(", ")}.`,
+        { code: "revision_conflict", conflicts: revisionConflicts },
+      );
     }
 
     const startRevision = this.getRevision();
     let nextRevision = startRevision;
     const appliedKeys: string[] = [];
+    const itemRevisions: Record<string, number> = {};
 
     for (const mutation of req.mutations) {
-      const existing = this.sql
-        .exec<ExistingItemRow>(
-          "SELECT content_hash, deleted FROM items WHERE entity_key = ?",
-          mutation.entityKey,
-        )
-        .toArray()[0];
+      const existing = existingByKey.get(mutation.entityKey);
 
       if (
         existing &&
         existing.content_hash === mutation.contentHash &&
         Boolean(existing.deleted) === mutation.deleted
       ) {
+        itemRevisions[mutation.entityKey] = existing.revision;
         continue;
       }
 
@@ -216,6 +255,7 @@ export class SyncStore {
         mutation.deleted ? null : (mutation.payloadBlobSha256 ?? null),
       );
       appliedKeys.push(mutation.entityKey);
+      itemRevisions[mutation.entityKey] = nextRevision;
     }
 
     const changed = nextRevision !== startRevision;
@@ -223,7 +263,7 @@ export class SyncStore {
       this.sql.exec("UPDATE meta SET int_value = ? WHERE key = 'revision'", nextRevision);
     }
 
-    return { revision: nextRevision, appliedKeys, changed };
+    return { revision: nextRevision, appliedKeys, itemRevisions, changed };
   }
 
   pullChanges(since: number, limit: number): PullResponse {

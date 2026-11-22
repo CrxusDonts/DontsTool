@@ -127,6 +127,14 @@ struct SettingsRootView: View {
                 Text(entry.rawValue)
                     .font(.system(size: 13, weight: tab == entry ? .medium : .regular))
                 Spacer()
+                if entry == .sync && !sync.pendingConflicts.isEmpty {
+                    Text("\(sync.pendingConflicts.count)")
+                        .font(.system(size: 10.5, weight: .semibold))
+                        .foregroundStyle(Theme.warning)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 1.5)
+                        .background(Theme.warning.opacity(0.16), in: Capsule())
+                }
             }
             .foregroundStyle(tab == entry ? Theme.ink : Theme.secondary)
             .padding(.horizontal, 10)

@@ -12,6 +12,7 @@ struct SyncLocalItem: Sendable {
 struct SyncPendingMutation: Sendable {
     let item: SyncLocalItem
     let deleted: Bool
+    let baseRevision: Int64
 }
 
 struct SyncLocalSnapshot: Sendable {
@@ -77,15 +78,23 @@ struct CloudSyncSnapshotBuilder {
         var pendingMutations: [SyncPendingMutation] = []
 
         for (key, localItem) in localSnapshot.items.sorted(by: { $0.key < $1.key }) {
+            guard stateStore.state.pendingConflicts[key] == nil else { continue }
             let baseline = stateStore.state.items[key]
             if let baseline, !baseline.deleted, baseline.contentHash == localItem.contentHash {
                 continue
             }
-            pendingMutations.append(SyncPendingMutation(item: localItem, deleted: false))
+            pendingMutations.append(
+                SyncPendingMutation(
+                    item: localItem,
+                    deleted: false,
+                    baseRevision: baseline?.revision ?? 0
+                )
+            )
         }
 
         // Emit deletion tombstones only for notes; configuration entities always have a live document.
         for (key, baseline) in stateStore.state.items.sorted(by: { $0.key < $1.key }) where !baseline.deleted {
+            guard stateStore.state.pendingConflicts[key] == nil else { continue }
             guard localSnapshot.items[key] == nil, SyncEntityKey.parseNoteID(key) != nil else { continue }
             let deleteHash = SyncDigest.sha256Hex("deleted:\(key)")
             pendingMutations.append(
@@ -98,7 +107,8 @@ struct CloudSyncSnapshotBuilder {
                         payloadData: Data(),
                         extraBlobs: [:]
                     ),
-                    deleted: true
+                    deleted: true,
+                    baseRevision: baseline.revision
                 )
             )
         }
@@ -120,7 +130,8 @@ struct CloudSyncSnapshotBuilder {
                         kind: pending.item.kind,
                         deleted: true,
                         updatedAt: pending.item.updatedAt,
-                        contentHash: pending.item.contentHash
+                        contentHash: pending.item.contentHash,
+                        baseRevision: pending.baseRevision
                     )
                 )
                 continue
@@ -140,6 +151,7 @@ struct CloudSyncSnapshotBuilder {
                         deleted: false,
                         updatedAt: pending.item.updatedAt,
                         contentHash: pending.item.contentHash,
+                        baseRevision: pending.baseRevision,
                         payloadBlobSha256: payloadHash
                     )
                 )
@@ -151,6 +163,7 @@ struct CloudSyncSnapshotBuilder {
                         deleted: false,
                         updatedAt: pending.item.updatedAt,
                         contentHash: pending.item.contentHash,
+                        baseRevision: pending.baseRevision,
                         payload: String(decoding: payloadBytes, as: UTF8.self)
                     )
                 )
@@ -161,10 +174,13 @@ struct CloudSyncSnapshotBuilder {
     }
 
     func makeConfigItem(key: String, data: Data) -> SyncLocalItem {
-        SyncLocalItem(
+        let updatedAt = stateStore.state.localConfigUpdatedAt[key]
+            ?? stateStore.state.items[key]?.updatedAt
+            ?? .distantPast
+        return SyncLocalItem(
             entityKey: key,
             kind: .config,
-            updatedAt: stateStore.state.localConfigUpdatedAt[key] ?? Date(),
+            updatedAt: updatedAt,
             contentHash: SyncDigest.sha256Hex(data),
             payloadData: data,
             extraBlobs: [:]
@@ -198,7 +214,11 @@ struct CloudSyncSnapshotBuilder {
         case SyncEntityKey.searchEngines:
             return Data(try searchEngines.configuration.json().utf8)
         case SyncEntityKey.settings:
-            return try SyncJSON.makeEncoder().encode(settings.exportSyncedSettings())
+            let encoded = try SyncJSON.makeEncoder().encode(settings.exportSyncedSettings())
+            return SyncConfigMerger.injectUnknownSettingsFields(
+                stateStore.state.preservedUnknownSettingsJSON,
+                into: encoded
+            )
         default:
             return nil
         }

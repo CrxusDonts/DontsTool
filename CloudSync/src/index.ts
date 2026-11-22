@@ -121,7 +121,7 @@ export default {
       return jsonResponse({ error: "Not found" }, 404);
     } catch (error) {
       if (error instanceof SyncRequestError) {
-        return jsonResponse({ error: error.message }, error.statusCode);
+        return jsonResponse({ error: error.message, ...(error.details ?? {}) }, error.statusCode);
       }
       console.error("CloudSync worker error:", error);
       return jsonResponse({ error: "Internal server error" }, 500);

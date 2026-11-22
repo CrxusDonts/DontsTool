@@ -224,3 +224,216 @@ test("SyncStore rejects oversized inline payloads and invalid entity keys", asyn
     (err: unknown) => err instanceof SyncRequestError && err.statusCode === 400,
   );
 });
+
+test("SyncStore enforces optional baseRevision optimistic locking atomically", async () => {
+  const store = makeSQLiteStore();
+  const payloadV1 = '{"hotKey":"a"}';
+  const payloadV2 = '{"hotKey":"b"}';
+  const payloadOther = '{"engines":[]}';
+  const hashV1 = await sha256Hex(payloadV1);
+  const hashV2 = await sha256Hex(payloadV2);
+  const hashOther = await sha256Hex(payloadOther);
+
+  // baseRevision = 0 succeeds when creating a new item.
+  const createRes = store.pushMutations({
+    deviceId: "mac-a",
+    mutations: [
+      {
+        entityKey: "config:settings",
+        kind: "config",
+        deleted: false,
+        updatedAt: "2026-11-22T01:00:00Z",
+        contentHash: hashV1,
+        baseRevision: 0,
+        payload: payloadV1,
+      },
+    ],
+  });
+  assert.equal(createRes.revision, 1);
+
+  // Stale baseRevision = 0 on differing content fails with 409 revision_conflict.
+  assert.throws(
+    () =>
+      store.pushMutations({
+        deviceId: "mac-b",
+        mutations: [
+          {
+            entityKey: "config:searchEngines",
+            kind: "config",
+            deleted: false,
+            updatedAt: "2026-11-22T01:01:00Z",
+            contentHash: hashOther,
+            baseRevision: 0,
+            payload: payloadOther,
+          },
+          {
+            entityKey: "config:settings",
+            kind: "config",
+            deleted: false,
+            updatedAt: "2026-11-22T01:01:00Z",
+            contentHash: hashV2,
+            baseRevision: 0,
+            payload: payloadV2,
+          },
+        ],
+      }),
+    (err: unknown) =>
+      err instanceof SyncRequestError &&
+      err.statusCode === 409 &&
+      err.details?.code === "revision_conflict" &&
+      Array.isArray(err.details?.conflicts) &&
+      err.details.conflicts.length === 1 &&
+      err.details.conflicts[0].entityKey === "config:settings" &&
+      err.details.conflicts[0].expectedRevision === 0 &&
+      err.details.conflicts[0].currentRevision === 1,
+  );
+
+  // Atomic check: the valid mutation in the rejected batch must NOT have been written.
+  assert.equal(store.getHealth().revision, 1);
+  assert.equal(store.getHealth().itemCount, 1);
+
+  // Idempotent push with identical contentHash succeeds even if baseRevision is stale.
+  const idempotent = store.pushMutations({
+    deviceId: "mac-b",
+    mutations: [
+      {
+        entityKey: "config:settings",
+        kind: "config",
+        deleted: false,
+        updatedAt: "2026-11-22T01:02:00Z",
+        contentHash: hashV1,
+        baseRevision: 0,
+        payload: payloadV1,
+      },
+    ],
+  });
+  assert.equal(idempotent.changed, false);
+  assert.equal(idempotent.revision, 1);
+
+  // Matching baseRevision = 1 updates cleanly.
+  const updateRes = store.pushMutations({
+    deviceId: "mac-a",
+    mutations: [
+      {
+        entityKey: "config:settings",
+        kind: "config",
+        deleted: false,
+        updatedAt: "2026-11-22T01:03:00Z",
+        contentHash: hashV2,
+        baseRevision: 1,
+        payload: payloadV2,
+      },
+    ],
+  });
+  assert.equal(updateRes.revision, 2);
+
+  // Legacy clients omitting baseRevision remain compatible.
+  const legacyRes = store.pushMutations({
+    deviceId: "mac-legacy",
+    mutations: [
+      {
+        entityKey: "config:settings",
+        kind: "config",
+        deleted: false,
+        updatedAt: "2026-11-22T01:04:00Z",
+        contentHash: hashV1,
+        payload: payloadV1,
+      },
+    ],
+  });
+  assert.equal(legacyRes.revision, 3);
+  assert.deepEqual(legacyRes.itemRevisions, { "config:settings": 3 });
+
+  // Multi-item batch returns exact per-entity itemRevisions.
+  const payloadWeb = '{"groups":[]}';
+  const hashWeb = await sha256Hex(payloadWeb);
+  const batchRes = store.pushMutations({
+    deviceId: "mac-a",
+    mutations: [
+      {
+        entityKey: "config:searchEngines",
+        kind: "config",
+        deleted: false,
+        updatedAt: "2026-11-22T01:05:00Z",
+        contentHash: hashOther,
+        baseRevision: 0,
+        payload: payloadOther,
+      },
+      {
+        entityKey: "config:websites",
+        kind: "config",
+        deleted: false,
+        updatedAt: "2026-11-22T01:05:01Z",
+        contentHash: hashWeb,
+        baseRevision: 0,
+        payload: payloadWeb,
+      },
+    ],
+  });
+  assert.equal(batchRes.revision, 5);
+  assert.deepEqual(batchRes.itemRevisions, {
+    "config:searchEngines": 4,
+    "config:websites": 5,
+  });
+
+  // Earlier key can update using either its exact itemRevision (4) or a higher legacy batch-max revision (5),
+  // while a stale lower baseRevision (3) is rejected atomically with 409 revision_conflict.
+  const payloadOtherV2 = '{"engines":["bing"]}';
+  const hashOtherV2 = await sha256Hex(payloadOtherV2);
+  assert.throws(
+    () =>
+      store.pushMutations({
+        deviceId: "mac-b",
+        mutations: [
+          {
+            entityKey: "config:searchEngines",
+            kind: "config",
+            deleted: false,
+            updatedAt: "2026-11-22T01:06:00Z",
+            contentHash: hashOtherV2,
+            baseRevision: 3,
+            payload: payloadOtherV2,
+          },
+        ],
+      }),
+    (err: unknown) =>
+      err instanceof SyncRequestError &&
+      err.statusCode === 409 &&
+      err.details?.code === "revision_conflict" &&
+      Array.isArray(err.details?.conflicts) &&
+      err.details.conflicts[0].currentRevision === 4,
+  );
+
+  const exactRes = store.pushMutations({
+    deviceId: "mac-a",
+    mutations: [
+      {
+        entityKey: "config:searchEngines",
+        kind: "config",
+        deleted: false,
+        updatedAt: "2026-11-22T01:07:00Z",
+        contentHash: hashOtherV2,
+        baseRevision: 4,
+        payload: payloadOtherV2,
+      },
+    ],
+  });
+  assert.equal(exactRes.revision, 6);
+  assert.deepEqual(exactRes.itemRevisions, { "config:searchEngines": 6 });
+
+  const higherLegacyBaselineRes = store.pushMutations({
+    deviceId: "mac-a",
+    mutations: [
+      {
+        entityKey: "config:searchEngines",
+        kind: "config",
+        deleted: false,
+        updatedAt: "2026-11-22T01:08:00Z",
+        contentHash: hashOther,
+        baseRevision: 7,
+        payload: payloadOther,
+      },
+    ],
+  });
+  assert.equal(higherLegacyBaselineRes.revision, 7);
+});

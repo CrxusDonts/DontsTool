@@ -88,6 +88,11 @@ final class SettingsWindowController: NSWindowController {
         show()
     }
 
+    func showSync() {
+        navigation.tab = .sync
+        show()
+    }
+
     func showGuide(query: String = "") {
         navigation.guideSearchQuery = query
         navigation.tab = .guide

@@ -59,7 +59,7 @@ export class SyncHub extends DurableObject<Env> {
         }
       }
     }
-    return { revision: result.revision, appliedKeys: result.appliedKeys };
+    return { revision: result.revision, appliedKeys: result.appliedKeys, itemRevisions: result.itemRevisions };
   }
 
   pullChanges(since: number, limit: number): PullResponse {

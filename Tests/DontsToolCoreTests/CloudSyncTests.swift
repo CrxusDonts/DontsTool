@@ -166,13 +166,50 @@ struct CloudSyncTests {
                     let req = try SyncJSON.makeDecoder().decode(SyncPushRequest.self, from: request.httpBody ?? Data())
                     for mutation in req.mutations {
                         if !mutation.deleted, let blobSha = mutation.payloadBlobSha256, blobs[blobSha] == nil {
-                            return makeResponse(409, body: Data("{\"error\":\"Missing referenced blob\"}".utf8))
+                            return makeResponse(409, body: Data("{\"code\":\"missing_blob\",\"error\":\"Missing referenced blob\"}".utf8))
                         }
                     }
+                    var revisionConflicts: [SyncRevisionConflict] = []
+                    for mutation in req.mutations {
+                        let existing = items[mutation.entityKey]
+                        if let existing,
+                           existing.contentHash == mutation.contentHash && existing.deleted == mutation.deleted {
+                            continue
+                        }
+                        if let expectedRevision = mutation.baseRevision {
+                            let currentRevision = existing?.revision ?? 0
+                            if currentRevision > expectedRevision {
+                                revisionConflicts.append(
+                                    SyncRevisionConflict(
+                                        entityKey: mutation.entityKey,
+                                        expectedRevision: expectedRevision,
+                                        currentRevision: currentRevision
+                                    )
+                                )
+                            }
+                        }
+                    }
+                    if !revisionConflicts.isEmpty {
+                        struct ConflictResponse: Encodable {
+                            let code: String
+                            let error: String
+                            let conflicts: [SyncRevisionConflict]
+                        }
+                        let body = try SyncJSON.makeEncoder().encode(
+                            ConflictResponse(
+                                code: "revision_conflict",
+                                error: "Revision conflict on \(revisionConflicts.map(\.entityKey).joined(separator: ", "))",
+                                conflicts: revisionConflicts
+                            )
+                        )
+                        return makeResponse(409, body: body)
+                    }
                     var applied: [String] = []
+                    var itemRevisions: [String: Int64] = [:]
                     for mutation in req.mutations {
                         if let existing = items[mutation.entityKey],
                            existing.contentHash == mutation.contentHash && existing.deleted == mutation.deleted {
+                            itemRevisions[mutation.entityKey] = existing.revision
                             continue
                         }
                         revision += 1
@@ -188,12 +225,13 @@ struct CloudSyncTests {
                             payloadBlobSha256: mutation.deleted ? nil : mutation.payloadBlobSha256
                         )
                         applied.append(mutation.entityKey)
+                        itemRevisions[mutation.entityKey] = revision
                     }
                     pushedKeysLog.append(applied)
                     let hook = (!applied.isEmpty ? onPushResponseHook : nil).map {
                         PushHookInvocation(revision: revision, deviceId: req.deviceId, callback: $0)
                     }
-                    return makeResponse(200, body: try SyncJSON.makeEncoder().encode(SyncPushResponse(revision: revision, appliedKeys: applied)), pushHook: hook)
+                    return makeResponse(200, body: try SyncJSON.makeEncoder().encode(SyncPushResponse(revision: revision, appliedKeys: applied, itemRevisions: itemRevisions)), pushHook: hook)
                 }
 
                 if request.httpMethod == "GET" && path == "/v1/sync/pull" {
@@ -821,7 +859,7 @@ struct CloudSyncTests {
             #expect(server.totalBlobUploads == 2)
 
             server.clearBlobs()
-            macA.stateStore.state.items.removeValue(forKey: SyncEntityKey.note(largeNote.id))
+            macA.stateStore.state.items[SyncEntityKey.note(largeNote.id)]?.contentHash = "outdated-hash"
             #expect(await coordA.syncNow())
             #expect(server.totalBlobUploads == 3)
             #expect(await coordB.syncNow())
@@ -852,5 +890,406 @@ struct CloudSyncTests {
         #expect(decoded.lastPulledRevision == 42)
         #expect(decoded.items["config:settings"]?.revision == 42)
         #expect(decoded.knownRemoteBlobHashes.isEmpty)
+        #expect(decoded.pendingConflicts.isEmpty)
+        #expect(decoded.preservedUnknownSettingsJSON == nil)
+    }
+
+    @Test func configMergerComputesFieldDiffsCherryPicksAndPreservesUnknownSettingsFields() throws {
+        let localJSON = """
+        {
+          "hotKey": {"keyCode": 49, "kind": "combination", "modifiers": 2048},
+          "preferredTerminalBundleID": "com.mitchellh.ghostty",
+          "translationTarget": "zh-Hans"
+        }
+        """
+        let remoteJSON = """
+        {
+          "futureExperimentalFlag": true,
+          "hotKey": {"keyCode": 49, "kind": "combination", "modifiers": 2048},
+          "preferredTerminalBundleID": "com.apple.Terminal",
+          "translationTarget": "en"
+        }
+        """
+
+        let diffs = SyncConfigMerger.topLevelFieldDiffs(
+            entityKey: SyncEntityKey.settings,
+            localJSON: localJSON,
+            remoteJSON: remoteJSON
+        )
+        #expect(diffs.map(\.key) == ["futureExperimentalFlag", "preferredTerminalBundleID", "translationTarget"])
+        #expect(diffs.first { $0.key == "futureExperimentalFlag" }?.kind == .added)
+        #expect(diffs.first { $0.key == "translationTarget" }?.displayName == "翻译目标语言")
+
+        let merged = try SyncConfigMerger.buildMergedJSON(
+            localJSON: localJSON,
+            remoteJSON: remoteJSON,
+            choices: [
+                "preferredTerminalBundleID": .local,
+                "translationTarget": .remote,
+                "futureExperimentalFlag": .remote
+            ]
+        )
+        let mergedObj = try #require(
+            try JSONSerialization.jsonObject(with: Data(merged.utf8)) as? [String: Any]
+        )
+        #expect(mergedObj["preferredTerminalBundleID"] as? String == "com.mitchellh.ghostty")
+        #expect(mergedObj["translationTarget"] as? String == "en")
+        #expect(mergedObj["futureExperimentalFlag"] as? Bool == true)
+
+        let extracted = try #require(SyncConfigMerger.extractUnknownSettingsFields(from: Data(remoteJSON.utf8)))
+        let reencodedLocal = Data(#"{"translationTarget":"ja"}"#.utf8)
+        let reinjected = SyncConfigMerger.injectUnknownSettingsFields(extracted, into: reencodedLocal)
+        let reinjectedObj = try #require(
+            try JSONSerialization.jsonObject(with: reinjected) as? [String: Any]
+        )
+        #expect(reinjectedObj["translationTarget"] as? String == "ja")
+        #expect(reinjectedObj["futureExperimentalFlag"] as? Bool == true)
+    }
+
+    @Test func concurrentConfigEditsRaiseConflictAndResolveAllThreeWays() async throws {
+        try await withTempDir { dir in
+            let server = InMemorySyncServer(token: "sync-secret")
+            let macA = ClientFixture(root: dir, name: "MacA-Conflict")
+            let macB = ClientFixture(root: dir, name: "MacB-Conflict")
+            defer { macA.cleanup(); macB.cleanup() }
+
+            for fixture in [macA, macB] {
+                fixture.settings.setCloudSyncEnabled(true)
+                fixture.settings.setCloudSyncServerURL("https://sync.example.com")
+                fixture.secrets.setSecret("sync-secret", for: SecretAccount.cloudSyncToken)
+            }
+
+            let coordA = CloudSyncCoordinator(
+                settings: macA.settings, websites: macA.websites, searchEngines: macA.searchEngines,
+                notes: macA.notes, secrets: macA.secrets, httpClient: server, stateStore: macA.stateStore,
+                realtimeClientFactory: nil, deviceNameProvider: { "MacA" },
+                debounceDuration: .seconds(60)
+            )
+            let coordB = CloudSyncCoordinator(
+                settings: macB.settings, websites: macB.websites, searchEngines: macB.searchEngines,
+                notes: macB.notes, secrets: macB.secrets, httpClient: server, stateStore: macB.stateStore,
+                realtimeClientFactory: nil, deviceNameProvider: { "MacB" },
+                debounceDuration: .seconds(60)
+            )
+            defer { coordA.stop(); coordB.stop() }
+
+            coordA.start()
+            coordB.start()
+            try await Task.sleep(for: .milliseconds(30))
+            while coordA.status == .syncing || coordB.status == .syncing {
+                try await Task.sleep(for: .milliseconds(10))
+            }
+            #expect(await coordA.syncNow())
+            #expect(await coordB.syncNow())
+
+            // Both edit config:settings offline concurrently.
+            let proProfile = AIModelProfile(
+                id: "vertex-pro",
+                name: "Gemini 4",
+                format: .gemini,
+                baseURL: "https://generativelanguage.googleapis.com/v1beta",
+                model: "gemini-4-hydrogen"
+            )
+            macA.settings.setHotKey(.doubleTap(.option))
+            macA.settings.upsertAIModelProfile(proProfile, makeDefault: true)
+            #expect(await coordA.syncNow())
+
+            macB.settings.setTranslationTarget("en")
+            macB.settings.setPreferredTerminalBundleID("com.mitchellh.ghostty")
+            let noteOnB = try macB.notes.create(title: "离线笔记", content: noteContent("冲突期间仍需正常同步"))
+
+            #expect(await coordB.syncNow())
+            // Non-conflicting note syncs even while config:settings has an unresolved conflict.
+            #expect(await coordA.syncNow())
+            #expect(macA.notes.note(noteOnB.id)?.content.plainText == "冲突期间仍需正常同步")
+
+            // Mac B must pause config:settings with .concurrentModification instead of overwriting.
+            #expect(coordB.pendingConflicts.count == 1)
+            let conflict = try #require(coordB.pendingConflicts.first)
+            #expect(conflict.entityKey == SyncEntityKey.settings)
+            #expect(conflict.reason == .concurrentModification)
+            if case .needsResolution(let count, _) = coordB.status {
+                #expect(count == 1)
+            } else {
+                Issue.record("Expected needsResolution status, got \(coordB.status)")
+            }
+            #expect(macB.settings.translationTarget == "en")
+            #expect(macB.settings.aiModelProfiles.isEmpty)
+
+            // Resolve via cherry-picked merged JSON (take Mac A's AI profiles/default + Mac B's translationTarget/terminal).
+            let mergedJSON = try SyncConfigMerger.buildMergedJSON(
+                localJSON: conflict.localJSON,
+                remoteJSON: conflict.remoteJSON,
+                choices: [
+                    "aiModelProfiles": .remote,
+                    "defaultAIModelProfileID": .remote,
+                    "hotKey": .remote,
+                    "translationTarget": .local,
+                    "preferredTerminalBundleID": .local
+                ]
+            )
+            try await coordB.resolveConflict(entityKey: SyncEntityKey.settings, resolution: .useMergedJSON(mergedJSON))
+            #expect(coordB.pendingConflicts.isEmpty)
+            #expect(await coordA.syncNow())
+
+            #expect(macA.settings.translationTarget == "en")
+            #expect(macA.settings.preferredTerminalBundleID == "com.mitchellh.ghostty")
+            #expect(macA.settings.aiModelProfiles == [proProfile])
+            #expect(macB.settings.aiModelProfiles == [proProfile])
+            #expect(!coordB.configHistory(for: SyncEntityKey.settings).isEmpty)
+
+            // Also test .keepLocal and .useRemote + restoreConfigHistory on searchEngines and websites.
+            var searchA = macA.searchEngines.configuration
+            searchA.defaultEngineID = "bing"
+            try macA.searchEngines.save(searchA)
+            #expect(await coordA.syncNow())
+
+            var searchB = macB.searchEngines.configuration
+            searchB.defaultEngineID = "baidu"
+            try macB.searchEngines.save(searchB)
+            #expect(await coordB.syncNow())
+            #expect(coordB.pendingConflicts.contains { $0.entityKey == SyncEntityKey.searchEngines })
+            try await coordB.resolveConflict(entityKey: SyncEntityKey.searchEngines, resolution: .keepLocal)
+            #expect(await coordA.syncNow())
+            #expect(macA.searchEngines.configuration.defaultEngineID == "baidu")
+
+            let sitesA = WebsiteShortcutConfiguration(
+                version: 3,
+                groups: [.init(keyword: "dev", name: "开发", items: [.init(key: "gh", name: "GitHub", url: "https://github.com")])]
+            )
+            try macA.websites.save(sitesA)
+            #expect(await coordA.syncNow())
+
+            let sitesB = WebsiteShortcutConfiguration(
+                version: 3,
+                groups: [.init(keyword: "ops", name: "运维", items: [.init(key: "cf", name: "CF", url: "https://dash.cloudflare.com")])]
+            )
+            try macB.websites.save(sitesB)
+            #expect(await coordB.syncNow())
+            #expect(coordB.pendingConflicts.contains { $0.entityKey == SyncEntityKey.websites })
+            try await coordB.resolveConflict(entityKey: SyncEntityKey.websites, resolution: .useRemote)
+            #expect(macB.websites.configuration == sitesA)
+
+            let websiteHistory = try #require(coordB.configHistory(for: SyncEntityKey.websites).first)
+            try await coordB.restoreConfigHistory(websiteHistory)
+            #expect(macB.websites.configuration == sitesB)
+        }
+    }
+
+    @Test func initialSyncWithCustomizedLocalConfigRaisesConflictWhileFreshMacAutoAdopts() async throws {
+        try await withTempDir { dir in
+            let server = InMemorySyncServer(token: "sync-secret")
+            let macA = ClientFixture(root: dir, name: "MacA-Init")
+            let macB = ClientFixture(root: dir, name: "MacB-Custom")
+            let macC = ClientFixture(root: dir, name: "MacC-Fresh")
+            defer { macA.cleanup(); macB.cleanup(); macC.cleanup() }
+
+            for fixture in [macA, macB, macC] {
+                fixture.settings.setCloudSyncEnabled(true)
+                fixture.settings.setCloudSyncServerURL("https://sync.example.com")
+                fixture.secrets.setSecret("sync-secret", for: SecretAccount.cloudSyncToken)
+            }
+
+            var customSearchA = SearchEngineConfiguration.builtIn
+            customSearchA.defaultEngineID = "bing"
+            try macA.searchEngines.save(customSearchA)
+            macA.settings.setHotKey(.doubleTap(.option))
+
+            let coordA = CloudSyncCoordinator(
+                settings: macA.settings, websites: macA.websites, searchEngines: macA.searchEngines,
+                notes: macA.notes, secrets: macA.secrets, httpClient: server, stateStore: macA.stateStore,
+                realtimeClientFactory: nil, deviceNameProvider: { "MacA" }
+            )
+            #expect(await coordA.syncNow())
+
+            // Mac B has customized searchEngines & settings before first sync -> must raise .initialDivergence.
+            var customSearchB = SearchEngineConfiguration.builtIn
+            customSearchB.engines.append(.init(id: "docs", name: "文档", keyword: "docs", urlTemplate: "https://docs.example.com/?q={query}"))
+            try macB.searchEngines.save(customSearchB)
+            macB.settings.setPreferredTerminalBundleID("com.apple.Terminal")
+
+            let coordB = CloudSyncCoordinator(
+                settings: macB.settings, websites: macB.websites, searchEngines: macB.searchEngines,
+                notes: macB.notes, secrets: macB.secrets, httpClient: server, stateStore: macB.stateStore,
+                realtimeClientFactory: nil, deviceNameProvider: { "MacB" }
+            )
+            #expect(await coordB.syncNow())
+            let conflictKeys = Set(coordB.pendingConflicts.map(\.entityKey))
+            #expect(conflictKeys.contains(SyncEntityKey.searchEngines))
+            #expect(conflictKeys.contains(SyncEntityKey.settings))
+            #expect(coordB.pendingConflicts.allSatisfy { $0.reason == .initialDivergence })
+            #expect(macB.searchEngines.configuration == customSearchB)
+
+            // Mac C has untouched defaults -> auto-adopts cleanly with 0 conflicts.
+            let coordC = CloudSyncCoordinator(
+                settings: macC.settings, websites: macC.websites, searchEngines: macC.searchEngines,
+                notes: macC.notes, secrets: macC.secrets, httpClient: server, stateStore: macC.stateStore,
+                realtimeClientFactory: nil, deviceNameProvider: { "MacC" }
+            )
+            #expect(await coordC.syncNow())
+            #expect(coordC.pendingConflicts.isEmpty)
+            #expect(macC.searchEngines.configuration.defaultEngineID == "bing")
+            #expect(macC.settings.hotKey == .doubleTap(.option))
+        }
+    }
+
+    @Test func remoteDowngradeGuardBlocksOldMacStrippingAIProfilesOrPushingStaleTimestamp() async throws {
+        try await withTempDir { dir in
+            let server = InMemorySyncServer(token: "sync-secret")
+            let macA = ClientFixture(root: dir, name: "MacA-Modern")
+            defer { macA.cleanup() }
+
+            macA.settings.setCloudSyncEnabled(true)
+            macA.settings.setCloudSyncServerURL("https://sync.example.com")
+            macA.secrets.setSecret("sync-secret", for: SecretAccount.cloudSyncToken)
+
+            let coordA = CloudSyncCoordinator(
+                settings: macA.settings, websites: macA.websites, searchEngines: macA.searchEngines,
+                notes: macA.notes, secrets: macA.secrets, httpClient: server, stateStore: macA.stateStore,
+                realtimeClientFactory: nil, deviceNameProvider: { "MacA" }
+            )
+            coordA.start()
+            defer { coordA.stop() }
+
+            let model = AIModelProfile(
+                id: "modern-ai",
+                name: "Gemini",
+                format: .gemini,
+                baseURL: "https://generativelanguage.googleapis.com/v1beta",
+                model: "gemini-4-hydrogen"
+            )
+            macA.settings.upsertAIModelProfile(model, makeDefault: true)
+            macA.settings.setAIModelProfileID(model.id, forConsumerID: AIConsumerID.translation)
+            #expect(await coordA.syncNow())
+
+            // Simulate an older Mac pushing a newer revision that omits aiModelProfiles & aiConsumerModelBindings.
+            let strippedOldPayload = """
+            {
+              "applicationSortOrder": "recent",
+              "enabledProviderIDs": ["applications", "notes"],
+              "fileSearchEnabled": true,
+              "hotKey": {"keyCode": 49, "kind": "combination", "modifiers": 2048},
+              "selectionHoldDelayRawValue": 2,
+              "selectionTranslationEnabled": false,
+              "translationAPIBaseURL": "",
+              "translationAPIModel": "",
+              "translationTarget": "zh-Hans"
+            }
+            """
+            server.injectRawItem(
+                entityKey: SyncEntityKey.settings,
+                kind: .config,
+                updatedAt: Date().addingTimeInterval(60),
+                deviceId: "old-mac",
+                payload: strippedOldPayload
+            )
+
+            #expect(await coordA.syncNow())
+            #expect(macA.settings.aiModelProfiles == [model])
+            let conflict = try #require(coordA.pendingConflicts.first { $0.entityKey == SyncEntityKey.settings })
+            #expect(conflict.reason == .remoteDowngradeGuard)
+
+            // Resolve keeping local, then simulate an older timestamp push while keeping schema intact.
+            try await coordA.resolveConflict(entityKey: SyncEntityKey.settings, resolution: .keepLocal)
+            #expect(coordA.pendingConflicts.isEmpty)
+
+            var staleObj = try #require(
+                try JSONSerialization.jsonObject(
+                    with: SyncJSON.makeEncoder().encode(macA.settings.exportSyncedSettings())
+                ) as? [String: Any]
+            )
+            staleObj["translationTarget"] = "en"
+            let staleData = try JSONSerialization.data(withJSONObject: staleObj, options: [.sortedKeys])
+            server.injectRawItem(
+                entityKey: SyncEntityKey.settings,
+                kind: .config,
+                updatedAt: Date.distantPast,
+                deviceId: "old-mac-stale-ts",
+                payload: String(decoding: staleData, as: UTF8.self)
+            )
+
+            #expect(await coordA.syncNow())
+            #expect(macA.settings.translationTarget == "zh-Hans")
+            let staleConflict = try #require(coordA.pendingConflicts.first { $0.entityKey == SyncEntityKey.settings })
+            #expect(staleConflict.reason == .remoteDowngradeGuard)
+        }
+    }
+
+    @Test func serverBaseRevisionOptimisticLockPreventsOverwriteWhenSkippingPrePull() async throws {
+        try await withTempDir { dir in
+            let server = InMemorySyncServer(token: "sync-secret")
+            let macA = ClientFixture(root: dir, name: "MacA-CAS")
+            defer { macA.cleanup() }
+
+            macA.settings.setCloudSyncEnabled(true)
+            macA.settings.setCloudSyncServerURL("https://sync.example.com")
+            macA.secrets.setSecret("sync-secret", for: SecretAccount.cloudSyncToken)
+
+            // Verify makeConfigItem does not fabricate Date() when localConfigUpdatedAt is missing.
+            let builder = CloudSyncSnapshotBuilder(
+                settings: macA.settings,
+                websites: macA.websites,
+                searchEngines: macA.searchEngines,
+                notes: macA.notes,
+                stateStore: macA.stateStore
+            )
+            let unrecorded = try #require(try builder.buildLocalItem(for: SyncEntityKey.settings))
+            #expect(unrecorded.updatedAt == .distantPast)
+
+            let fakeRealtime = FakeRealtimeClient()
+            let coordA = CloudSyncCoordinator(
+                settings: macA.settings, websites: macA.websites, searchEngines: macA.searchEngines,
+                notes: macA.notes, secrets: macA.secrets, httpClient: server, stateStore: macA.stateStore,
+                realtimeClientFactory: { _, _ in fakeRealtime },
+                deviceNameProvider: { "MacA" },
+                debounceDuration: .milliseconds(50)
+            )
+            defer { coordA.stop() }
+
+            coordA.start()
+            for _ in 0..<50 where server.totalPulls == 0 {
+                try await Task.sleep(for: .milliseconds(10))
+            }
+            fakeRealtime.emitConnected(true)
+            for _ in 0..<50 where !coordA.isRealtimeConnected {
+                try await Task.sleep(for: .milliseconds(10))
+            }
+            #expect(await coordA.syncNow())
+
+            // Inject an out-of-band remote settings change WITHOUT emitting WS, so local edit skips pre-pull.
+            let remotePayload = """
+            {
+              "applicationSortOrder": "frequency",
+              "enabledProviderIDs": ["applications", "notes"],
+              "fileSearchEnabled": true,
+              "hotKey": {"keyCode": 49, "kind": "combination", "modifiers": 2048},
+              "selectionHoldDelayRawValue": 2,
+              "selectionTranslationEnabled": false,
+              "translationAPIBaseURL": "",
+              "translationAPIModel": "",
+              "translationTarget": "ja"
+            }
+            """
+            let remoteRev = server.injectRawItem(
+                entityKey: SyncEntityKey.settings,
+                kind: .config,
+                updatedAt: Date().addingTimeInterval(5),
+                deviceId: "other-mac",
+                payload: remotePayload
+            )
+
+            // Local edit skips initial pull -> pushes stale baseRevision -> hits 409 revision_conflict -> auto-pulls & raises conflict!
+            macA.settings.setTranslationTarget("en")
+            for _ in 0..<100 where coordA.pendingConflicts.isEmpty {
+                try await Task.sleep(for: .milliseconds(15))
+            }
+
+            let conflict = try #require(coordA.pendingConflicts.first { $0.entityKey == SyncEntityKey.settings })
+            #expect(conflict.reason == .concurrentModification)
+            #expect(conflict.remoteRevision == remoteRev)
+            // Server must still retain other-mac's revision untouched (no blind overwrite).
+            #expect(server.currentRevision == remoteRev)
+            #expect(macA.settings.translationTarget == "en")
+        }
     }
 }

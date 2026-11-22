@@ -66,21 +66,30 @@ struct SettingsBadge: View {
     enum Tone {
         case neutral
         case success
+        case warning
+    }
+
+    private var tintColor: Color {
+        switch tone {
+        case .neutral: Theme.secondary
+        case .success: Theme.success
+        case .warning: Theme.warning
+        }
     }
 
     var body: some View {
         HStack(spacing: 5) {
             Circle()
-                .fill(tone == .success ? Theme.success : Theme.secondary)
+                .fill(tintColor)
                 .frame(width: 5, height: 5)
             Text(text)
         }
         .font(.system(size: 11, weight: .medium))
-        .foregroundStyle(tone == .success ? Theme.success : Theme.secondary)
+        .foregroundStyle(tintColor)
         .padding(.horizontal, 8)
         .padding(.vertical, 3.5)
         .background(
-            (tone == .success ? Theme.success : Theme.secondary).opacity(0.12),
+            tintColor.opacity(0.12),
             in: Capsule()
         )
     }
