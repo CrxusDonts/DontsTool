@@ -41,6 +41,7 @@ struct ToolWorkspaceView: View {
     @State var codeFoldCommand: EditorFoldCommand?
     @State var compareFoldCommand: EditorFoldCommand?
     @State var diffFilter: JSONDifference.Kind? = nil
+    @State var codeEditorFocused = false
 
     var filteredDifferences: [JSONDifference] {
         guard let comparison = session.comparison else { return [] }

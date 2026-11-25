@@ -94,4 +94,33 @@ struct JSONInspectorTests {
         #expect(document.session.errorSide == "右侧")
         #expect(document.session.errorMessage?.contains("右侧") == true)
     }
+
+    @Test func flattenedRowsStrictAncestorsAndLookupWorkQuickly() throws {
+        let source = """
+        {
+          "settings": {
+            "theme": "dark"
+          },
+          "tools": [
+            { "name": "json" },
+            { "name": "notes" }
+          ]
+        }
+        """
+        let analysis = JSONInspector.analyze(source)
+        #expect(analysis.strictAncestorIDs(of: "$.settings") == ["$"])
+        #expect(analysis.strictAncestorIDs(of: "$.tools[1].name") == ["$", "$.tools", "$.tools[1]"])
+        #expect(analysis.strictAncestorIDs(of: "$").isEmpty)
+
+        let topOnly = analysis.flattenedRows(matching: "", expandedIDs: ["$"])
+        #expect(topOnly.map(\.id) == ["$", "$.settings", "$.tools"])
+        #expect(topOnly.map(\.isExpanded) == [true, false, false])
+
+        let toolsExpanded = analysis.flattenedRows(matching: "", expandedIDs: ["$", "$.tools"])
+        #expect(toolsExpanded.map(\.id) == ["$", "$.settings", "$.tools", "$.tools[0]", "$.tools[1]"])
+
+        let lookup = analysis.nodeLookupDictionary()
+        #expect(lookup["$.tools[1].name"]?.preview == "\"notes\"")
+        #expect(lookup["$.settings"]?.kind == .object)
+    }
 }

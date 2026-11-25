@@ -14,41 +14,18 @@ struct ToolJSONTreeView: View {
     @State private var searchQuery = ""
     @State private var expandedIDs: Set<String> = ["$"]
     @State private var manualSelectedID: String?
-    @State private var hoveredRowID: String?
-    @State private var hoveredChevronID: String?
-
-    private struct FlatRow: Identifiable {
-        let id: String
-        let node: JSONOutlineNode
-        let depth: Int
-        let isExpanded: Bool
-    }
+    @State private var visibleRows: [JSONFlatOutlineRow] = []
+    @State private var nodeByID: [String: JSONOutlineNode] = [:]
 
     private var activeSelectedID: String? {
         manualSelectedID ?? selectedPath
     }
 
-    private var filteredRoot: JSONOutlineNode? {
-        analysis.filteredRoot(matching: searchQuery)
-    }
-
-    private var isSearching: Bool {
-        !searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
-
-    private var visibleRows: [FlatRow] {
-        guard let root = filteredRoot else { return [] }
-        var rows: [FlatRow] = []
-        appendRows(from: root, depth: 0, into: &rows)
-        return rows
-    }
-
     private var selectedNode: JSONOutlineNode? {
-        guard let root = analysis.root else { return nil }
-        if let activeSelectedID, let found = findNode(withID: activeSelectedID, in: root) {
+        if let activeSelectedID, let found = nodeByID[activeSelectedID] {
             return found
         }
-        return root
+        return analysis.root
     }
 
     var body: some View {
@@ -64,24 +41,32 @@ struct ToolJSONTreeView: View {
         .background(ToolTheme.editor)
         .clipShape(RoundedRectangle(cornerRadius: 10))
         .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(ToolTheme.border, lineWidth: 0.5))
-        .onChange(of: analysis.root?.id) { _, _ in
+        .onAppear {
+            rebuildIndex()
             resetDefaultExpansion()
         }
-        .onChange(of: analysis.totalNodes) { _, _ in
+        .onChange(of: analysis) { _, _ in
+            rebuildIndex()
             if expandedIDs.isEmpty {
                 resetDefaultExpansion()
+            } else {
+                rebuildVisibleRows()
             }
+        }
+        .onChange(of: searchQuery) { _, _ in
+            rebuildVisibleRows()
         }
         .onChange(of: selectedPath) { _, newPath in
             manualSelectedID = nil
-            if let newPath, let root = analysis.root {
-                for ancestorID in ancestorPathIDs(to: newPath, in: root) {
-                    expandedIDs.insert(ancestorID)
-                }
+            guard let newPath else { return }
+            let ancestors = analysis.strictAncestorIDs(of: newPath)
+            var changed = false
+            for ancestorID in ancestors where expandedIDs.insert(ancestorID).inserted {
+                changed = true
             }
-        }
-        .onAppear {
-            resetDefaultExpansion()
+            if changed {
+                rebuildVisibleRows()
+            }
         }
     }
 
@@ -204,202 +189,38 @@ struct ToolJSONTreeView: View {
                 ScrollView {
                     LazyVStack(spacing: 1) {
                         ForEach(visibleRows) { row in
-                            treeRow(row)
+                            JSONTreeRowView(
+                                row: row,
+                                compact: compact,
+                                isSelected: activeSelectedID == row.id,
+                                hasJumpToCode: onJumpToCode != nil,
+                                onToggleExpand: {
+                                    toggleExpand(row.id)
+                                },
+                                onSelect: {
+                                    manualSelectedID = row.id
+                                    if compact {
+                                        onSelectNode(row.node)
+                                    }
+                                },
+                                onCopyPath: {
+                                    onCopyText(row.id)
+                                },
+                                onCopyValue: {
+                                    onCopyText(rawJSONSlice(for: row.node))
+                                },
+                                onJumpToCode: {
+                                    manualSelectedID = row.id
+                                    onJumpToCode?(row.node)
+                                }
+                            )
+                            .equatable()
                         }
                     }
                     .padding(.vertical, 6)
                     .padding(.horizontal, 6)
                 }
             }
-        }
-    }
-
-    private func treeRow(_ row: FlatRow) -> some View {
-        let node = row.node
-        let isSelected = activeSelectedID == node.id
-        let isHovered = hoveredRowID == node.id
-        let hasChildren = !node.children.isEmpty
-
-        return HStack(spacing: 6) {
-            Color.clear
-                .frame(width: CGFloat(row.depth) * (compact ? 12 : 16), height: 1)
-
-            if hasChildren {
-                Button {
-                    toggleExpand(node.id)
-                } label: {
-                    Image(systemName: row.isExpanded ? "chevron.down" : "chevron.right")
-                        .font(.system(size: 10.5, weight: .bold))
-                        .foregroundStyle(hoveredChevronID == node.id ? ToolTheme.ink : ToolTheme.secondary)
-                        .frame(width: 22, height: 22)
-                        .background(
-                            hoveredChevronID == node.id ? ToolTheme.foldHoverFill : Color.clear,
-                            in: RoundedRectangle(cornerRadius: 5)
-                        )
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .onHover { hovering in
-                    hoveredChevronID = hovering ? node.id : (hoveredChevronID == node.id ? nil : hoveredChevronID)
-                }
-            } else {
-                Color.clear.frame(width: 22, height: 22)
-            }
-
-            typeBadge(for: node.kind)
-
-            Text(node.key)
-                .font(.system(size: compact ? 12 : 12.5, weight: hasChildren ? .semibold : .regular, design: .monospaced))
-                .foregroundStyle(hasChildren ? ToolTheme.ink : ToolTheme.syntaxKey)
-                .lineLimit(1)
-                .truncationMode(.tail)
-
-            if let countLabel = node.countLabel {
-                Text(countLabel)
-                    .font(.system(size: 10.5, weight: .medium))
-                    .foregroundStyle(isSelected ? ToolTheme.foldCollapsedText : ToolTheme.secondary)
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 1)
-                    .background(
-                        isSelected ? ToolTheme.foldCollapsedFill : Theme.controlFill,
-                        in: Capsule()
-                    )
-            } else {
-                Text(node.preview)
-                    .font(.system(size: compact ? 11.5 : 12, design: .monospaced))
-                    .foregroundStyle(previewColor(for: node.kind))
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-            }
-
-            Spacer(minLength: 4)
-
-            if isHovered && !compact {
-                HStack(spacing: 4) {
-                    Button {
-                        onCopyText(node.id)
-                    } label: {
-                        Image(systemName: "point.topleft.down.curvedto.point.bottomright.up")
-                            .font(.system(size: 10.5))
-                            .foregroundStyle(ToolTheme.secondary)
-                            .frame(width: 22, height: 22)
-                            .background(Theme.controlFill, in: RoundedRectangle(cornerRadius: 5))
-                    }
-                    .buttonStyle(.plain)
-                    .help("复制 JSONPath")
-
-                    Button {
-                        onCopyText(rawJSONSlice(for: node))
-                    } label: {
-                        Image(systemName: "doc.on.doc")
-                            .font(.system(size: 10.5))
-                            .foregroundStyle(ToolTheme.secondary)
-                            .frame(width: 22, height: 22)
-                            .background(Theme.controlFill, in: RoundedRectangle(cornerRadius: 5))
-                    }
-                    .buttonStyle(.plain)
-                    .help("复制此节点值")
-
-                    if let onJumpToCode {
-                        Button {
-                            onJumpToCode(node)
-                        } label: {
-                            Image(systemName: "chevron.left.forwardslash.chevron.right")
-                                .font(.system(size: 10.5))
-                                .foregroundStyle(ToolTheme.accent)
-                                .frame(width: 22, height: 22)
-                                .background(Theme.accentFill, in: RoundedRectangle(cornerRadius: 5))
-                        }
-                        .buttonStyle(.plain)
-                        .help("在代码中定位")
-                    }
-                }
-            } else if compact {
-                Text("L\(node.line)")
-                    .font(.system(size: 10, design: .monospaced))
-                    .foregroundStyle(Theme.tertiary)
-            }
-        }
-        .padding(.horizontal, 6)
-        .frame(height: compact ? 27 : 30)
-        .background(
-            isSelected
-                ? Theme.accentFill
-                : (isHovered ? Theme.rowHover : Color.clear),
-            in: RoundedRectangle(cornerRadius: 6)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 6)
-                .strokeBorder(isSelected ? Theme.accentBorder : Color.clear, lineWidth: 0.5)
-        )
-        .contentShape(Rectangle())
-        .onHover { hovering in
-            hoveredRowID = hovering ? node.id : (hoveredRowID == node.id ? nil : hoveredRowID)
-        }
-        .onTapGesture(count: 2) {
-            if hasChildren {
-                toggleExpand(node.id)
-            } else {
-                manualSelectedID = node.id
-                if let onJumpToCode {
-                    onJumpToCode(node)
-                } else {
-                    onSelectNode(node)
-                }
-            }
-        }
-        .onTapGesture {
-            manualSelectedID = node.id
-            onSelectNode(node)
-        }
-        .contextMenu {
-            Button("复制路径（\(node.id)）") {
-                onCopyText(node.id)
-            }
-            Button("复制值") {
-                onCopyText(rawJSONSlice(for: node))
-            }
-            if let onJumpToCode {
-                Button("在代码中定位") {
-                    onJumpToCode(node)
-                }
-            }
-            if hasChildren {
-                Divider()
-                Button(row.isExpanded ? "折叠此节点" : "展开此节点") {
-                    toggleExpand(node.id)
-                }
-            }
-        }
-    }
-
-    private func typeBadge(for kind: JSONOutlineNode.Kind) -> some View {
-        let color = badgeColor(for: kind)
-        return Text(kind.badgeText)
-            .font(.system(size: 9.5, weight: .bold, design: .monospaced))
-            .foregroundStyle(color)
-            .frame(width: 24, height: 17)
-            .background(color.opacity(0.14), in: RoundedRectangle(cornerRadius: 4))
-    }
-
-    private func badgeColor(for kind: JSONOutlineNode.Kind) -> Color {
-        switch kind {
-        case .object: ToolTheme.syntaxKey
-        case .array: ToolTheme.syntaxBoolean
-        case .string: ToolTheme.syntaxString
-        case .number: ToolTheme.syntaxNumber
-        case .boolean: ToolTheme.syntaxBoolean
-        case .null: ToolTheme.syntaxNull
-        }
-    }
-
-    private func previewColor(for kind: JSONOutlineNode.Kind) -> Color {
-        switch kind {
-        case .object, .array: ToolTheme.secondary
-        case .string: ToolTheme.syntaxString
-        case .number: ToolTheme.syntaxNumber
-        case .boolean: ToolTheme.syntaxBoolean
-        case .null: ToolTheme.syntaxNull
         }
     }
 
@@ -414,7 +235,7 @@ struct ToolJSONTreeView: View {
                 Spacer(minLength: 4)
                 Text(selectedNode.kind.displayName)
                     .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(badgeColor(for: selectedNode.kind))
+                    .foregroundStyle(Self.kindColor(for: selectedNode.kind))
                 Button {
                     onCopyText(selectedNode.id)
                 } label: {
@@ -436,12 +257,15 @@ struct ToolJSONTreeView: View {
         .background(ToolTheme.gutter)
     }
 
-    private func appendRows(from node: JSONOutlineNode, depth: Int, into rows: inout [FlatRow]) {
-        let isExpanded = isSearching ? true : expandedIDs.contains(node.id)
-        rows.append(FlatRow(id: node.id, node: node, depth: depth, isExpanded: isExpanded))
-        guard isExpanded else { return }
-        for child in node.children {
-            appendRows(from: child, depth: depth + 1, into: &rows)
+    private func rebuildIndex() {
+        nodeByID = analysis.nodeLookupDictionary()
+    }
+
+    private func rebuildVisibleRows() {
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            visibleRows = analysis.flattenedRows(matching: searchQuery, expandedIDs: expandedIDs)
         }
     }
 
@@ -451,6 +275,7 @@ struct ToolJSONTreeView: View {
         } else {
             expandedIDs.insert(id)
         }
+        rebuildVisibleRows()
     }
 
     private func expandAll() {
@@ -458,10 +283,12 @@ struct ToolJSONTreeView: View {
         var ids: Set<String> = []
         collectContainerIDs(root, maxDepth: nil, into: &ids)
         expandedIDs = ids
+        rebuildVisibleRows()
     }
 
     private func collapseAll() {
         expandedIDs.removeAll()
+        rebuildVisibleRows()
     }
 
     private func expandToDepth(_ maxDepth: Int) {
@@ -469,16 +296,19 @@ struct ToolJSONTreeView: View {
         var ids: Set<String> = []
         collectContainerIDs(root, maxDepth: maxDepth, into: &ids)
         expandedIDs = ids
+        rebuildVisibleRows()
     }
 
     private func resetDefaultExpansion() {
         guard let root = analysis.root else {
             expandedIDs = ["$"]
+            visibleRows = []
             return
         }
         var ids: Set<String> = []
         collectContainerIDs(root, maxDepth: 1, into: &ids)
         expandedIDs = ids
+        rebuildVisibleRows()
     }
 
     private func collectContainerIDs(_ node: JSONOutlineNode, maxDepth: Int?, into ids: inout Set<String>) {
@@ -492,32 +322,196 @@ struct ToolJSONTreeView: View {
         }
     }
 
-    private func findNode(withID id: String, in node: JSONOutlineNode) -> JSONOutlineNode? {
-        if node.id == id { return node }
-        for child in node.children {
-            if let match = findNode(withID: id, in: child) {
-                return match
-            }
-        }
-        return nil
-    }
-
-    private func ancestorPathIDs(to targetID: String, in node: JSONOutlineNode) -> [String] {
-        if node.id == targetID { return [node.id] }
-        for child in node.children {
-            let sub = ancestorPathIDs(to: targetID, in: child)
-            if !sub.isEmpty {
-                return [node.id] + sub
-            }
-        }
-        return []
-    }
-
     private func rawJSONSlice(for node: JSONOutlineNode) -> String {
         let source = sourceText as NSString
         guard node.range.location >= 0, NSMaxRange(node.range) <= source.length else {
             return node.preview
         }
         return source.substring(with: node.range)
+    }
+
+    static func kindColor(for kind: JSONOutlineNode.Kind) -> Color {
+        switch kind {
+        case .object: ToolTheme.syntaxKey
+        case .array: ToolTheme.syntaxBoolean
+        case .string: ToolTheme.syntaxString
+        case .number: ToolTheme.syntaxNumber
+        case .boolean: ToolTheme.syntaxBoolean
+        case .null: ToolTheme.syntaxNull
+        }
+    }
+}
+
+private struct JSONTreeRowView: View, @preconcurrency Equatable {
+    let row: JSONFlatOutlineRow
+    let compact: Bool
+    let isSelected: Bool
+    let hasJumpToCode: Bool
+    let onToggleExpand: () -> Void
+    let onSelect: () -> Void
+    let onCopyPath: () -> Void
+    let onCopyValue: () -> Void
+    let onJumpToCode: () -> Void
+
+    @State private var isHovered = false
+    @State private var isChevronHovered = false
+
+    static func == (lhs: JSONTreeRowView, rhs: JSONTreeRowView) -> Bool {
+        lhs.row == rhs.row
+            && lhs.compact == rhs.compact
+            && lhs.isSelected == rhs.isSelected
+            && lhs.hasJumpToCode == rhs.hasJumpToCode
+    }
+
+    var body: some View {
+        let node = row.node
+        let hasChildren = !node.children.isEmpty
+        let isCollapsedContainer = hasChildren && !row.isExpanded
+
+        HStack(spacing: 6) {
+            Color.clear
+                .frame(width: CGFloat(row.depth) * (compact ? 12 : 16), height: 1)
+
+            if hasChildren {
+                Button(action: onToggleExpand) {
+                    Image(systemName: row.isExpanded ? "chevron.down" : "chevron.right")
+                        .font(.system(size: 11.5, weight: .semibold))
+                        .foregroundStyle(
+                            isCollapsedContainer
+                                ? ToolTheme.foldCollapsedText
+                                : (isChevronHovered ? ToolTheme.ink : ToolTheme.secondary)
+                        )
+                        .frame(width: 26, height: 26)
+                        .background(
+                            isCollapsedContainer
+                                ? ToolTheme.foldCollapsedFill
+                                : (isChevronHovered ? ToolTheme.foldHoverFill : Theme.controlFill.opacity(0.55)),
+                            in: RoundedRectangle(cornerRadius: 6)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 6)
+                                .strokeBorder(isCollapsedContainer ? ToolTheme.foldCollapsedBorder : Color.clear, lineWidth: 0.5)
+                        )
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .onHover { isChevronHovered = $0 }
+                .accessibilityLabel(row.isExpanded ? "折叠 \(node.key)" : "展开 \(node.key)")
+            } else {
+                Color.clear.frame(width: 26, height: 26)
+            }
+
+            HStack(spacing: 6) {
+                typeBadge(for: node.kind)
+
+                Text(node.key)
+                    .font(.system(size: compact ? 12 : 12.5, weight: hasChildren ? .semibold : .regular, design: .monospaced))
+                    .foregroundStyle(hasChildren ? ToolTheme.ink : ToolTheme.syntaxKey)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+
+                if let countLabel = node.countLabel {
+                    Text(countLabel)
+                        .font(.system(size: 10.5, weight: .medium))
+                        .foregroundStyle(isSelected ? ToolTheme.foldCollapsedText : ToolTheme.secondary)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 1)
+                        .background(
+                            isSelected ? ToolTheme.foldCollapsedFill : Theme.controlFill,
+                            in: Capsule()
+                        )
+                } else {
+                    Text(node.preview)
+                        .font(.system(size: compact ? 11.5 : 12, design: .monospaced))
+                        .foregroundStyle(previewColor(for: node.kind))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
+
+                Spacer(minLength: 4)
+            }
+            .contentShape(Rectangle())
+            .onTapGesture(perform: onSelect)
+
+            if isHovered && !compact {
+                HStack(spacing: 4) {
+                    Button(action: onCopyPath) {
+                        Image(systemName: "point.topleft.down.curvedto.point.bottomright.up")
+                            .font(.system(size: 10.5))
+                            .foregroundStyle(ToolTheme.secondary)
+                            .frame(width: 22, height: 22)
+                            .background(Theme.controlFill, in: RoundedRectangle(cornerRadius: 5))
+                    }
+                    .buttonStyle(.plain)
+                    .help("复制 JSONPath")
+
+                    Button(action: onCopyValue) {
+                        Image(systemName: "doc.on.doc")
+                            .font(.system(size: 10.5))
+                            .foregroundStyle(ToolTheme.secondary)
+                            .frame(width: 22, height: 22)
+                            .background(Theme.controlFill, in: RoundedRectangle(cornerRadius: 5))
+                    }
+                    .buttonStyle(.plain)
+                    .help("复制此节点值")
+
+                    if hasJumpToCode {
+                        Button(action: onJumpToCode) {
+                            Image(systemName: "chevron.left.forwardslash.chevron.right")
+                                .font(.system(size: 10.5))
+                                .foregroundStyle(ToolTheme.accent)
+                                .frame(width: 22, height: 22)
+                                .background(Theme.accentFill, in: RoundedRectangle(cornerRadius: 5))
+                        }
+                        .buttonStyle(.plain)
+                        .help("在代码中定位")
+                    }
+                }
+            } else if compact {
+                Text("L\(node.line)")
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundStyle(Theme.tertiary)
+            }
+        }
+        .padding(.horizontal, 6)
+        .frame(height: compact ? 28 : 30)
+        .background(
+            isSelected
+                ? Theme.accentFill
+                : (isHovered ? Theme.rowHover : Color.clear),
+            in: RoundedRectangle(cornerRadius: 6)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .strokeBorder(isSelected ? Theme.accentBorder : Color.clear, lineWidth: 0.5)
+        )
+        .onHover { isHovered = $0 }
+        .contextMenu {
+            Button("复制路径（\(node.id)）", action: onCopyPath)
+            Button("复制值", action: onCopyValue)
+            if hasJumpToCode {
+                Button("在代码中定位", action: onJumpToCode)
+            }
+            if hasChildren {
+                Divider()
+                Button(row.isExpanded ? "折叠此节点" : "展开此节点", action: onToggleExpand)
+            }
+        }
+    }
+
+    private func typeBadge(for kind: JSONOutlineNode.Kind) -> some View {
+        let color = ToolJSONTreeView.kindColor(for: kind)
+        return Text(kind.badgeText)
+            .font(.system(size: 9.5, weight: .bold, design: .monospaced))
+            .foregroundStyle(color)
+            .frame(width: 24, height: 17)
+            .background(color.opacity(0.14), in: RoundedRectangle(cornerRadius: 4))
+    }
+
+    private func previewColor(for kind: JSONOutlineNode.Kind) -> Color {
+        switch kind {
+        case .object, .array: ToolTheme.secondary
+        default: ToolJSONTreeView.kindColor(for: kind)
+        }
     }
 }

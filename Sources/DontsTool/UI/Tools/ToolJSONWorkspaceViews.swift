@@ -26,7 +26,7 @@ extension ToolWorkspaceView {
             jsonCodeEditorWell
                 .frame(minWidth: 380, maxWidth: .infinity, maxHeight: .infinity)
 
-            if showJSONOutline {
+            if showJSONOutline && jsonViewMode == .code {
                 ToolJSONTreeView(
                     analysis: jsonAnalysis,
                     sourceText: session.input,
@@ -70,6 +70,7 @@ extension ToolWorkspaceView {
                 editRevision: draftEditor.revision,
                 sharedUndoManager: draftEditor.undoManager,
                 label: "JSON",
+                onFocusChange: { codeEditorFocused = $0 },
                 onCursorChange: { position in
                     cursorPosition = position
                 }
@@ -80,7 +81,7 @@ extension ToolWorkspaceView {
         .clipShape(RoundedRectangle(cornerRadius: 10))
         .overlay(
             RoundedRectangle(cornerRadius: 10)
-                .strokeBorder(ToolTheme.border, lineWidth: 0.5)
+                .strokeBorder(codeEditorFocused ? ToolTheme.accent.opacity(0.65) : ToolTheme.border, lineWidth: codeEditorFocused ? 1 : 0.5)
         )
         .padding(4)
     }
@@ -91,7 +92,7 @@ extension ToolWorkspaceView {
             sourceText: session.input,
             compact: false,
             selectedPath: jsonAnalysis.node(atUTF16Offset: cursorPosition.utf16Offset)?.id,
-            onSelectNode: { jumpToCodeNode($0, switchToCode: false) },
+            onSelectNode: { _ in },
             onJumpToCode: { jumpToCodeNode($0, switchToCode: true) },
             onCopyText: copy,
             onPasteJSON: pasteFormattedJSON
@@ -121,7 +122,9 @@ extension ToolWorkspaceView {
                     undoManager: draftEditor.undoManager
                 ) {
                     ToolQuietButton(title: "粘贴", systemImage: "doc.on.clipboard") {
-                        paste(into: &session.compareLeft)
+                        if let value = NSPasteboard.general.string(forType: .string) {
+                            session.compareLeft = JSONPaste.formatted(value) ?? value
+                        }
                     }
                     ToolQuietButton(title: "清空", systemImage: "trash", disabled: session.compareLeft.isEmpty) {
                         session.compareLeft = ""
@@ -144,7 +147,9 @@ extension ToolWorkspaceView {
                     undoManager: draftEditor.undoManager
                 ) {
                     ToolQuietButton(title: "粘贴", systemImage: "doc.on.clipboard") {
-                        paste(into: &session.compareRight)
+                        if let value = NSPasteboard.general.string(forType: .string) {
+                            session.compareRight = JSONPaste.formatted(value) ?? value
+                        }
                     }
                     ToolQuietButton(title: "清空", systemImage: "trash", disabled: session.compareRight.isEmpty) {
                         session.compareRight = ""
@@ -341,7 +346,7 @@ extension ToolWorkspaceView {
     }
 
     private func comparisonLineKinds() -> (left: [Int: JSONDifference.Kind], right: [Int: JSONDifference.Kind]) {
-        guard let comparison = session.comparison, session.isFresh else {
+        guard jsonViewMode == .compare, let comparison = session.comparison, session.isFresh else {
             return ([:], [:])
         }
         let leftIndex = TextLineIndex(session.compareLeft)

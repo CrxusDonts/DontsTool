@@ -181,7 +181,9 @@ struct ToolTextEditor: NSViewRepresentable {
             view.setSelectedRange(range)
             view.scrollRangeToVisible(range)
             // Selecting a diff must not steal keyboard focus from the difference list.
-            view.showFindIndicator(for: range)
+            if active {
+                view.showFindIndicator(for: range)
+            }
         }
 
         view.layoutManager?.delegate = folding ? coordinator : nil
@@ -516,6 +518,7 @@ final class WorkspaceTextView: NSTextView {
 
     private var collapsedPillHits: [(index: Int, rect: NSRect)] = []
     private var hoveredPillIndex: Int?
+    var pasteboardForPaste: () -> NSPasteboard = { .general }
 
     func pasteWholeJSONIfNeeded(from pasteboard: NSPasteboard) -> Bool {
         guard formatsWholeJSONPaste, isEditable, !hasMarkedText() else { return false }
@@ -528,12 +531,12 @@ final class WorkspaceTextView: NSTextView {
     }
 
     override func paste(_ sender: Any?) {
-        if pasteWholeJSONIfNeeded(from: .general) { return }
+        if pasteWholeJSONIfNeeded(from: pasteboardForPaste()) { return }
         super.paste(sender)
     }
 
     override func pasteAsPlainText(_ sender: Any?) {
-        if pasteWholeJSONIfNeeded(from: .general) { return }
+        if pasteWholeJSONIfNeeded(from: pasteboardForPaste()) { return }
         super.pasteAsPlainText(sender)
     }
 
@@ -724,21 +727,37 @@ final class WorkspaceTextView: NSTextView {
     }
 
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        if event.modifierFlags.intersection(.deviceIndependentFlagsMask).contains(.command) {
-            switch event.charactersIgnoringModifiers?.lowercased() {
-            case "c": copy(nil); return true
-            case "v" where isEditable: pasteAsPlainText(nil); return true
-            case "x" where isEditable: cut(nil); return true
-            case "a": selectAll(nil); return true
-            case "z" where isEditable:
-                if event.modifierFlags.contains(.shift) { undoManager?.redo() } else { undoManager?.undo() }; return true
-            case "f":
-                let item = NSMenuItem(); item.tag = NSTextFinder.Action.showFindInterface.rawValue
-                performTextFinderAction(item); return true
-            default: break
-            }
+        guard let window, window.firstResponder === self, !hasMarkedText() else {
+            return super.performKeyEquivalent(with: event)
         }
-        return super.performKeyEquivalent(with: event)
+        let modifiers = event.modifierFlags.intersection([.command, .shift, .option, .control])
+        switch event.charactersIgnoringModifiers?.lowercased() {
+        case "c" where modifiers == [.command]:
+            copy(nil)
+            return true
+        case "v" where isEditable && modifiers == [.command]:
+            pasteAsPlainText(nil)
+            return true
+        case "x" where isEditable && modifiers == [.command]:
+            cut(nil)
+            return true
+        case "a" where modifiers == [.command]:
+            selectAll(nil)
+            return true
+        case "z" where isEditable && modifiers == [.command]:
+            undoManager?.undo()
+            return true
+        case "z" where isEditable && modifiers == [.command, .shift]:
+            undoManager?.redo()
+            return true
+        case "f" where modifiers == [.command]:
+            let item = NSMenuItem()
+            item.tag = NSTextFinder.Action.showFindInterface.rawValue
+            performTextFinderAction(item)
+            return true
+        default:
+            return super.performKeyEquivalent(with: event)
+        }
     }
 }
 
@@ -964,6 +983,16 @@ private final class LineNumberRuler: NSRulerView {
                     chevron.stroke()
                 }
             }
+        }
+
+        if previousLine == -1 {
+            let rowY = text.textContainerInset.height - text.visibleRect.minY
+            let label = "1" as NSString
+            let labelFont = NSFont.monospacedDigitSystemFont(ofSize: 11.5, weight: .regular)
+            let attributes: [NSAttributedString.Key: Any] = [.font: labelFont, .foregroundColor: ToolTheme.secondaryNS]
+            let inset: CGFloat = isFolding ? 8 : 10
+            let labelWidth = label.size(withAttributes: attributes).width
+            label.draw(at: NSPoint(x: ruleThickness - labelWidth - inset, y: rowY), withAttributes: attributes)
         }
 
         drawRightBorder()

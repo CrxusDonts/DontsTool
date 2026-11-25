@@ -89,6 +89,19 @@ public struct JSONBreadcrumbSegment: Identifiable, Sendable, Equatable {
     }
 }
 
+public struct JSONFlatOutlineRow: Identifiable, Sendable, Equatable {
+    public var id: String { node.id }
+    public let node: JSONOutlineNode
+    public let depth: Int
+    public let isExpanded: Bool
+
+    public init(node: JSONOutlineNode, depth: Int, isExpanded: Bool) {
+        self.node = node
+        self.depth = depth
+        self.isExpanded = isExpanded
+    }
+}
+
 public enum JSONValidationSummary: Sendable, Equatable {
     case empty
     case valid(rootKind: JSONOutlineNode.Kind, rootCount: Int, nodeCount: Int, lineCount: Int)
@@ -169,6 +182,59 @@ public struct JSONAnalysis: Sendable, Equatable {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return root }
         return filterNode(root, query: trimmed)
+    }
+
+    public func flattenedRows(matching query: String, expandedIDs: Set<String>) -> [JSONFlatOutlineRow] {
+        guard let filtered = filteredRoot(matching: query) else { return [] }
+        let expandAllMatches = !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        var rows: [JSONFlatOutlineRow] = []
+        var stack: [(node: JSONOutlineNode, depth: Int)] = [(filtered, 0)]
+        while let current = stack.popLast() {
+            let hasChildren = !current.node.children.isEmpty
+            let isExpanded = hasChildren && (expandAllMatches || expandedIDs.contains(current.node.id))
+            rows.append(JSONFlatOutlineRow(node: current.node, depth: current.depth, isExpanded: isExpanded))
+            if isExpanded {
+                for child in current.node.children.reversed() {
+                    stack.append((child, current.depth + 1))
+                }
+            }
+        }
+        return rows
+    }
+
+    public func strictAncestorIDs(of targetID: String) -> [String] {
+        guard let root, root.id != targetID else { return [] }
+        var ancestors: [String] = []
+        _ = collectStrictAncestors(from: root, targetID: targetID, ancestors: &ancestors)
+        return ancestors.reversed()
+    }
+
+    public func nodeLookupDictionary() -> [String: JSONOutlineNode] {
+        guard let root else { return [:] }
+        var map: [String: JSONOutlineNode] = [:]
+        map.reserveCapacity(totalNodes)
+        var stack: [JSONOutlineNode] = [root]
+        while let current = stack.popLast() {
+            map[current.id] = current
+            for child in current.children {
+                stack.append(child)
+            }
+        }
+        return map
+    }
+
+    private func collectStrictAncestors(
+        from node: JSONOutlineNode,
+        targetID: String,
+        ancestors: inout [String]
+    ) -> Bool {
+        for child in node.children {
+            if child.id == targetID || collectStrictAncestors(from: child, targetID: targetID, ancestors: &ancestors) {
+                ancestors.append(node.id)
+                return true
+            }
+        }
+        return false
     }
 
     private func matchingChild(in children: [JSONOutlineNode], atUTF16Offset offset: Int) -> JSONOutlineNode? {

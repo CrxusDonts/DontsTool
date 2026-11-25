@@ -135,4 +135,75 @@ import Testing
         }
         #expect(findScrollView(in: host)?.verticalRulerView?.ruleThickness == 70)
     }
+
+    @Test func keyEquivalentsOnlyTargetFocusedWorkspaceTextView() throws {
+        _ = NSApplication.shared
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 600, height: 300),
+            styleMask: [.titled, .closable],
+            backing: .buffered,
+            defer: false
+        )
+        window.isReleasedWhenClosed = false
+        defer { window.close() }
+
+        let content = NSView(frame: NSRect(x: 0, y: 0, width: 600, height: 300))
+        window.contentView = content
+
+        let pasteboard = NSPasteboard.withUniqueName()
+        defer { pasteboard.releaseGlobally() }
+
+        let left = WorkspaceTextView(frame: NSRect(x: 0, y: 0, width: 200, height: 200))
+        left.isEditable = true
+        left.formatsWholeJSONPaste = true
+        left.pasteboardForPaste = { pasteboard }
+
+        let right = WorkspaceTextView(frame: NSRect(x: 210, y: 0, width: 200, height: 200))
+        right.isEditable = true
+        right.formatsWholeJSONPaste = true
+        right.pasteboardForPaste = { pasteboard }
+
+        let field = NSTextField(frame: NSRect(x: 420, y: 0, width: 160, height: 24))
+
+        content.addSubview(left)
+        content.addSubview(right)
+        content.addSubview(field)
+
+        let cmdV = try #require(
+            NSEvent.keyEvent(
+                with: .keyDown,
+                location: .zero,
+                modifierFlags: .command,
+                timestamp: 0,
+                windowNumber: window.windowNumber,
+                context: nil,
+                characters: "v",
+                charactersIgnoringModifiers: "v",
+                isARepeat: false,
+                keyCode: 9
+            )
+        )
+
+        pasteboard.clearContents()
+        pasteboard.setString(#"{"side":"right"}"#, forType: .string)
+        #expect(window.makeFirstResponder(right))
+        #expect(window.performKeyEquivalent(with: cmdV))
+        #expect(left.string.isEmpty)
+        #expect(right.string == "{\n  \"side\": \"right\"\n}")
+
+        pasteboard.clearContents()
+        pasteboard.setString(#"{"side":"left"}"#, forType: .string)
+        #expect(window.makeFirstResponder(left))
+        #expect(window.performKeyEquivalent(with: cmdV))
+        #expect(left.string == "{\n  \"side\": \"left\"\n}")
+        #expect(right.string == "{\n  \"side\": \"right\"\n}")
+
+        pasteboard.clearContents()
+        pasteboard.setString(#"{"side":"field"}"#, forType: .string)
+        #expect(window.makeFirstResponder(field))
+        #expect(!left.performKeyEquivalent(with: cmdV))
+        #expect(!right.performKeyEquivalent(with: cmdV))
+        #expect(left.string == "{\n  \"side\": \"left\"\n}")
+        #expect(right.string == "{\n  \"side\": \"right\"\n}")
+    }
 }
