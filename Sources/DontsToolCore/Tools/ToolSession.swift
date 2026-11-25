@@ -156,11 +156,22 @@ public final class ToolSession: ObservableObject {
         } catch {
             guard revision == version, !Task.isCancelled else { return }
             if error is CancellationError { status = "已取消"; return }
-            errorMessage = error.localizedDescription; status = "处理失败"
-            if let issue = error as? JSONIssue { errorRange = issue.range }
-            if let issue = error as? JSONSideIssue {
-                errorSide = issue.side; errorRange = (issue.underlying as? JSONIssue)?.range
-            }
+            presentError(error)
+        }
+    }
+
+    public func presentError(_ error: Error) {
+        errorMessage = error.localizedDescription
+        status = "处理失败"
+        if let issue = error as? JSONIssue {
+            errorRange = issue.range
+            errorSide = nil
+        } else if let issue = error as? JSONSideIssue {
+            errorSide = issue.side
+            errorRange = (issue.underlying as? JSONIssue)?.range
+        } else {
+            errorRange = nil
+            errorSide = nil
         }
     }
 }

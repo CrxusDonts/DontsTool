@@ -1,4 +1,5 @@
 import AppKit
+import DontsToolCore
 import SwiftUI
 
 struct ToolEditorPane<Actions: View>: View {
@@ -9,11 +10,16 @@ struct ToolEditorPane<Actions: View>: View {
     var wrap = true
     var folding = false
     var selection: EditorSelection?
+    var foldCommand: EditorFoldCommand? = nil
+    var diffLineKinds: [Int: JSONDifference.Kind] = [:]
+    var statusDotColor: Color? = nil
+    var subtitle: String? = nil
     var name: Binding<String>?
     var active = true
     var stale = false
     var editRevision = 0
     var undoManager: UndoManager?
+    var onCursorChange: ((EditorCursorPosition) -> Void)? = nil
     @ViewBuilder var actions: () -> Actions
     @State private var focused = false
     @State private var renaming = false
@@ -21,6 +27,11 @@ struct ToolEditorPane<Actions: View>: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
+                if let statusDotColor {
+                    Circle()
+                        .fill(statusDotColor)
+                        .frame(width: 6, height: 6)
+                }
                 Text(title)
                     .font(.system(size: 11.5, weight: .semibold))
                     .foregroundStyle(ToolTheme.ink)
@@ -39,6 +50,11 @@ struct ToolEditorPane<Actions: View>: View {
                         }
                     }
                 }
+                if let subtitle, !subtitle.isEmpty {
+                    Text(subtitle)
+                        .font(.system(size: 10.5, design: .monospaced))
+                        .foregroundStyle(Theme.tertiary)
+                }
                 Spacer(minLength: 0)
                 actions().controlSize(.small)
             }
@@ -55,11 +71,14 @@ struct ToolEditorPane<Actions: View>: View {
                 wrap: wrap,
                 folding: folding,
                 selection: selection,
+                foldCommand: foldCommand,
+                diffLineKinds: diffLineKinds,
                 active: active,
                 editRevision: editRevision,
                 sharedUndoManager: undoManager,
                 label: title,
-                onFocusChange: { focused = $0 }
+                onFocusChange: { focused = $0 },
+                onCursorChange: onCursorChange
             )
 
             if stale {

@@ -89,4 +89,50 @@ import Testing
         view.setSelectedRange(NSRange(location: 1, length: 0))
         #expect(!view.pasteWholeJSONIfNeeded(from: pasteboard))
     }
+
+    @Test func foldModelMetadataAndDepthCommandsWorkCleanly() {
+        let source = """
+        {
+          "app": "DontsTool",
+          "settings": {
+            "editor": {
+              "tabSize": 2
+            }
+          }
+        }
+        """
+        let model = JSONFoldModel(source)
+        #expect(model.depths == [0, 1, 2])
+        #expect(model.lineSpans == [8, 5, 3])
+        #expect(model.summaries == ["2 键 · 8 行", "1 键 · 5 行", "1 键 · 3 行"])
+
+        let storage = NSTextStorage(string: source, attributes: [.font: NSFont.monospacedSystemFont(ofSize: 13, weight: .regular)])
+        let layout = NSLayoutManager()
+        let container = NSTextContainer(size: NSSize(width: 500, height: 10000))
+        storage.addLayoutManager(layout)
+        layout.addTextContainer(container)
+        let view = WorkspaceTextView(frame: NSRect(x: 0, y: 0, width: 500, height: 10000), textContainer: container)
+        let coordinator = ToolTextEditor.Coordinator(ToolTextEditor(text: .constant(source), json: true, folding: true))
+        coordinator.textView = view
+        layout.delegate = coordinator
+        coordinator.foldModel = model
+
+        coordinator.applyFoldCommand(.collapseToDepth(1))
+        #expect(coordinator.collapsed == Set([1, 2]))
+
+        coordinator.applyFoldCommand(.collapseToDepth(2))
+        #expect(coordinator.collapsed == Set([2]))
+
+        coordinator.applyFoldCommand(.expandAll)
+        #expect(coordinator.collapsed.isEmpty)
+
+        let host = NSHostingView(rootView: ToolTextEditor(text: .constant(source), json: true, folding: true))
+        host.frame = NSRect(x: 0, y: 0, width: 500, height: 300)
+        host.layoutSubtreeIfNeeded()
+        func findScrollView(in view: NSView) -> NSScrollView? {
+            if let scroll = view as? NSScrollView { return scroll }
+            return view.subviews.lazy.compactMap(findScrollView).first
+        }
+        #expect(findScrollView(in: host)?.verticalRulerView?.ruleThickness == 70)
+    }
 }

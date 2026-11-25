@@ -58,11 +58,55 @@ public final class ToolDraftEditor: ObservableObject {
         ))
     }
 
+    @discardableResult
+    public func formatComparisonBoth() throws -> Bool {
+        let left = document.session.compareLeft
+        let right = document.session.compareRight
+
+        let formattedLeft: String
+        if left.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            formattedLeft = left
+        } else {
+            do {
+                formattedLeft = try JSONDocument.parse(left).formatted(pretty: true)
+            } catch {
+                let sideError = JSONSideIssue(side: "左侧", underlying: error)
+                document.session.presentError(sideError)
+                throw sideError
+            }
+        }
+
+        let formattedRight: String
+        if right.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            formattedRight = right
+        } else {
+            do {
+                formattedRight = try JSONDocument.parse(right).formatted(pretty: true)
+            } catch {
+                let sideError = JSONSideIssue(side: "右侧", underlying: error)
+                document.session.presentError(sideError)
+                throw sideError
+            }
+        }
+
+        let changed = !sameBytes(formattedLeft, left) || !sameBytes(formattedRight, right)
+        applyComparison(
+            ComparisonDraft(
+                left: formattedLeft,
+                right: formattedRight,
+                leftTitle: document.leftTitle,
+                rightTitle: document.rightTitle
+            ),
+            actionName: "格式化两侧"
+        )
+        return changed
+    }
+
     private struct ComparisonDraft: Sendable {
         let left, right, leftTitle, rightTitle: String
     }
 
-    private func applyComparison(_ next: ComparisonDraft) {
+    private func applyComparison(_ next: ComparisonDraft, actionName: String = "交换对比两侧") {
         let previous = ComparisonDraft(
             left: document.session.compareLeft, right: document.session.compareRight,
             leftTitle: document.leftTitle, rightTitle: document.rightTitle
@@ -70,7 +114,7 @@ public final class ToolDraftEditor: ObservableObject {
         guard !sameBytes(next.left, previous.left) || !sameBytes(next.right, previous.right)
             || !sameBytes(next.leftTitle, previous.leftTitle) || !sameBytes(next.rightTitle, previous.rightTitle)
         else { return }
-        registerUndo(named: "交换对比两侧") { editor in editor.applyComparison(previous) }
+        registerUndo(named: actionName) { editor in editor.applyComparison(previous, actionName: actionName) }
         document.session.compareLeft = next.left
         document.session.compareRight = next.right
         document.leftTitle = next.leftTitle

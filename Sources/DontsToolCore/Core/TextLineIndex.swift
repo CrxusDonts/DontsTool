@@ -16,6 +16,8 @@ public struct TextLineIndex {
         }
     }
 
+    public var lineCount: Int { lineStarts.count }
+
     public func lineNumber(atUTF16Offset offset: Int) -> Int {
         var low = 0, high = lineStarts.count
         while low < high {
@@ -24,5 +26,10 @@ public struct TextLineIndex {
             else { high = middle }
         }
         return max(1, low)
+    }
+
+    public func column(atUTF16Offset offset: Int) -> Int {
+        let line = lineNumber(atUTF16Offset: offset)
+        return max(1, offset - lineStarts[line - 1] + 1)
     }
 }
